@@ -1,0 +1,2553 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Vintage Fork customer dashboard standalone prototype">
+  <meta name="theme-color" content="#4B1638">
+  <title>Vintage Fork — Customer Dashboard</title>
+  <style>
+    :root {
+      --plum: #4B1638;
+      --plum-aged: #33102A;
+      --gold: #C9A227;
+      --gold-light: #E0BE6B;
+      --cream: #F7F1E4;
+      --ivory: #FBF7EC;
+      --sage: #7C8B5E;
+      --forest: #3F4E36;
+      --walnut: #4A3524;
+      --ink: #2B2420;
+      --fog: #8C8578;
+      --danger: #8B2F3C;
+      --danger-dark: #68212C;
+      --info: #315A66;
+      --white: #FFFFFF;
+      --line: rgba(74, 53, 36, .20);
+      --line-strong: rgba(74, 53, 36, .36);
+      --shadow-1: 0 7px 20px rgba(51, 16, 42, .08);
+      --shadow-2: 0 18px 48px rgba(51, 16, 42, .16);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --header-h: 72px;
+      --sidebar-w: 240px;
+      --content-max: 1120px;
+      --ease-steeping: cubic-bezier(.2,.7,.25,1);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 14% 0%, rgba(201,162,39,.08), transparent 24rem),
+        linear-gradient(180deg, var(--cream), #F3EBD9);
+      color: var(--ink);
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+    button, input, select, textarea { font: inherit; }
+    button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+    a { color: inherit; }
+    img { max-width: 100%; }
+    [hidden] { display: none !important; }
+    .sr-only { position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important; }
+
+    .skip-link {
+      position: fixed;
+      z-index: 1000;
+      left: 1rem;
+      top: -5rem;
+      background: var(--gold);
+      color: var(--plum-aged);
+      padding: .75rem 1rem;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+    }
+    .skip-link:focus { top: 1rem; }
+
+    :focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 3px;
+    }
+
+    .app-header {
+      position: fixed;
+      z-index: 50;
+      inset: 0 0 auto;
+      height: var(--header-h);
+      background: linear-gradient(105deg, var(--plum-aged), var(--plum));
+      color: var(--ivory);
+      border-bottom: 1px solid rgba(224,190,107,.26);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      box-shadow: 0 8px 24px rgba(51,16,42,.16);
+    }
+    .brand {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      gap: .75rem;
+      color: var(--ivory);
+      text-decoration: none;
+    }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(224,190,107,.72);
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--gold-light);
+      font-size: 1.15rem;
+      letter-spacing: -.06em;
+      font-weight: 700;
+    }
+    .brand-copy { display: grid; line-height: 1.02; }
+    .brand-name {
+      font-size: 1.18rem;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .brand-sub {
+      color: var(--gold-light);
+      font: 600 .67rem/1.2 Arial, sans-serif;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      margin-top: .28rem;
+    }
+    /* Production: replace .brand-mark/.brand-copy with the approved shared logo asset,
+       unmodified, using the dimensions and clear-space rules from the specification. */
+
+    .header-actions { display: flex; align-items: center; gap: .65rem; }
+    .header-user {
+      background: transparent;
+      color: var(--ivory);
+      border: 0;
+      min-height: 44px;
+      padding: .25rem .35rem .25rem .6rem;
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      cursor: pointer;
+      border-radius: var(--radius-md);
+    }
+    .header-user:hover { background: rgba(255,255,255,.07); }
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--plum-aged);
+      border: 1px solid rgba(224,190,107,.55);
+      color: var(--gold-light);
+      display: grid;
+      place-items: center;
+      font: 700 .86rem/1 Arial, sans-serif;
+      letter-spacing: .06em;
+      flex: none;
+    }
+    .user-name { font-family: Arial, sans-serif; font-size: .9rem; }
+    .caret { color: var(--gold-light); font-size: .78rem; }
+
+    .account-menu {
+      position: fixed;
+      z-index: 100;
+      right: 1.25rem;
+      top: calc(var(--header-h) - .25rem);
+      width: min(280px, calc(100vw - 2rem));
+      background: var(--ivory);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-2);
+      padding: .55rem;
+      animation: trayIn 220ms var(--ease-steeping);
+    }
+    .account-menu-meta {
+      padding: .7rem .75rem .8rem;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: .35rem;
+    }
+    .account-menu-meta small {
+      display: block;
+      color: var(--fog);
+      font-family: Arial, sans-serif;
+    }
+    .account-menu-meta strong {
+      font-family: Arial, sans-serif;
+      font-size: .9rem;
+      overflow-wrap: anywhere;
+    }
+    .account-menu a, .account-menu button {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      text-decoration: none;
+      padding: .7rem .75rem;
+      border-radius: var(--radius-sm);
+      display: block;
+      text-align: left;
+      cursor: pointer;
+      font-family: Arial, sans-serif;
+      font-size: .9rem;
+    }
+    .account-menu a:hover, .account-menu button:hover { background: rgba(75,22,56,.07); }
+    .menu-divider { border-top: 1px solid var(--line); margin: .35rem 0; }
+
+    .sidebar {
+      position: fixed;
+      z-index: 40;
+      top: var(--header-h);
+      bottom: 0;
+      left: 0;
+      width: var(--sidebar-w);
+      background: linear-gradient(180deg, var(--plum), var(--plum-aged));
+      color: var(--ivory);
+      padding: 1.1rem .8rem 2rem;
+      overflow-y: auto;
+    }
+    .primary-nav { display: grid; gap: .32rem; }
+    .nav-link {
+      position: relative;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      gap: .9rem;
+      padding: .65rem .9rem;
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      color: rgba(251,247,236,.8);
+      font-family: Arial, sans-serif;
+      font-weight: 700;
+      font-size: .9rem;
+      transition: background 220ms var(--ease-steeping), color 220ms var(--ease-steeping), transform 220ms var(--ease-steeping);
+    }
+    .nav-link:hover { background: rgba(255,255,255,.07); color: var(--white); transform: translateX(2px); }
+    .nav-link.active {
+      color: var(--white);
+      background: rgba(255,255,255,.1);
+    }
+    .nav-link.active::before {
+      content: "";
+      position: absolute;
+      left: -.8rem;
+      top: .52rem;
+      bottom: .52rem;
+      width: 4px;
+      border-radius: 0 4px 4px 0;
+      background: var(--gold);
+      box-shadow: 0 0 14px rgba(201,162,39,.42);
+    }
+    .nav-icon {
+      width: 24px;
+      text-align: center;
+      color: var(--gold-light);
+      font-size: 1.1rem;
+      flex: none;
+    }
+    .sidebar-note {
+      margin: 2rem .9rem 0;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(224,190,107,.22);
+      color: rgba(251,247,236,.68);
+      font: .78rem/1.5 Arial, sans-serif;
+    }
+
+    .mobile-nav { display: none; }
+
+    .main-shell {
+      min-height: 100vh;
+      padding: calc(var(--header-h) + 2rem) 1.5rem 3rem calc(var(--sidebar-w) + 1.5rem);
+    }
+    .page {
+      width: min(100%, var(--content-max));
+      margin: 0 auto;
+      animation: trayIn 260ms var(--ease-steeping);
+    }
+    @keyframes trayIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .page-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .page-title {
+      margin: 0;
+      color: var(--plum);
+      font-size: clamp(2rem, 3vw, 3.25rem);
+      line-height: 1.05;
+      letter-spacing: -.035em;
+      text-wrap: balance;
+    }
+    .page-lede {
+      margin: .55rem 0 0;
+      color: var(--walnut);
+      max-width: 68ch;
+      font-size: 1.04rem;
+    }
+    .eyebrow, .section-label {
+      color: var(--plum);
+      font: 800 .73rem/1.2 Arial, sans-serif;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: .8rem;
+      margin: 2rem 0 .85rem;
+    }
+    .section-label::after {
+      content: "";
+      height: 1px;
+      flex: 1;
+      background: linear-gradient(90deg, var(--line-strong), transparent);
+    }
+
+    .card {
+      background: rgba(251,247,236,.92);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-1);
+      padding: 1.25rem;
+    }
+    .card + .card { margin-top: 1rem; }
+    .card-title { margin: 0; color: var(--plum); font-size: 1.35rem; line-height: 1.2; }
+    .card-meta {
+      margin: .4rem 0 0;
+      color: var(--fog);
+      font-family: Arial, sans-serif;
+      font-size: .88rem;
+    }
+    .card-footer {
+      margin-top: 1.15rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
+
+    .hero-welcome {
+      border-left: 5px solid var(--gold);
+      background:
+        linear-gradient(125deg, rgba(255,255,255,.48), rgba(255,255,255,.12)),
+        var(--ivory);
+      padding: 1.55rem 1.65rem;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-1);
+      border-top: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .hero-welcome h1 {
+      margin: 0;
+      color: var(--plum);
+      font-size: clamp(2.1rem, 4vw, 3.8rem);
+      line-height: 1;
+      letter-spacing: -.045em;
+    }
+    .hero-welcome p {
+      margin: .7rem 0 0;
+      color: var(--walnut);
+      font-size: clamp(1rem, 1.7vw, 1.25rem);
+      max-width: 760px;
+    }
+
+    .btn {
+      min-height: 44px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      padding: .68rem 1rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .45rem;
+      text-decoration: none;
+      cursor: pointer;
+      font: 800 .86rem/1.15 Arial, sans-serif;
+      letter-spacing: .01em;
+      transition: transform 180ms var(--ease-steeping), background 180ms var(--ease-steeping), border-color 180ms var(--ease-steeping), box-shadow 180ms var(--ease-steeping);
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn-primary { background: var(--sage); color: var(--white); border-color: var(--sage); }
+    .btn-primary:hover { background: var(--forest); border-color: var(--forest); box-shadow: 0 6px 16px rgba(63,78,54,.18); }
+    .btn-secondary { background: transparent; color: var(--plum); border-color: rgba(75,22,56,.35); }
+    .btn-secondary:hover { background: rgba(75,22,56,.06); border-color: var(--plum); }
+    .btn-gold { background: var(--gold); color: var(--plum-aged); border-color: var(--gold); }
+    .btn-gold:hover { background: var(--gold-light); }
+    .btn-danger { background: var(--danger); color: var(--white); border-color: var(--danger); }
+    .btn-danger:hover { background: var(--danger-dark); border-color: var(--danger-dark); }
+    .btn-quiet { border-color: transparent; background: transparent; color: var(--plum); padding-inline: .35rem; }
+    .btn-quiet:hover { background: rgba(75,22,56,.06); }
+    .btn[disabled], .btn[aria-disabled="true"] {
+      cursor: not-allowed;
+      opacity: .55;
+      transform: none;
+      box-shadow: none;
+    }
+    .button-row { display: flex; gap: .65rem; flex-wrap: wrap; align-items: center; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 27px;
+      padding: .27rem .65rem;
+      border-radius: 999px;
+      font: 700 .72rem/1 Arial, sans-serif;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.5);
+      color: var(--walnut);
+      white-space: nowrap;
+    }
+    .chip.success { color: var(--forest); background: rgba(124,139,94,.13); border-color: rgba(63,78,54,.25); }
+    .chip.gold { color: var(--plum-aged); background: rgba(201,162,39,.15); border-color: rgba(201,162,39,.5); }
+    .chip.warning { color: #6B4A00; background: rgba(224,190,107,.18); border-color: rgba(201,162,39,.42); }
+    .chip.neutral { color: var(--fog); }
+    .chip.danger { color: var(--danger-dark); background: rgba(139,47,60,.08); border-color: rgba(139,47,60,.26); }
+
+    .muted { color: var(--fog); }
+    .privacy-line {
+      color: var(--fog);
+      font-family: Arial, sans-serif;
+      font-size: .84rem;
+      margin: 1.45rem 0 0;
+    }
+    .privacy-line::before { content: "◌"; color: var(--gold); margin-right: .4rem; }
+
+    .next-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      align-items: start;
+    }
+    .next-card .instructions {
+      margin: 1rem 0 0;
+      padding: .85rem 1rem;
+      border-left: 3px solid var(--sage);
+      background: rgba(124,139,94,.08);
+      color: var(--forest);
+    }
+    .event-facts { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; }
+    .mini-teas {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(90px, 1fr));
+      gap: .65rem;
+      margin-top: 1rem;
+    }
+    .mini-tea {
+      min-height: 88px;
+      background: linear-gradient(145deg, var(--cream), var(--ivory));
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: .7rem;
+      display: grid;
+      align-content: space-between;
+    }
+    .mini-tea strong { color: var(--plum); font-size: .94rem; }
+    .stars { color: #9B7610; letter-spacing: .04em; white-space: nowrap; }
+    .stats-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem 1.25rem;
+      margin-top: .95rem;
+      color: var(--walnut);
+      font-family: Arial, sans-serif;
+      font-size: .88rem;
+    }
+    .stat strong { color: var(--plum); }
+
+    .horizontal-strip {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(170px, 1fr);
+      gap: .8rem;
+      overflow-x: auto;
+      padding: .2rem .1rem .8rem;
+      scroll-snap-type: x proximity;
+      scrollbar-color: var(--gold) transparent;
+    }
+    .horizontal-strip > * { scroll-snap-align: start; }
+
+    .saved-mini {
+      min-height: 188px;
+      display: flex;
+      flex-direction: column;
+    }
+    .saved-mini .btn { margin-top: auto; align-self: flex-start; }
+    .saved-mini p { margin: .55rem 0 .8rem; }
+
+    .stamp-strip {
+      grid-auto-columns: 128px;
+    }
+    .stamp {
+      min-height: 145px;
+      padding: .85rem .65rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(224,190,107,.56);
+      background:
+        radial-gradient(circle at 50% 20%, rgba(224,190,107,.12), transparent 48%),
+        var(--plum-aged);
+      color: var(--ivory);
+      text-decoration: none;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      box-shadow: 0 8px 18px rgba(51,16,42,.17);
+      transition: transform 220ms var(--ease-steeping), border-color 220ms var(--ease-steeping);
+    }
+    .stamp:hover { transform: translateY(-3px); border-color: var(--gold-light); }
+    .stamp-symbol { color: var(--gold-light); font-size: 1.55rem; line-height: 1; }
+    .stamp strong { font-size: .87rem; line-height: 1.15; }
+    .stamp small { color: rgba(251,247,236,.68); font: .7rem/1.2 Arial, sans-serif; }
+    .stamp.ghost {
+      background: transparent;
+      border: 2px dashed rgba(140,133,120,.55);
+      box-shadow: none;
+      min-height: 145px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: .65rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .field { display: grid; gap: .38rem; }
+    .field.grow { flex: 1 1 260px; }
+    .field label {
+      color: var(--walnut);
+      font: 700 .77rem/1.2 Arial, sans-serif;
+    }
+    .input, .select, .textarea {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-md);
+      background: var(--ivory);
+      color: var(--ink);
+      padding: .7rem .8rem;
+    }
+    .textarea { min-height: 118px; resize: vertical; }
+    .input:focus, .select:focus, .textarea:focus {
+      border-color: var(--gold);
+      outline: 3px solid rgba(201,162,39,.22);
+    }
+    .help { color: var(--fog); font: .78rem/1.4 Arial, sans-serif; }
+
+    .journal-list { display: grid; gap: 1rem; }
+    .journal-card { padding: 0; overflow: hidden; }
+    .journal-card-head {
+      padding: 1.2rem 1.25rem .95rem;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(100deg, rgba(75,22,56,.045), transparent);
+    }
+    .journal-card-body { padding: 1.1rem 1.25rem 1.2rem; }
+    .tea-table { width: 100%; border-collapse: collapse; }
+    .tea-table th, .tea-table td {
+      padding: .55rem .35rem;
+      border-bottom: 1px solid rgba(74,53,36,.11);
+      text-align: left;
+      vertical-align: top;
+    }
+    .tea-table th {
+      font: 800 .71rem/1.2 Arial, sans-serif;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: var(--fog);
+    }
+    .tea-table tr:last-child td { border-bottom: 0; }
+    .empty-state {
+      text-align: center;
+      padding: clamp(2rem, 6vw, 4.5rem) 1.25rem;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius-md);
+      background: rgba(251,247,236,.55);
+    }
+    .empty-state .empty-visual {
+      width: 150px;
+      height: 90px;
+      border: 2px dashed rgba(140,133,120,.55);
+      border-radius: var(--radius-md);
+      margin: 0 auto 1.2rem;
+      display: grid;
+      place-items: center;
+      color: var(--fog);
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      margin-bottom: 1.1rem;
+      color: var(--plum);
+      font: 800 .84rem/1.2 Arial, sans-serif;
+      text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .75rem;
+      margin: 1rem 0 1.4rem;
+    }
+    .summary-item {
+      background: rgba(251,247,236,.72);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: .9rem;
+    }
+    .summary-item span { display: block; color: var(--fog); font: .74rem/1.2 Arial, sans-serif; }
+    .summary-item strong { display: block; margin-top: .35rem; color: var(--plum); font-size: 1.15rem; }
+
+    .flight-list { display: grid; gap: 1rem; }
+    .flight-card {
+      position: relative;
+      padding-left: 4rem;
+    }
+    .flight-number {
+      position: absolute;
+      left: 1rem;
+      top: 1.1rem;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--plum);
+      color: var(--gold-light);
+      font: 800 .9rem/1 Arial, sans-serif;
+    }
+    .quote {
+      margin: 1rem 0;
+      padding: .8rem 1rem;
+      border-left: 3px solid var(--gold);
+      background: rgba(201,162,39,.075);
+      color: var(--walnut);
+      font-style: italic;
+    }
+    .descriptor-row { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .descriptor {
+      border-radius: 999px;
+      background: rgba(75,22,56,.08);
+      color: var(--plum);
+      border: 1px solid rgba(75,22,56,.16);
+      padding: .28rem .62rem;
+      font: 700 .73rem/1.15 Arial, sans-serif;
+    }
+
+    .tea-hero {
+      background:
+        radial-gradient(circle at 88% 8%, rgba(224,190,107,.18), transparent 15rem),
+        linear-gradient(120deg, rgba(75,22,56,.055), transparent 62%),
+        var(--ivory);
+    }
+    .record-grid {
+      display: grid;
+      grid-template-columns: 1.45fr .8fr;
+      gap: 1rem;
+      align-items: start;
+    }
+    .detail-list { margin: 0; display: grid; gap: .8rem; }
+    .detail-list > div {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: .8rem;
+      padding-bottom: .75rem;
+      border-bottom: 1px solid rgba(74,53,36,.12);
+    }
+    .detail-list > div:last-child { border-bottom: 0; padding-bottom: 0; }
+    .detail-list dt { color: var(--fog); font: 800 .74rem/1.35 Arial, sans-serif; }
+    .detail-list dd { margin: 0; }
+    .intensity-scale {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .45rem;
+      margin-top: .5rem;
+    }
+    .intensity-scale span {
+      padding: .55rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      text-align: center;
+      color: var(--fog);
+      font: 700 .75rem/1 Arial, sans-serif;
+    }
+    .intensity-scale .active {
+      background: rgba(124,139,94,.15);
+      color: var(--forest);
+      border-color: rgba(63,78,54,.35);
+    }
+
+    .passport-region {
+      background:
+        linear-gradient(90deg, rgba(51,16,42,.03), transparent),
+        rgba(251,247,236,.72);
+    }
+    .region-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .region-head h2 { margin: 0; color: var(--plum); font-size: 1.18rem; }
+    .region-head span { color: var(--fog); font: .8rem/1.4 Arial, sans-serif; }
+    .stamp-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: .8rem;
+    }
+    .stamp-detail-mark {
+      width: min(100%, 270px);
+      aspect-ratio: 1.3;
+      margin: 0 auto 1.5rem;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(224,190,107,.75);
+      background:
+        radial-gradient(circle at 50% 24%, rgba(224,190,107,.18), transparent 48%),
+        var(--plum-aged);
+      color: var(--ivory);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(51,16,42,.2);
+    }
+    .stamp-detail-mark .stamp-symbol { font-size: 2.35rem; }
+    .stamp-detail-mark strong { display: block; color: var(--gold-light); font-size: 1.2rem; letter-spacing: .08em; }
+    .stamp-detail-mark small { display: block; color: rgba(251,247,236,.72); font-family: Arial, sans-serif; }
+
+    .saved-list { display: grid; gap: .8rem; }
+    .saved-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      align-items: start;
+    }
+    .saved-row h2 { margin: 0; color: var(--plum); font-size: 1.25rem; }
+    .saved-actions {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .account-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+    .account-nav {
+      background: rgba(251,247,236,.72);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: .5rem;
+      position: sticky;
+      top: calc(var(--header-h) + 1rem);
+    }
+    .account-nav a {
+      display: block;
+      padding: .68rem .72rem;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      font: 700 .82rem/1.25 Arial, sans-serif;
+      color: var(--walnut);
+    }
+    .account-nav a:hover { background: rgba(75,22,56,.06); }
+    .account-nav a.active { background: var(--plum); color: var(--ivory); }
+    .settings-card h2 { margin-top: 0; color: var(--plum); }
+    .setting-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--line);
+      align-items: center;
+    }
+    .setting-row:last-child { border-bottom: 0; }
+    .setting-row strong { color: var(--plum); }
+    .setting-row p { margin: .25rem 0 0; color: var(--fog); font: .82rem/1.5 Arial, sans-serif; }
+    .switch {
+      position: relative;
+      width: 54px;
+      height: 30px;
+      flex: none;
+    }
+    .switch input { position: absolute; opacity: 0; pointer-events: none; }
+    .switch span {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #C9C3B8;
+      border: 1px solid rgba(74,53,36,.25);
+      cursor: pointer;
+      transition: background 180ms var(--ease-steeping);
+    }
+    .switch span::after {
+      content: "";
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      left: 2px;
+      top: 2px;
+      border-radius: 50%;
+      background: var(--white);
+      box-shadow: 0 2px 7px rgba(43,36,32,.22);
+      transition: transform 180ms var(--ease-steeping);
+    }
+    .switch input:checked + span { background: var(--sage); }
+    .switch input:checked + span::after { transform: translateX(24px); }
+    .switch input:focus-visible + span { outline: 3px solid var(--gold); outline-offset: 3px; }
+
+    .notice {
+      border-left: 4px solid var(--info);
+      background: rgba(49,90,102,.08);
+      padding: .85rem 1rem;
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      color: #274953;
+      margin: 1rem 0;
+    }
+    .notice.warning { border-color: var(--gold); background: rgba(201,162,39,.1); color: #664D09; }
+    .notice.danger { border-color: var(--danger); background: rgba(139,47,60,.08); color: var(--danger-dark); }
+    .notice.success { border-color: var(--sage); background: rgba(124,139,94,.1); color: var(--forest); }
+
+    .linked-list { display: grid; gap: .75rem; }
+    .linked-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: .8rem;
+      align-items: start;
+      padding: .9rem 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .linked-item:last-child { border-bottom: 0; }
+    .linked-item input { width: 20px; height: 20px; margin-top: .2rem; accent-color: var(--plum); }
+
+    .auth-shell {
+      min-height: 100vh;
+      padding: calc(var(--header-h) + 2.5rem) 1rem 3rem;
+      display: grid;
+      place-items: start center;
+    }
+    .auth-panel {
+      width: min(100%, 590px);
+      background: rgba(251,247,236,.96);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-2);
+      padding: clamp(1.25rem, 4vw, 2.2rem);
+      animation: trayIn 260ms var(--ease-steeping);
+    }
+    .auth-panel h1 { margin: 0; color: var(--plum); font-size: clamp(2rem, 6vw, 3rem); line-height: 1; }
+    .auth-panel .lede { color: var(--walnut); margin: .7rem 0 1.3rem; }
+    .auth-panel .field + .field { margin-top: .9rem; }
+    .auth-panel .btn-primary { width: 100%; margin-top: 1rem; }
+    .auth-separator {
+      display: flex;
+      align-items: center;
+      gap: .8rem;
+      color: var(--fog);
+      margin: 1.1rem 0;
+      font: .72rem/1 Arial, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+    }
+    .auth-separator::before, .auth-separator::after { content:""; height:1px; flex:1; background:var(--line); }
+    .claim-summary {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: .65rem;
+      margin: 1rem 0;
+    }
+    .claim-summary > div {
+      border: 1px solid var(--line);
+      background: rgba(247,241,228,.75);
+      border-radius: var(--radius-sm);
+      padding: .75rem;
+    }
+    .claim-summary strong { color: var(--plum); display: block; font-size: 1.2rem; }
+    .claim-summary span { color: var(--fog); font: .75rem/1.2 Arial, sans-serif; }
+    .pending-mark {
+      width: 58px;
+      height: 58px;
+      border: 4px solid rgba(201,162,39,.18);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      margin: 1.4rem auto;
+      animation: spin 1.3s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    dialog {
+      width: min(92vw, 560px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 0;
+      background: var(--ivory);
+      color: var(--ink);
+      box-shadow: var(--shadow-2);
+    }
+    dialog::backdrop { background: rgba(43,36,32,.58); backdrop-filter: blur(2px); }
+    .dialog-body { padding: 1.35rem; }
+    .dialog-body h2 { margin: 0; color: var(--plum); }
+    .dialog-actions {
+      padding: 1rem 1.35rem 1.35rem;
+      display: flex;
+      justify-content: flex-end;
+      gap: .65rem;
+      flex-wrap: wrap;
+    }
+
+    .toast-stack {
+      position: fixed;
+      z-index: 250;
+      right: 1rem;
+      bottom: 1rem;
+      display: grid;
+      gap: .6rem;
+      width: min(380px, calc(100vw - 2rem));
+    }
+    .toast {
+      background: var(--plum-aged);
+      color: var(--ivory);
+      border: 1px solid rgba(224,190,107,.35);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-2);
+      padding: .85rem 1rem;
+      font-family: Arial, sans-serif;
+      animation: toastIn 220ms var(--ease-steeping);
+    }
+    .toast strong { color: var(--gold-light); }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } }
+
+    .route-loader {
+      position: fixed;
+      z-index: 200;
+      top: var(--header-h);
+      left: var(--sidebar-w);
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      background-size: 45% 100%;
+      animation: loader 1.25s linear infinite;
+    }
+    @keyframes loader { from { background-position: -60% 0; } to { background-position: 160% 0; } }
+
+    .skeleton {
+      position: relative;
+      overflow: hidden;
+      background: rgba(140,133,120,.12);
+      border-radius: var(--radius-sm);
+      min-height: 1rem;
+    }
+    .skeleton::after {
+      content:"";
+      position:absolute;
+      inset:0;
+      transform:translateX(-100%);
+      background:linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent);
+      animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer { to { transform:translateX(100%); } }
+
+    .footer-note {
+      margin: 2.4rem 0 0;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      color: var(--fog);
+      font: .76rem/1.5 Arial, sans-serif;
+      text-align: center;
+    }
+
+    @media (max-width: 1023px) {
+      :root { --header-h: 64px; --sidebar-w: 72px; }
+      .brand-name { font-size: 1rem; }
+      .brand-sub { font-size: .58rem; }
+      .brand-mark { width: 34px; height: 34px; }
+      .sidebar { padding-inline: .45rem; }
+      .nav-link { flex-direction: column; justify-content: center; gap: .2rem; padding: .4rem .2rem; font-size: .66rem; text-align:center; }
+      .nav-link.active::before { left: -.45rem; }
+      .nav-icon { width: auto; }
+      .sidebar-note { display: none; }
+      .main-shell { padding-left: calc(var(--sidebar-w) + 1rem); }
+      .record-grid { grid-template-columns: 1fr; }
+      .account-layout { grid-template-columns: 1fr; }
+      .account-nav {
+        position: static;
+        display: flex;
+        overflow-x: auto;
+        gap: .3rem;
+        scrollbar-width: thin;
+      }
+      .account-nav a { white-space: nowrap; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 599px) {
+      :root { --header-h: 56px; --sidebar-w: 0px; }
+      body { padding-bottom: 70px; }
+      .app-header { padding: 0 .75rem; }
+      .brand-mark { display: none; }
+      .brand-name { font-size: .84rem; letter-spacing: .13em; }
+      .brand-sub { display: none; }
+      .user-name, .caret { display: none; }
+      .avatar { width: 36px; height: 36px; }
+      .sidebar { display: none; }
+      .main-shell { padding: calc(var(--header-h) + 1.2rem) .8rem 1.5rem; }
+      .page-heading { align-items: flex-start; flex-direction: column; }
+      .page-title { font-size: 2.25rem; }
+      .hero-welcome { padding: 1.25rem; }
+      .hero-welcome h1 { font-size: 2.35rem; }
+      .mobile-nav {
+        position: fixed;
+        z-index: 60;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 68px;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        background: var(--plum-aged);
+        border-top: 1px solid rgba(224,190,107,.3);
+        box-shadow: 0 -8px 20px rgba(51,16,42,.13);
+      }
+      .mobile-nav a {
+        min-width: 0;
+        color: rgba(251,247,236,.7);
+        text-decoration: none;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: .15rem;
+        font: 700 .61rem/1 Arial, sans-serif;
+      }
+      .mobile-nav a span:first-child { font-size: 1.05rem; color: var(--gold-light); }
+      .mobile-nav a.active { color: var(--white); background: rgba(255,255,255,.07); }
+      .mobile-nav a.active::before {
+        content:"";
+        position:absolute;
+        top:0;
+        width:38px;
+        height:3px;
+        border-radius:0 0 4px 4px;
+        background:var(--gold);
+      }
+      .account-menu { right: .75rem; top: calc(var(--header-h) - .1rem); }
+      .next-card, .saved-row { grid-template-columns: 1fr; }
+      .mini-teas { grid-template-columns: repeat(2, 1fr); }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .flight-card { padding-left: 1.1rem; padding-top: 4rem; }
+      .flight-number { top: 1rem; }
+      .tea-table thead { display: none; }
+      .tea-table, .tea-table tbody, .tea-table tr, .tea-table td { display:block; width:100%; }
+      .tea-table tr { border-bottom: 1px solid var(--line); padding: .5rem 0; }
+      .tea-table tr:last-child { border-bottom:0; }
+      .tea-table td { border:0; padding:.18rem 0; }
+      .tea-table td::before {
+        content: attr(data-label);
+        display:inline-block;
+        min-width:90px;
+        color:var(--fog);
+        font:700 .68rem/1.2 Arial,sans-serif;
+        text-transform:uppercase;
+        letter-spacing:.05em;
+      }
+      .detail-list > div { grid-template-columns: 1fr; gap: .2rem; }
+      .saved-actions { justify-content: flex-start; }
+      .toolbar > .field, .toolbar > .btn { width: 100%; }
+      .claim-summary { grid-template-columns: 1fr 1fr; }
+      .toast-stack { bottom: 78px; }
+      .route-loader { left: 0; }
+      .auth-shell { padding-top: calc(var(--header-h) + 1.25rem); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .001ms !important;
+      }
+    }
+    html.force-reduced-motion *, html.force-reduced-motion *::before, html.force-reduced-motion *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: .001ms !important;
+    }
+
+    @media print {
+      .app-header, .sidebar, .mobile-nav, .account-menu, .toast-stack, .route-loader, .btn { display:none !important; }
+      .main-shell { padding: 0; }
+      body { background:#fff; }
+      .card { box-shadow:none; break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <header class="app-header" id="app-header">
+    <a class="brand" href="#/dashboard" aria-label="Vintage Fork dashboard home">
+      <span class="brand-mark" aria-hidden="true">VF</span>
+      <span class="brand-copy">
+        <span class="brand-name">Vintage Fork</span>
+        <span class="brand-sub">Tea Company</span>
+      </span>
+    </a>
+    <div class="header-actions" id="header-actions"></div>
+  </header>
+
+  <aside class="sidebar" id="sidebar" aria-label="Customer dashboard"></aside>
+  <nav class="mobile-nav" id="mobile-nav" aria-label="Customer dashboard mobile"></nav>
+
+  <main class="main-shell" id="main-content" tabindex="-1">
+    <div class="page" id="view"></div>
+  </main>
+
+  <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="true"></div>
+  <div class="route-loader" id="route-loader" hidden aria-hidden="true"></div>
+
+  <dialog id="confirm-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-body">
+      <h2 id="dialog-title">Confirm action</h2>
+      <div id="dialog-copy"></div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" type="button" data-dialog-cancel>Cancel</button>
+      <button class="btn btn-danger" type="button" id="dialog-confirm">Confirm</button>
+    </div>
+  </dialog>
+
+  <script>
+  (() => {
+    "use strict";
+
+    const $ = (selector, root = document) => root.querySelector(selector);
+    const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+    const esc = (value = "") => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    const slug = value => String(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const stars = n => "★".repeat(Math.max(0, Math.round(n))) + "☆".repeat(Math.max(0, 5 - Math.round(n)));
+    const formatDate = value => new Intl.DateTimeFormat("en-CA", {weekday:"long", month:"long", day:"numeric", year:"numeric"}).format(new Date(value + "T12:00:00"));
+    const shortDate = value => new Intl.DateTimeFormat("en-CA", {month:"short", day:"numeric", year:"numeric"}).format(new Date(value + "T12:00:00"));
+
+    const storageKey = "vf-customer-dashboard-demo-v1";
+
+    const teas = {
+      "tie-guan-yin": {
+        id: "tie-guan-yin", name: "Tie Guan Yin", category: "Oolong", origin: "Anxi, Fujian, China",
+        producer: "Lin family", available: "available", shopUrl: "https://vintagefork.ca/",
+        character: "Floral, honeyed and quietly green.", descriptors: ["honey","orchid"], intensity: "clear",
+        rating: 4, first: "Smells like a greenhouse in the morning.",
+        notes: "Silky and fresh. More floral as it cooled.",
+        reveal: "A classic Anxi oolong with a lifted orchid perfume.",
+        triviaQ: "Which province is Anxi in?", triviaA: "Fujian", triviaUser: "Fujian", triviaCorrect: true,
+        stamped: true, saveDate: "2026-08-08", region: "Fujian, China"
+      },
+      "dan-cong": {
+        id: "dan-cong", name: "Dan Cong", category: "Oolong", origin: "Phoenix Mountain, Guangdong, China",
+        producer: "Chen family", available: "available", shopUrl: "https://vintagefork.ca/",
+        character: "Stone fruit, warm wood and a long mineral finish.", descriptors: ["stone fruit","wood smoke"], intensity: "dominant",
+        rating: 5, first: "Peach, but darker than that.",
+        notes: "The aroma kept changing. Deep, ripe and very long.",
+        reveal: "A single-bush style Phoenix oolong with natural fruit fragrance.",
+        triviaQ: "What does Dan Cong refer to?", triviaA: "Single bush", triviaUser: "Single bush", triviaCorrect: true,
+        stamped: true, saveDate: "2026-08-08", region: "Guangdong, China"
+      },
+      "dong-ding": {
+        id: "dong-ding", name: "Dong Ding", category: "Oolong", origin: "Nantou, Taiwan",
+        producer: "Huang family", available: "unavailable", shopUrl: "",
+        character: "Creamy, rounded and gently roasted.", descriptors: ["cream","sage"], intensity: "subtle",
+        rating: 3, first: "Cream and warm leaves.",
+        notes: "Very soft. I wanted a little more roast.",
+        reveal: "A rolled Taiwanese oolong with a traditional medium roast.",
+        triviaQ: "Where is Dong Ding traditionally produced?", triviaA: "Nantou", triviaUser: "Alishan", triviaCorrect: false,
+        stamped: true, saveDate: "2026-08-08", region: "Taiwan"
+      },
+      "rou-gui": {
+        id: "rou-gui", name: "Rou Gui", category: "Oolong", origin: "Wuyi Mountains, Fujian, China",
+        producer: "Zhang family", available: "available", shopUrl: "https://vintagefork.ca/",
+        character: "Cinnamon bark, mineral warmth and deep roast.", descriptors: ["cinnamon","roast","mineral"], intensity: "dominant",
+        rating: 5, first: "Cinnamon bark and a hot stove.",
+        notes: "Best of the four. Would drink this every morning in winter.",
+        reveal: "A Wuyi rock oolong, roasted in three passes.",
+        triviaQ: "What does “Rou Gui” translate to?", triviaA: "Cinnamon", triviaUser: "Cinnamon", triviaCorrect: true,
+        stamped: true, saveDate: "2026-08-08", region: "Fujian, China"
+      },
+      "silver-needle-2024": {
+        id: "silver-needle-2024", name: "Silver Needle 2024", category: "White", origin: "Fuding, Fujian, China",
+        producer: "Wu family", available: "replaced", successor: "Silver Needle", shopUrl: "https://vintagefork.ca/",
+        character: "Melon, hay and a clean sweetness.", descriptors: ["melon","hay"], intensity: "subtle",
+        rating: 4, first: "Fresh hay after rain.",
+        notes: "Delicate but not empty. Sweet at the end.",
+        reveal: "Hand-picked spring buds from Fuding.",
+        triviaQ: "Which part of the plant is used?", triviaA: "Unopened buds", triviaUser: "Unopened buds", triviaCorrect: true,
+        stamped: true, saveDate: "2026-02-21", region: "Fujian, China"
+      },
+      "bai-mu-dan": {
+        id: "bai-mu-dan", name: "Bai Mu Dan", category: "White", origin: "Fuding, Fujian, China",
+        producer: "Wu family", available: "available", shopUrl: "https://vintagefork.ca/",
+        character: "Soft florals, dried grass and pear.", descriptors: ["pear","meadow"], intensity: "clear",
+        rating: 4, first: "Like dried flowers and pear skin.",
+        notes: "Gentle, but there is more structure than Silver Needle.",
+        reveal: "A white tea made from a bud and the first two leaves.",
+        triviaQ: "What does Bai Mu Dan mean?", triviaA: "White Peony", triviaUser: "White Peony", triviaCorrect: true,
+        stamped: true, saveDate: null, region: "Fujian, China"
+      },
+      "shui-xian": {
+        id: "shui-xian", name: "Shui Xian", category: "Oolong", origin: "Wuyi Mountains, Fujian, China",
+        producer: "Zhang family", available: "unknown", shopUrl: "",
+        character: "Dark florals, cedar and mineral depth.", descriptors: ["cedar","orchid"], intensity: "dominant",
+        rating: 4, first: "Old wood and flowers.",
+        notes: "Heavy and satisfying.",
+        reveal: "A traditional Wuyi cultivar with a deep roast.",
+        triviaQ: "What family of tea is Shui Xian?", triviaA: "Oolong", triviaUser: "Oolong", triviaCorrect: true,
+        stamped: true, saveDate: null, region: "Fujian, China"
+      },
+      "lapsang-souchong": {
+        id: "lapsang-souchong", name: "Lapsang Souchong", category: "Black", origin: "Tongmu, Fujian, China",
+        producer: "Jiang family", available: "available", shopUrl: "https://vintagefork.ca/",
+        character: "Pine smoke, longan and warm wood.", descriptors: ["pine","longan"], intensity: "dominant",
+        rating: 5, first: "Campfire, but sweeter.",
+        notes: "Strong smoke with a fruit note underneath.",
+        reveal: "A pine-smoked black tea from Tongmu.",
+        triviaQ: "What wood traditionally creates the smoke?", triviaA: "Pine", triviaUser: "Pine", triviaCorrect: true,
+        stamped: true, saveDate: null, region: "Fujian, China"
+      },
+      "mi-lan-xiang": {
+        id: "mi-lan-xiang", name: "Mi Lan Xiang", category: "Oolong", origin: "Phoenix Mountain, Guangdong, China",
+        producer: "Chen family", available: "delisted", shopUrl: "",
+        character: "Honey, lychee and orchid.", descriptors: ["honey","lychee"], intensity: "clear",
+        rating: 4, first: "Honey and ripe fruit.",
+        notes: "Very fragrant. Lighter than the Dan Cong.",
+        reveal: "A honey-orchid fragrance style Phoenix oolong.",
+        triviaQ: "What aroma is Mi Lan Xiang named for?", triviaA: "Honey orchid", triviaUser: "Honey orchid", triviaCorrect: true,
+        stamped: true, saveDate: null, region: "Guangdong, China"
+      },
+      "alishan": {
+        id: "alishan", name: "Alishan High Mountain", category: "Oolong", origin: "Chiayi, Taiwan",
+        producer: "Tsai family", available: "available", shopUrl: "https://vintagefork.ca/",
+        character: "Cream, gardenia and bright mountain air.", descriptors: ["gardenia","cream"], intensity: "clear",
+        rating: 4, first: "Creamy flowers.",
+        notes: "A very clean high mountain tea.",
+        reveal: "A high-elevation Taiwanese oolong.",
+        triviaQ: "What does high elevation generally slow?", triviaA: "Leaf growth", triviaUser: "Leaf growth", triviaCorrect: true,
+        stamped: true, saveDate: null, region: "Taiwan"
+      },
+      "oriental-beauty": {
+        id: "oriental-beauty", name: "Oriental Beauty", category: "Oolong", origin: "Hsinchu, Taiwan",
+        producer: "Liao family", available: "available", shopUrl: "https://vintagefork.ca/",
+        character: "Honey, muscat and baked fruit.", descriptors: ["muscat","honey"], intensity: "clear",
+        rating: 5, first: "Grapes and honey.",
+        notes: "Unexpectedly rich without roast.",
+        reveal: "A bug-bitten Taiwanese oolong with natural honey fragrance.",
+        triviaQ: "Which insect helps create its character?", triviaA: "Leafhopper", triviaUser: "Leafhopper", triviaCorrect: true,
+        stamped: true, saveDate: null, region: "Taiwan"
+      },
+      "house-blend-4": {
+        id: "house-blend-4", name: "House Blend No. 4", category: "Black", origin: "Vintage Fork blend",
+        producer: "Vintage Fork", available: "delisted", shopUrl: "",
+        character: "Malt, cocoa and orange peel.", descriptors: ["malt","cocoa"], intensity: "clear",
+        rating: 4, first: "Cocoa and toast.",
+        notes: "A comforting breakfast tea.",
+        reveal: "A former Vintage Fork house blend.",
+        triviaQ: "No trivia question on this pour.", triviaA: "", triviaUser: "", triviaCorrect: null,
+        stamped: true, saveDate: "2026-02-21", region: "Blended"
+      }
+    };
+
+    const events = [
+      {
+        id: "autumn-oolong", name: "Autumn Oolong Flight", date: "2026-08-08", time: "6:00 pm MT",
+        host: "Mei", type: "In person", status: "ended", joinedAs: "Amara",
+        teaIds: ["tie-guan-yin","dan-cong","dong-ding","rou-gui"],
+        triviaScore: 3, saved: ["tie-guan-yin","dan-cong","dong-ding","rou-gui"], average: 4.25,
+        venue: "Vintage Fork Tea Room", note: ""
+      },
+      {
+        id: "first-flush", name: "First Flush Darjeeling Evening", date: "2026-05-14", time: "7:00 pm MT",
+        host: "Mei", type: "Remote", status: "ended", joinedAs: "Amara K",
+        teaIds: ["silver-needle-2024","bai-mu-dan","lapsang-souchong","mi-lan-xiang","house-blend-4"],
+        triviaScore: 4, saved: ["silver-needle-2024"], average: 4.2,
+        venue: "Zoom", note: ""
+      },
+      {
+        id: "winter-table", name: "Roasted Oolong Winter Table", date: "2026-02-21", time: "6:30 pm MT",
+        host: "Mei", type: "In person", status: "ended", joinedAs: "A.",
+        teaIds: ["rou-gui","shui-xian","alishan","oriental-beauty","dong-ding","house-blend-4"],
+        triviaScore: 4, saved: ["rou-gui","dong-ding","house-blend-4"], average: 4.17,
+        venue: "Vintage Fork Tea Room", note: "Two teas from this evening have no notes recorded."
+      }
+    ];
+
+    const upcomingEvent = {
+      id: "winter-roast", name: "Winter Roast Flight", date: "2026-08-15", time: "6:00 pm MT",
+      host: "Mei", type: "Remote", status: "registered", teaCount: 6,
+      inviteState: "not-open", opens: "Saturday 15 August at 5:45 pm MT"
+    };
+
+    const defaultState = {
+      user: {name: "Amara", email: "amara@example.com", joined: "2026-08-09"},
+      saved: ["tie-guan-yin","dan-cong","dong-ding","rou-gui","silver-needle-2024","house-blend-4"],
+      deletedEvents: [],
+      settings: {
+        ambience: true,
+        interfaceSounds: true,
+        haptics: false,
+        reducedMotion: "device",
+        descriptorMode: "list",
+        marketing: false,
+        reminders: true,
+        dashboardNotices: true
+      },
+      journal: {search: "", sort: "newest", year: "all", type: "all"},
+      passportGroup: "region",
+      savedFilter: "all",
+      claim: {step: "landing", selectedMatches: []}
+    };
+
+    let state = loadState();
+    let pendingDialogAction = null;
+    let routeTimer = null;
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return structuredClone(defaultState);
+        const parsed = JSON.parse(raw);
+        return {
+          ...structuredClone(defaultState),
+          ...parsed,
+          user: {...defaultState.user, ...(parsed.user || {})},
+          settings: {...defaultState.settings, ...(parsed.settings || {})},
+          journal: {...defaultState.journal, ...(parsed.journal || {})},
+          claim: {...defaultState.claim, ...(parsed.claim || {})}
+        };
+      } catch {
+        return structuredClone(defaultState);
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+      applyMotionSetting();
+    }
+
+    function applyMotionSetting() {
+      const reduce = state.settings.reducedMotion === "on" ||
+        (state.settings.reducedMotion === "device" && matchMedia("(prefers-reduced-motion: reduce)").matches);
+      document.documentElement.classList.toggle("force-reduced-motion", reduce);
+    }
+
+    function route() {
+      return (location.hash.slice(1) || "/dashboard").split("?")[0];
+    }
+
+    function navigate(path) {
+      if (route() === path) {
+        render();
+      } else {
+        location.hash = path;
+      }
+    }
+
+    function isUtilityRoute(path) {
+      return /^\/dashboard\/(login|create|claim|verify|recover)/.test(path);
+    }
+
+    const navItems = [
+      {label:"Home", icon:"⌂", path:"/dashboard"},
+      {label:"Tastings", icon:"▤", path:"/dashboard/tastings"},
+      {label:"Passport", icon:"✦", path:"/dashboard/passport"},
+      {label:"Saved Teas", short:"Saved", icon:"♡", path:"/dashboard/saved"},
+      {label:"Upcoming", icon:"▦", path:"/dashboard/events"}
+    ];
+
+    function navIsActive(itemPath, current) {
+      if (itemPath === "/dashboard") return current === "/dashboard";
+      return current.startsWith(itemPath);
+    }
+
+    function renderChrome(current) {
+      const utility = isUtilityRoute(current);
+      $("#sidebar").hidden = utility;
+      $("#mobile-nav").hidden = utility;
+      document.body.style.paddingBottom = utility ? "0" : "";
+
+      $("#header-actions").innerHTML = utility ? "" : `
+        <button class="header-user" type="button" data-action="toggle-account-menu" aria-haspopup="menu" aria-expanded="false">
+          <span class="user-name">${esc(state.user.name)}</span>
+          <span class="caret" aria-hidden="true">▾</span>
+          <span class="avatar" aria-hidden="true">${esc(initials(state.user.name))}</span>
+        </button>`;
+
+      if (!utility) {
+        $("#sidebar").innerHTML = `
+          <nav class="primary-nav">
+            ${navItems.map(item => `
+              <a class="nav-link ${navIsActive(item.path, current) ? "active" : ""}" href="#${item.path}" ${navIsActive(item.path, current) ? 'aria-current="page"' : ""}>
+                <span class="nav-icon" aria-hidden="true">${item.icon}</span>
+                <span>${item.label}</span>
+              </a>`).join("")}
+          </nav>
+          <p class="sidebar-note">Your tasting notes are private. Hosts see attendance and room-level aggregates, never the words you wrote.</p>`;
+
+        $("#mobile-nav").innerHTML = navItems.map(item => `
+          <a class="${navIsActive(item.path, current) ? "active" : ""}" href="#${item.path}" ${navIsActive(item.path, current) ? 'aria-current="page"' : ""}>
+            <span aria-hidden="true">${item.icon}</span><span>${item.short || item.label}</span>
+          </a>`).join("");
+      }
+
+      $(".main-shell").classList.toggle("auth-shell", utility);
+    }
+
+    function initials(name) {
+      return name.trim().split(/\s+/).slice(0,2).map(x => x[0]).join("").toUpperCase() || "VF";
+    }
+
+    function accountMenu() {
+      return `
+        <div class="account-menu" role="menu" data-account-menu>
+          <div class="account-menu-meta">
+            <small>Signed in as</small>
+            <strong>${esc(state.user.email)}</strong>
+          </div>
+          <a role="menuitem" href="#/dashboard/account/details">Account details</a>
+          <a role="menuitem" href="#/dashboard/account/communication">Communication</a>
+          <a role="menuitem" href="#/dashboard/account/experience">Experience &amp; sound</a>
+          <a role="menuitem" href="#/dashboard/account/accessibility">Accessibility</a>
+          <a role="menuitem" href="#/dashboard/account/privacy">Privacy &amp; data</a>
+          <div class="menu-divider"></div>
+          <button role="menuitem" type="button" data-action="sign-out">Sign out</button>
+        </div>`;
+    }
+
+    function showLoader() {
+      $("#route-loader").hidden = false;
+      clearTimeout(routeTimer);
+      routeTimer = setTimeout(() => $("#route-loader").hidden = true, 260);
+    }
+
+    function render() {
+      $("[data-account-menu]")?.remove();
+      const current = route();
+      showLoader();
+      renderChrome(current);
+      const view = $("#view");
+      view.className = "page";
+
+      let html = "";
+      if (current === "/dashboard") html = homeView();
+      else if (current === "/dashboard/tastings") html = tastingsView();
+      else if (/^\/dashboard\/tastings\/[^/]+\/tea\/[^/]+$/.test(current)) {
+        const [, eventId, teaId] = current.match(/^\/dashboard\/tastings\/([^/]+)\/tea\/([^/]+)$/);
+        html = teaRecordView(eventId, teaId);
+      }
+      else if (/^\/dashboard\/tastings\/[^/]+$/.test(current)) {
+        const eventId = current.split("/").pop();
+        html = tastingRecapView(eventId);
+      }
+      else if (current === "/dashboard/passport") html = passportView();
+      else if (/^\/dashboard\/passport\/[^/]+$/.test(current)) html = stampDetailView(current.split("/").pop());
+      else if (current === "/dashboard/saved") html = savedView();
+      else if (/^\/dashboard\/saved\/[^/]+$/.test(current)) html = savedTeaView(current.split("/").pop());
+      else if (current === "/dashboard/events") html = upcomingView();
+      else if (/^\/dashboard\/events\/[^/]+$/.test(current)) html = upcomingDetailView(current.split("/").pop());
+      else if (current === "/dashboard/account") html = accountView("details");
+      else if (/^\/dashboard\/account\/[^/]+$/.test(current)) html = accountView(current.split("/").pop());
+      else if (current === "/dashboard/login") html = loginView();
+      else if (current === "/dashboard/create") html = createView();
+      else if (current.startsWith("/dashboard/claim/expired")) html = expiredClaimView();
+      else if (current.startsWith("/dashboard/claim/")) html = claimView();
+      else if (current === "/dashboard/verify/pending") html = verifyPendingView();
+      else if (current.startsWith("/dashboard/verify/")) html = verifyResultView();
+      else if (current === "/dashboard/recover") html = recoveryView();
+      else html = notFoundView();
+
+      view.innerHTML = html;
+      bindViewInputs();
+      requestAnimationFrame(() => {
+        $("#main-content").focus({preventScroll:true});
+        window.scrollTo({top:0, behavior:"instant"});
+      });
+    }
+
+    function pageHeading(title, lede, extra = "") {
+      return `<div class="page-heading"><div><h1 class="page-title">${title}</h1>${lede ? `<p class="page-lede">${lede}</p>` : ""}</div>${extra}</div>`;
+    }
+
+    function sectionLabel(label, link = "") {
+      return `<div class="section-label"><span>${label}</span>${link ? `<a class="btn btn-quiet" href="${link}">See all →</a>` : ""}</div>`;
+    }
+
+    function availabilityChip(tea) {
+      const map = {
+        available: `<span class="chip success">Available at the shop</span>`,
+        unavailable: `<span class="chip warning">Not available right now</span>`,
+        replaced: `<span class="chip gold">Now sold as ${esc(tea.successor || "current product")}</span>`,
+        delisted: `<span class="chip neutral">No longer sold</span>`,
+        unknown: `<span class="chip neutral">Shop availability unavailable</span>`
+      };
+      return map[tea.available] || map.unknown;
+    }
+
+    function shopButton(tea, label = "Shop This Tea ↗") {
+      if (!tea.shopUrl || !["available","replaced"].includes(tea.available)) return "";
+      return `<a class="btn btn-primary" href="${esc(tea.shopUrl)}?utm_source=tasting_dashboard&utm_medium=customer_dashboard&utm_campaign=tea_handoff&utm_content=${esc(tea.id)}" target="_blank" rel="noopener">${label}</a>`;
+    }
+
+    function homeView() {
+      const last = events.filter(e => !state.deletedEvents.includes(e.id))[0];
+      const saved = state.saved.map(id => teas[id]).filter(Boolean);
+      const allStamps = Object.values(teas).filter(t => t.stamped);
+      return `
+        <section class="hero-welcome">
+          <p class="eyebrow">Your personal tea cellar</p>
+          <h1>Welcome back, ${esc(state.user.name)}.</h1>
+          <p>Three evenings, sixteen teas, and a clear soft spot for roasted oolong.</p>
+        </section>
+
+        ${sectionLabel("Next at the table")}
+        <article class="card next-card">
+          <div>
+            <div class="button-row">
+              <h2 class="card-title">${esc(upcomingEvent.name)}</h2>
+              <span class="chip">${esc(upcomingEvent.type)}</span>
+              <span class="chip success">Booked</span>
+            </div>
+            <p class="card-meta">${formatDate(upcomingEvent.date)} · ${esc(upcomingEvent.time)} · Hosted by ${esc(upcomingEvent.host)}</p>
+            <div class="event-facts"><span class="chip neutral">${upcomingEvent.teaCount} teas</span><span class="chip neutral">Join link opens 15 minutes before</span></div>
+            <p class="instructions">Join the video call on a computer or tablet, and keep the tasting open on your phone.</p>
+          </div>
+          <a class="btn btn-secondary" href="#/dashboard/events/${upcomingEvent.id}">Event Details →</a>
+        </article>
+
+        ${last ? `
+          ${sectionLabel("Your last evening")}
+          <article class="card">
+            <div class="button-row">
+              <h2 class="card-title">${esc(last.name)}</h2><span class="chip">${esc(last.type)}</span>
+            </div>
+            <p class="card-meta">${formatDate(last.date)} · Hosted by ${esc(last.host)}</p>
+            <div class="mini-teas">${last.teaIds.map(id => {
+              const tea = teas[id];
+              return `<div class="mini-tea"><strong>${esc(tea.name)}</strong><span class="stars" aria-label="${tea.rating} out of 5 stars">${stars(tea.rating)}</span></div>`;
+            }).join("")}</div>
+            <div class="stats-row">
+              <span class="stat"><strong>${last.teaIds.length}</strong> teas</span>
+              <span class="stat"><strong>${last.teaIds.length}</strong> notes</span>
+              <span class="stat"><strong>${last.teaIds.length}</strong> stamps</span>
+              <span class="stat"><strong>${last.saved.length}</strong> saved</span>
+              <span class="stat">Average <strong>${stars(last.average)}</strong></span>
+            </div>
+            <div class="card-footer"><span class="muted">You joined as “${esc(last.joinedAs)}”.</span><a class="btn btn-primary" href="#/dashboard/tastings/${last.id}">Open This Recap →</a></div>
+          </article>` : emptyHomeBlock()}
+
+        ${sectionLabel("Your Passport", "#/dashboard/passport")}
+        <div class="horizontal-strip stamp-strip" aria-label="Recent Passport stamps">
+          ${allStamps.slice(0,8).map(stampCard).join("")}
+        </div>
+
+        ${sectionLabel("Saved to remember", "#/dashboard/saved")}
+        <div class="horizontal-strip">
+          ${saved.slice(0,6).map(tea => `
+            <article class="card saved-mini">
+              <h2 class="card-title">${esc(tea.name)}</h2>
+              <p class="card-meta">${esc(tea.origin)}</p>
+              <p>${availabilityChip(tea)}</p>
+              <p class="stars" aria-label="${tea.rating} out of 5 stars">${stars(tea.rating)}</p>
+              ${tea.shopUrl && ["available","replaced"].includes(tea.available)
+                ? shopButton(tea, "Shop This →")
+                : `<a class="btn btn-secondary" href="#/dashboard/saved/${tea.id}">Open Record →</a>`}
+            </article>`).join("")}
+        </div>
+
+        <p class="privacy-line">Your notes are private. Only you can read them.</p>
+        ${footerNote()}
+      `;
+    }
+
+    function emptyHomeBlock() {
+      return `<div class="empty-state"><div class="empty-visual">empty page</div><h2>Your cellar is ready. Nothing in it yet.</h2><p>Stamps, notes and saved teas will land here after a tasting.</p><div class="button-row" style="justify-content:center"><a class="btn btn-primary" href="#/dashboard/events">See Upcoming Tastings</a><a class="btn btn-secondary" href="#/dashboard/account/linked">Find a Past Tasting</a></div></div>`;
+    }
+
+    function eventCard(event) {
+      const teaRows = event.teaIds.map((id, i) => {
+        const tea = teas[id];
+        return `<tr>
+          <td data-label="Tea">${i+1}. ${esc(tea.name)}</td>
+          <td data-label="Rating"><span class="stars">${stars(tea.rating)}</span></td>
+          <td data-label="Intensity">${esc(tea.intensity)}</td>
+          <td data-label="Descriptors">${esc(tea.descriptors.join(", "))}</td>
+        </tr>`;
+      }).join("");
+      return `<article class="card journal-card">
+        <div class="journal-card-head">
+          <div class="button-row"><h2 class="card-title">${esc(event.name)}</h2><span class="chip">${esc(event.type)}</span>${event.note ? `<span class="chip warning">Partially recorded</span>` : ""}</div>
+          <p class="card-meta">${formatDate(event.date)} · Hosted by ${esc(event.host)} · You joined as “${esc(event.joinedAs)}”</p>
+        </div>
+        <div class="journal-card-body">
+          <table class="tea-table"><thead><tr><th>Tea</th><th>Rating</th><th>Intensity</th><th>Your descriptors</th></tr></thead><tbody>${teaRows}</tbody></table>
+          ${event.note ? `<div class="notice warning">${esc(event.note)}</div>` : ""}
+          <div class="card-footer">
+            <div class="stats-row" style="margin:0"><span>${event.teaIds.length} stamps</span><span>${event.teaIds.length} notes</span><span>${event.saved.length} saved</span><span>trivia ${event.triviaScore} of ${event.teaIds.length}</span></div>
+            <a class="btn btn-primary" href="#/dashboard/tastings/${event.id}">Open This Evening →</a>
+          </div>
+        </div>
+      </article>`;
+    }
+
+    function tastingsView() {
+      const visibleEvents = getFilteredEvents();
+      return `
+        ${pageHeading("Your Tasting Journal", "Three evenings, sixteen teas, since February 2026.")}
+        <div class="toolbar">
+          <div class="field">
+            <label for="journal-sort">Sort</label>
+            <select class="select" id="journal-sort" data-state="journal.sort">
+              <option value="newest" ${state.journal.sort==="newest"?"selected":""}>Newest first</option>
+              <option value="oldest" ${state.journal.sort==="oldest"?"selected":""}>Oldest first</option>
+              <option value="highest" ${state.journal.sort==="highest"?"selected":""}>Highest rated</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="journal-year">Year</label>
+            <select class="select" id="journal-year" data-state="journal.year">
+              <option value="all" ${state.journal.year==="all"?"selected":""}>All years</option>
+              <option value="2026" ${state.journal.year==="2026"?"selected":""}>2026</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="journal-type">Tasting type</label>
+            <select class="select" id="journal-type" data-state="journal.type">
+              <option value="all" ${state.journal.type==="all"?"selected":""}>All types</option>
+              <option value="Remote" ${state.journal.type==="Remote"?"selected":""}>Remote</option>
+              <option value="In person" ${state.journal.type==="In person"?"selected":""}>In person</option>
+            </select>
+          </div>
+          <div class="field grow">
+            <label for="journal-search">Search your teas or notes</label>
+            <input class="input" id="journal-search" type="search" value="${esc(state.journal.search)}" placeholder="Try “cinnamon” or “Rou Gui”" data-state="journal.search">
+          </div>
+        </div>
+        <div class="journal-list" id="journal-results">
+          ${visibleEvents.length ? visibleEvents.map(eventCard).join("") : `<div class="empty-state"><div class="empty-visual">no matches</div><h2>No evenings match those filters.</h2><p>Clear the search or choose a different tasting type.</p><button class="btn btn-secondary" data-action="clear-journal-filters">Clear Filters</button></div>`}
+        </div>
+        <p class="privacy-line">Every note here is private to you.</p>
+        ${footerNote()}
+      `;
+    }
+
+    function getFilteredEvents() {
+      const q = state.journal.search.trim().toLowerCase();
+      let list = events.filter(e => !state.deletedEvents.includes(e.id));
+      if (state.journal.year !== "all") list = list.filter(e => e.date.startsWith(state.journal.year));
+      if (state.journal.type !== "all") list = list.filter(e => e.type === state.journal.type);
+      if (q) {
+        list = list.filter(e => {
+          const hay = [e.name, e.joinedAs, ...e.teaIds.flatMap(id => {
+            const t = teas[id];
+            return [t.name, t.first, t.notes, ...t.descriptors];
+          })].join(" ").toLowerCase();
+          return hay.includes(q);
+        });
+      }
+      if (state.journal.sort === "oldest") list.sort((a,b) => a.date.localeCompare(b.date));
+      else if (state.journal.sort === "highest") list.sort((a,b) => b.average - a.average);
+      else list.sort((a,b) => b.date.localeCompare(a.date));
+      return list;
+    }
+
+    function tastingRecapView(eventId) {
+      const event = events.find(e => e.id === eventId);
+      if (!event || state.deletedEvents.includes(eventId)) return missingRecord("That tasting is no longer in this account.", "/dashboard/tastings", "Return to Your Journal");
+      return `
+        <a class="back-link" href="#/dashboard/tastings">← Your Tasting Journal</a>
+        ${pageHeading(esc(event.name), `${formatDate(event.date)} · ${esc(event.time)} · Hosted by ${esc(event.host)} · You joined as “${esc(event.joinedAs)}”`, `<span class="chip">${esc(event.type)}</span>`)}
+        <div class="summary-grid">
+          <div class="summary-item"><span>Your average rating</span><strong>${event.average.toFixed(2)} · ${stars(event.average)}</strong></div>
+          <div class="summary-item"><span>Trivia</span><strong>${event.triviaScore} of ${event.teaIds.length}</strong></div>
+          <div class="summary-item"><span>Stamps collected</span><strong>${event.teaIds.length} of ${event.teaIds.length}</strong></div>
+          <div class="summary-item"><span>Teas saved</span><strong>${event.saved.filter(id => state.saved.includes(id)).length}</strong></div>
+        </div>
+        ${sectionLabel("The flight")}
+        <div class="flight-list">
+          ${event.teaIds.map((id, i) => flightCard(event, teas[id], i)).join("")}
+        </div>
+        <div class="card" style="margin-top:1rem">
+          <h2 class="card-title">Keep or remove this evening</h2>
+          <p>Deleting one tasting removes the participation and its notes, responses, stamps and saves. It does not delete your account.</p>
+          <button class="btn btn-danger" type="button" data-action="delete-tasting" data-event-id="${event.id}">Delete This Tasting</button>
+        </div>
+        <p class="privacy-line">Your notes are private. Hosts see attendance and room-level aggregates, never your words.</p>
+        ${footerNote()}
+      `;
+    }
+
+    function flightCard(event, tea, index) {
+      const isSaved = state.saved.includes(tea.id);
+      return `<article class="card flight-card">
+        <span class="flight-number" aria-hidden="true">${index+1}</span>
+        <div class="button-row"><h2 class="card-title">${esc(tea.name)}</h2>${tea.stamped ? `<span class="chip gold">✦ stamped</span>` : ""}</div>
+        <p class="card-meta">${esc(tea.origin)} · steeped ${30 + (index*5)}s</p>
+        <blockquote class="quote">“${esc(tea.first)}”</blockquote>
+        <div class="descriptor-row">${tea.descriptors.map(x => `<span class="descriptor">${esc(x)}</span>`).join("")}</div>
+        <div class="stats-row"><span>Intensity <strong>${esc(tea.intensity)}</strong></span><span>Your rating <strong class="stars">${stars(tea.rating)}</strong></span><span>Trivia <strong>${tea.triviaCorrect === null ? "none" : tea.triviaCorrect ? "correct" : "not this one"}</strong></span></div>
+        <div class="card-footer"><span class="chip ${isSaved ? "success" : "neutral"}">${isSaved ? "Saved to remember" : "Not saved"}</span><a class="btn btn-secondary" href="#/dashboard/tastings/${event.id}/tea/${tea.id}">Open Tea Record →</a></div>
+      </article>`;
+    }
+
+    function teaRecordView(eventId, teaId) {
+      const event = events.find(e => e.id === eventId);
+      const tea = teas[teaId];
+      if (!event || !tea || !event.teaIds.includes(teaId) || state.deletedEvents.includes(eventId)) {
+        return missingRecord("That tea record is not available in this account.", `/dashboard/tastings/${eventId}`, "Return to the Evening");
+      }
+      const isSaved = state.saved.includes(tea.id);
+      const position = event.teaIds.indexOf(tea.id) + 1;
+      const occurrences = events.filter(e => !state.deletedEvents.includes(e.id) && e.teaIds.includes(tea.id));
+      return `
+        <a class="back-link" href="#/dashboard/tastings/${event.id}">← ${esc(event.name)}</a>
+        <section class="card tea-hero">
+          <div class="button-row"><h1 class="page-title" style="font-size:clamp(2.2rem,4vw,3.7rem)">${esc(tea.name)}</h1>${tea.stamped?`<span class="chip gold">✦ stamped</span>`:""}</div>
+          <p class="page-lede">${esc(tea.origin)} · Producer: ${esc(tea.producer)} · Poured ${ordinal(position)} · steeped ${30 + ((position-1)*5)} seconds</p>
+          <div class="button-row" style="margin-top:1rem"><span class="chip ${isSaved?"success":"neutral"}">${isSaved?"Saved to remember":"Not saved"}</span>${availabilityChip(tea)}</div>
+        </section>
+
+        <div class="record-grid" style="margin-top:1rem">
+          <div>
+            <section class="card">
+              <h2 class="card-title">What you said</h2>
+              <dl class="detail-list" style="margin-top:1rem">
+                <div><dt>First impression</dt><dd>“${esc(tea.first)}”</dd></div>
+                <div><dt>Aroma</dt><dd><div class="descriptor-row">${tea.descriptors.map(x=>`<span class="descriptor">${esc(x)}</span>`).join("")}</div></dd></div>
+                <div><dt>Intensity, overall</dt><dd><div class="intensity-scale">${["subtle","clear","dominant"].map(x=>`<span class="${tea.intensity===x?"active":""}">${x}</span>`).join("")}</div></dd></div>
+                <div><dt>Your rating</dt><dd><span class="stars" aria-label="${tea.rating} out of 5 stars">${stars(tea.rating)}</span></dd></div>
+                <div><dt>Your notes</dt><dd>${tea.notes ? esc(tea.notes) : `<span class="muted">You didn’t leave a note on this one that evening.</span>`}<p class="help">Private to you. Historical notes are read-only in this dashboard version.</p></dd></div>
+              </dl>
+            </section>
+
+            <section class="card">
+              <h2 class="card-title">What the host told the room</h2>
+              <p>“${esc(tea.reveal)}”</p>
+              <p class="card-meta">That night: ${30 + ((position-1)*5)}s, 95°C</p>
+            </section>
+
+            <section class="card">
+              <h2 class="card-title">Trivia</h2>
+              ${tea.triviaCorrect === null
+                ? `<p>No trivia question on this pour.</p>`
+                : `<p><strong>“${esc(tea.triviaQ)}”</strong></p><p>You answered: ${esc(tea.triviaUser)} · <strong>${tea.triviaCorrect ? "✓ correct" : `Not this one — the answer was ${esc(tea.triviaA)}`}</strong></p>`}
+            </section>
+          </div>
+
+          <aside>
+            <section class="card">
+              <h2 class="card-title">Your Passport</h2>
+              <p>✦ Stamped ${shortDate(event.date)}</p>
+              <a class="btn btn-secondary" href="#/dashboard/passport/${tea.id}">See This Stamp</a>
+            </section>
+            <section class="card">
+              <h2 class="card-title">This tea and you</h2>
+              <p>${occurrences.length === 1 ? "You’ve tasted this once." : `You’ve tasted this ${occurrences.length} times.`}</p>
+              ${occurrences.map(e => `<p class="card-meta">${shortDate(e.date)} · ${stars(tea.rating)} · <a href="#/dashboard/tastings/${e.id}">${esc(e.name)}</a></p>`).join("")}
+            </section>
+            <section class="card">
+              <h2 class="card-title">Remember or shop</h2>
+              <p>Saving a tea here never adds it to a cart or charges you.</p>
+              <div class="button-row">
+                <button class="btn ${isSaved?"btn-secondary":"btn-gold"}" type="button" data-action="toggle-save" data-tea-id="${tea.id}">${isSaved?"Remove from Saved":"Save to Remember"}</button>
+                ${shopButton(tea)}
+              </div>
+              ${!tea.shopUrl ? `<p class="help">The tasting record stays intact even when no current shop product is mapped.</p>` : ""}
+            </section>
+          </aside>
+        </div>
+        ${footerNote()}
+      `;
+    }
+
+    function ordinal(n) {
+      return ["first","second","third","fourth","fifth","sixth"][n-1] || `${n}th`;
+    }
+
+    function stampCard(tea) {
+      return `<a class="stamp" href="#/dashboard/passport/${tea.id}" aria-label="Open ${esc(tea.name)} Passport stamp">
+        <span class="stamp-symbol" aria-hidden="true">✦</span>
+        <strong>${esc(tea.name)}</strong>
+        <small>${esc(tea.region)}<br>${tea.saveDate ? shortDate(tea.saveDate) : "Tasted 2026"}</small>
+      </a>`;
+    }
+
+    function passportView() {
+      const stamps = Object.values(teas).filter(t => t.stamped);
+      const groups = groupStamps(stamps, state.passportGroup);
+      return `
+        ${pageHeading("Your Passport", "Sixteen stamps, four regions, three evenings.")}
+        <div class="toolbar" role="group" aria-label="Group Passport stamps">
+          ${["region","category","evening"].map(group => `<button class="btn ${state.passportGroup===group?"btn-primary":"btn-secondary"}" type="button" data-action="passport-group" data-group="${group}">By ${group}</button>`).join("")}
+        </div>
+        ${Object.entries(groups).map(([name, list]) => `
+          <section class="card passport-region">
+            <div class="region-head"><h2>${esc(name)}</h2><span>${list.length} of the ${list.length + (state.passportGroup==="region" ? Math.min(3, list.length) : 0)} you’ve been offered</span></div>
+            <div class="stamp-grid">${list.map(stampCard).join("")}${state.passportGroup==="region" ? Array.from({length:Math.min(3,list.length)},()=>`<div class="stamp ghost" aria-label="Uncollected tea offered in an attended event"></div>`).join("") : ""}</div>
+          </section>`).join("")}
+        <div class="notice">Passport progress is shown only against teas you were actually offered. There are no streaks, countdowns or catalogue-wide completion pressure.</div>
+        ${footerNote()}
+      `;
+    }
+
+    function groupStamps(stamps, group) {
+      const out = {};
+      if (group === "category") {
+        stamps.forEach(t => (out[t.category] ||= []).push(t));
+      } else if (group === "evening") {
+        events.filter(e => !state.deletedEvents.includes(e.id)).forEach(e => {
+          out[e.name] = e.teaIds.map(id => teas[id]).filter(Boolean);
+        });
+      } else {
+        stamps.forEach(t => (out[t.region] ||= []).push(t));
+      }
+      return out;
+    }
+
+    function stampDetailView(teaId) {
+      const tea = teas[teaId];
+      if (!tea || !tea.stamped) return missingRecord("That Passport stamp is not available.", "/dashboard/passport", "Return to Your Passport");
+      const event = events.find(e => e.teaIds.includes(tea.id) && !state.deletedEvents.includes(e.id)) || events[0];
+      const position = event.teaIds.indexOf(tea.id) + 1;
+      return `
+        <a class="back-link" href="#/dashboard/passport">← Your Passport</a>
+        <section class="card">
+          <div class="stamp-detail-mark">
+            <div><span class="stamp-symbol" aria-hidden="true">✦</span><strong>${esc(tea.name.toUpperCase())}</strong><small>${esc(tea.region)}<br>${shortDate(event.date)}</small></div>
+          </div>
+          <dl class="detail-list">
+            <div><dt>Tasted</dt><dd>${formatDate(event.date)}</dd></div>
+            <div><dt>Earned at</dt><dd>${esc(event.name)} · ${esc(event.type)} · Hosted by ${esc(event.host)}</dd></div>
+            <div><dt>In the flight</dt><dd>Poured ${ordinal(position)} of ${event.teaIds.length} · steeped ${30 + ((position-1)*5)} seconds</dd></div>
+            <div><dt>Origin</dt><dd>${esc(tea.origin)}</dd></div>
+            <div><dt>Your rating</dt><dd><span class="stars">${stars(tea.rating)}</span></dd></div>
+            <div><dt>You said</dt><dd>“${esc(tea.first)}”</dd></div>
+          </dl>
+          <div class="card-footer">
+            <div class="button-row">
+              <a class="btn btn-secondary" href="#/dashboard/tastings/${event.id}/tea/${tea.id}">Open the Tea Record →</a>
+              <a class="btn btn-secondary" href="#/dashboard/tastings/${event.id}">See That Evening →</a>
+            </div>
+            ${shopButton(tea)}
+          </div>
+        </section>
+        ${footerNote()}
+      `;
+    }
+
+    function savedView() {
+      const filter = state.savedFilter;
+      let list = state.saved.map(id => teas[id]).filter(Boolean);
+      if (filter === "available") list = list.filter(t => ["available","replaced"].includes(t.available));
+      if (filter === "unavailable") list = list.filter(t => !["available","replaced"].includes(t.available));
+      return `
+        ${pageHeading("Saved to Remember", `${state.saved.length} teas you wanted to keep hold of.`)}
+        <div class="notice">Saving never adds a tea to a cart or charges you.</div>
+        <div class="toolbar" role="group" aria-label="Filter saved teas">
+          ${[["all","All"],["available","Available"],["unavailable","Not available"]].map(([value,label]) => `<button class="btn ${filter===value?"btn-primary":"btn-secondary"}" type="button" data-action="saved-filter" data-filter="${value}">${label}</button>`).join("")}
+        </div>
+        <div class="saved-list">
+          ${list.length ? list.map(savedRow).join("") : `<div class="empty-state"><div class="empty-visual">♡</div><h2>Nothing matches this filter.</h2><button class="btn btn-secondary" data-action="saved-filter" data-filter="all">Show All Saved Teas</button></div>`}
+        </div>
+        ${footerNote()}
+      `;
+    }
+
+    function savedRow(tea) {
+      const eventsWithTea = events.filter(e => e.teaIds.includes(tea.id) && !state.deletedEvents.includes(e.id));
+      return `<article class="card saved-row">
+        <div>
+          <div class="button-row"><h2>${esc(tea.name)}</h2>${availabilityChip(tea)}</div>
+          <p class="card-meta">${esc(tea.origin)} · first saved ${tea.saveDate ? formatDate(tea.saveDate) : "during a tasting"}</p>
+          <p>Saved from ${eventsWithTea.length} evening${eventsWithTea.length===1?"":"s"} · most recently rated <span class="stars">${stars(tea.rating)}</span></p>
+          ${tea.available==="replaced" ? `<p>Your notes stay with the harvest you actually tasted.</p>` : ""}
+          ${tea.available==="delisted" ? `<p>Your notes and stamp are unaffected.</p>` : ""}
+        </div>
+        <div class="saved-actions">
+          ${shopButton(tea)}
+          <a class="btn btn-secondary" href="#/dashboard/saved/${tea.id}">Tea Records →</a>
+          <button class="btn btn-quiet" type="button" data-action="toggle-save" data-tea-id="${tea.id}">Remove from Saved</button>
+        </div>
+      </article>`;
+    }
+
+    function savedTeaView(teaId) {
+      const tea = teas[teaId];
+      if (!tea) return missingRecord("That saved tea record is not available.", "/dashboard/saved", "Return to Saved Teas");
+      const related = events.filter(e => e.teaIds.includes(tea.id) && !state.deletedEvents.includes(e.id));
+      return `
+        <a class="back-link" href="#/dashboard/saved">← Saved to Remember</a>
+        ${pageHeading(esc(tea.name), esc(tea.origin), availabilityChip(tea))}
+        <div class="record-grid">
+          <section class="card">
+            <h2 class="card-title">Why it stayed with you</h2>
+            <blockquote class="quote">“${esc(tea.first)}”</blockquote>
+            <p>${esc(tea.notes)}</p>
+            <p class="stars">${stars(tea.rating)}</p>
+            <h3 class="section-label"><span>Your tasting records</span></h3>
+            ${related.map(e => `<p><a href="#/dashboard/tastings/${e.id}/tea/${tea.id}">${esc(e.name)} · ${shortDate(e.date)}</a></p>`).join("") || `<p class="muted">The original tasting record is no longer linked.</p>`}
+          </section>
+          <aside class="card">
+            <h2 class="card-title">Remember or shop</h2>
+            <p>Saving a tea here never adds it to a cart or charges you.</p>
+            <div class="button-row">${shopButton(tea)}<button class="btn btn-secondary" data-action="toggle-save" data-tea-id="${tea.id}">${state.saved.includes(tea.id)?"Remove from Saved":"Save to Remember"}</button></div>
+            ${!tea.shopUrl ? `<div class="notice warning">No confident current shop mapping is available. Your journal and Passport remain unchanged.</div>` : ""}
+          </aside>
+        </div>
+        ${footerNote()}
+      `;
+    }
+
+    function upcomingView() {
+      return `
+        ${pageHeading("Upcoming Tastings", "Your authorised events and the clean handoff to booking.")}
+        <div class="section-label"><span>Yours</span></div>
+        <article class="card">
+          <div class="button-row"><h2 class="card-title">${esc(upcomingEvent.name)}</h2><span class="chip">${esc(upcomingEvent.type)}</span><span class="chip success">Booked</span></div>
+          <p class="card-meta">${formatDate(upcomingEvent.date)} · ${esc(upcomingEvent.time)} · Hosted by ${esc(upcomingEvent.host)} · ${upcomingEvent.teaCount} teas</p>
+          <div class="notice">For a remote tasting: join the video call on a computer or tablet, and keep Vintage Fork open on your phone.</div>
+          <div class="card-footer"><span>Your seat is confirmed.</span><a class="btn btn-primary" href="#/dashboard/events/${upcomingEvent.id}">Event Details →</a></div>
+        </article>
+        <div class="card">
+          <h2 class="card-title">Browse more tastings</h2>
+          <p>Booking and seat changes happen on the existing Vintage Fork shop.</p>
+          <a class="btn btn-secondary" href="https://vintagefork.ca/" target="_blank" rel="noopener">Browse More Tastings at vintagefork.ca ↗</a>
+        </div>
+        ${footerNote()}
+      `;
+    }
+
+    function upcomingDetailView(eventId) {
+      if (eventId !== upcomingEvent.id) return missingRecord("This upcoming event is not authorised for this account.", "/dashboard/events", "Return to Upcoming Tastings");
+      return `
+        <a class="back-link" href="#/dashboard/events">← Upcoming Tastings</a>
+        ${pageHeading(esc(upcomingEvent.name), `${formatDate(upcomingEvent.date)} · ${esc(upcomingEvent.time)} · Hosted by ${esc(upcomingEvent.host)}`, `<span class="chip">${esc(upcomingEvent.type)}</span>`)}
+        <div class="record-grid">
+          <div>
+            <section class="card">
+              <h2 class="card-title">How this evening works</h2>
+              <ul>
+                <li>Join the video call on a computer or tablet.</li>
+                <li>Keep Vintage Fork open on your phone.</li>
+                <li>Captions are controlled in the video-call toolbar.</li>
+              </ul>
+            </section>
+            <section class="card">
+              <h2 class="card-title">Your join link</h2>
+              <p>The button reflects the server-authoritative invite state.</p>
+              <button class="btn btn-primary" type="button" disabled aria-disabled="true">Join This Tasting</button>
+              <p class="help">Opens ${esc(upcomingEvent.opens)}.</p>
+            </section>
+            <section class="card">
+              <h2 class="card-title">What’s pouring</h2>
+              <p>Six teas, kept quiet until the evening. Flight details appear here only when the event explicitly allows advance disclosure.</p>
+            </section>
+          </div>
+          <aside>
+            <section class="card">
+              <h2 class="card-title">Your experience settings</h2>
+              <p>Ambience · interface sounds · haptics · reduced motion</p>
+              <a class="btn btn-secondary" href="#/dashboard/account/experience">Review Settings →</a>
+            </section>
+            <section class="card">
+              <h2 class="card-title">Booking changes</h2>
+              <p>Booking, seat changes and cancellations happen on the Vintage Fork shop.</p>
+              <a class="btn btn-secondary" href="https://vintagefork.ca/" target="_blank" rel="noopener">Open Vintage Fork ↗</a>
+            </section>
+          </aside>
+        </div>
+        ${footerNote()}
+      `;
+    }
+
+    const accountSections = [
+      ["details","Details"],
+      ["communication","Communication"],
+      ["experience","Experience & sound"],
+      ["accessibility","Accessibility"],
+      ["privacy","Privacy"],
+      ["data","Your data"],
+      ["linked","Linked tastings"],
+      ["delete","Delete account / data"]
+    ];
+
+    function accountView(section) {
+      if (!accountSections.some(([id]) => id === section)) section = "details";
+      return `
+        ${pageHeading("Account", "Practical controls, kept behind the avatar so the dashboard stays centred on tea.")}
+        <div class="account-layout">
+          <nav class="account-nav" aria-label="Account sections">
+            ${accountSections.map(([id,label]) => `<a href="#/dashboard/account/${id}" class="${section===id?"active":""}" ${section===id?'aria-current="page"':""}>${esc(label)}</a>`).join("")}
+          </nav>
+          <div>${accountSectionView(section)}</div>
+        </div>
+        ${footerNote()}
+      `;
+    }
+
+    function accountSectionView(section) {
+      if (section === "communication") return communicationSettings();
+      if (section === "experience") return experienceSettings();
+      if (section === "accessibility") return accessibilitySettings();
+      if (section === "privacy") return privacySettings();
+      if (section === "data") return dataSettings();
+      if (section === "linked") return linkedSettings();
+      if (section === "delete") return deleteSettings();
+      return detailsSettings();
+    }
+
+    function detailsSettings() {
+      return `<section class="card settings-card">
+        <h2>Account details</h2>
+        <div class="field"><label for="account-name">Your name</label><input class="input" id="account-name" value="${esc(state.user.name)}"><span class="help">Used for dashboard greetings. Past tasting display names never change.</span></div>
+        <div class="setting-row"><div><strong>Sign-in email</strong><p>${esc(state.user.email)} · verified. Changing it does not rewrite any tasting participation row.</p></div><button class="btn btn-secondary" data-action="change-email">Change Email</button></div>
+        <div class="setting-row"><div><strong>Password</strong><p>Use a unique password for this account.</p></div><button class="btn btn-secondary" data-action="change-password">Change Password</button></div>
+        <div class="setting-row"><div><strong>Member since</strong><p>${formatDate(state.user.joined)}</p></div></div>
+        <div class="button-row" style="margin-top:1rem"><button class="btn btn-primary" data-action="save-account-name">Save Name</button></div>
+      </section>`;
+    }
+
+    function communicationSettings() {
+      return `<section class="card settings-card">
+        <h2>Communication</h2>
+        ${switchRow("marketing","Occasional notes about new teas and tastings","You can unsubscribe any time. Tasting emails do not create marketing consent.")}
+        <div class="notice">Transactional tasting recaps are sent because you attended and supplied an email. They are not marketing and are not controlled by the marketing switch.</div>
+        ${switchRow("reminders","Reminders for upcoming tastings","Applies to events linked to this account.")}
+        ${switchRow("dashboardNotices","Show account notices in the dashboard","Only notices connected to your own account.")}
+        <p class="help">Current email: ${esc(state.user.email)}</p>
+      </section>`;
+    }
+
+    function experienceSettings() {
+      return `<section class="card settings-card">
+        <h2>Experience &amp; sound</h2>
+        <p>These apply when you join a future tasting.</p>
+        ${switchRow("ambience","Ambience","Stored for future live tastings. No ambience plays inside the dashboard.")}
+        ${switchRow("interfaceSounds","Interface sounds","A short ceramic-style confirmation can play on successful submit. Never on keystrokes.")}
+        ${switchRow("haptics","Haptics","Uses supported device vibration for selected successful actions.")}
+        <div class="setting-row"><div><strong>Reduced motion</strong><p>Follow your device, force it on, or leave normal Tier 1 motion enabled.</p></div>
+          <select class="select" id="reduced-motion" data-setting-select="reducedMotion" style="width:auto">
+            <option value="device" ${state.settings.reducedMotion==="device"?"selected":""}>Follow device</option>
+            <option value="on" ${state.settings.reducedMotion==="on"?"selected":""}>On</option>
+            <option value="off" ${state.settings.reducedMotion==="off"?"selected":""}>Off</option>
+          </select>
+        </div>
+        <div class="notice">Host volume and captions live in the separate video-call tool. Vintage Fork cannot control them.</div>
+      </section>`;
+    }
+
+    function accessibilitySettings() {
+      return `<section class="card settings-card">
+        <h2>Accessibility</h2>
+        <div class="setting-row"><div><strong>Reduced motion</strong><p>Review the full motion setting and preview.</p></div><a class="btn btn-secondary" href="#/dashboard/account/experience">Review in Experience &amp; Sound →</a></div>
+        <div class="setting-row">
+          <div><strong>Aroma descriptors</strong><p>List view and wheel contain the same descriptors and actions. Your last choice is remembered on this device.</p></div>
+          <select class="select" id="descriptor-mode" data-setting-select="descriptorMode" style="width:auto">
+            <option value="list" ${state.settings.descriptorMode==="list"?"selected":""}>List view</option>
+            <option value="wheel" ${state.settings.descriptorMode==="wheel"?"selected":""}>Wheel</option>
+          </select>
+        </div>
+        <div class="notice">Text size follows browser and device settings. The layout is designed to remain usable at 200% and 400% zoom.</div>
+        <p>Captions during a tasting come from Zoom, Meet or the host’s conferencing tool. Core tea information remains written on the Vintage Fork screen.</p>
+      </section>`;
+    }
+
+    function privacySettings() {
+      return `<section class="card settings-card">
+        <h2>Privacy &amp; your data</h2>
+        <div class="setting-row"><div><strong>Your notes</strong><p>Your tasting notes are private to you. Other guests cannot read them. Hosts see attendance and room-level aggregates, never the words you wrote.</p></div></div>
+        <div class="setting-row"><div><strong>Retention</strong><p>Linked evenings remain while your customer account remains open. Unclaimed tasting records are removed after the 90-day anonymous window.</p></div></div>
+        <div class="setting-row"><div><strong>What Vintage Fork does not store</strong><p>No conferencing audio, video or transcript is stored by this dashboard. Those are governed by the separate call tool.</p></div></div>
+        <div class="button-row" style="margin-top:1rem"><a class="btn btn-secondary" href="#/dashboard/account/data">Download My Data →</a><a class="btn btn-secondary" href="#/dashboard/account/linked">See Linked Tastings →</a><a class="btn btn-danger" href="#/dashboard/account/delete">Delete Account / Customer Data →</a></div>
+      </section>`;
+    }
+
+    function dataSettings() {
+      return `<section class="card settings-card">
+        <h2>Download my data</h2>
+        <p>The export includes your account details, linked tasting participation, notes, ratings, trivia responses, Passport stamps, saved teas and preferences represented in this prototype.</p>
+        <div class="notice">The export is structured JSON so detailed historical records are not flattened into a courtesy PDF.</div>
+        <button class="btn btn-primary" type="button" data-action="download-data">Prepare My Download</button>
+      </section>`;
+    }
+
+    function linkedSettings() {
+      const candidates = [
+        {id:"first-flush-match", event:"First Flush Darjeeling Evening", date:"2026-05-14", type:"Remote", joined:"Amara K", count:5, stamps:5, saved:1, expires:"2026-08-12"},
+        {id:"roast-match", event:"Roasted Oolong Winter Table", date:"2026-02-21", type:"In person", joined:"A.", count:6, stamps:6, saved:3, expires:"2026-08-30"}
+      ];
+      return `<section class="card settings-card">
+        <h2>Linked tastings</h2>
+        <p>Every linked record belongs to your account because its stored participant email was verified. Display names are historical and never used as proof of ownership.</p>
+        <h3 class="section-label"><span>Linked to this account</span></h3>
+        ${events.filter(e=>!state.deletedEvents.includes(e.id)).map(e=>`<div class="setting-row"><div><strong>${esc(e.name)}</strong><p>${shortDate(e.date)} · joined as “${esc(e.joinedAs)}”</p></div><span class="chip success">Linked</span></div>`).join("")}
+        <h3 class="section-label"><span>Other evenings under the verified email</span></h3>
+        <p class="help">Additional matches are offered unselected. Unchecked records stay anonymous and keep their existing retention deadline.</p>
+        <div class="linked-list">${candidates.map(c=>`<label class="linked-item"><input type="checkbox" value="${c.id}" data-claim-match ${state.claim.selectedMatches.includes(c.id)?"checked":""}><span><strong>${esc(c.event)}</strong><span class="help">${shortDate(c.date)} · ${esc(c.type)} · joined as “${esc(c.joined)}” · ${c.count} teas · ${c.stamps} stamps · ${c.saved} saved</span></span><span class="chip warning">Retains until ${shortDate(c.expires)}</span></label>`).join("")}</div>
+        <div class="button-row" style="margin-top:1rem"><button class="btn btn-primary" data-action="link-selected">Add Selected Evenings</button><a class="btn btn-secondary" href="#/dashboard/claim/demo-token">Open Claim Demo</a></div>
+        <div class="notice">For an evening recorded under another address, open that evening’s signed claim link while signed in. Ownership confirmation goes only to the email stored on that participant row.</div>
+      </section>`;
+    }
+
+    function deleteSettings() {
+      return `<section class="card settings-card">
+        <h2>Delete account / customer data</h2>
+        <div class="notice danger">This removes customer-facing data. In production, a staff- or host-bearing account must use a protected customer-data-only path so staff roles, event access and host-control dependencies are not removed.</div>
+        <p>A standard customer deletion removes the customer account and linked customer records, subject to the product’s required historical reporting boundaries. Marketing consent is handled independently by the marketing provider.</p>
+        <div class="field"><label for="delete-confirm-text">Type DELETE to enable the final action</label><input class="input" id="delete-confirm-text" autocomplete="off"></div>
+        <button class="btn btn-danger" type="button" data-action="delete-account" disabled>Delete Account / Customer Data</button>
+      </section>`;
+    }
+
+    function switchRow(key, title, copy) {
+      return `<div class="setting-row"><div><strong>${esc(title)}</strong><p>${esc(copy)}</p></div><label class="switch"><span class="sr-only"></span><input type="checkbox" data-setting="${key}" ${state.settings[key]?"checked":""} aria-label="${esc(title)}"><span aria-hidden="true"></span></label></div>`;
+    }
+
+    function authWrap(title, lede, body) {
+      return `<section class="auth-panel"><p class="eyebrow">Vintage Fork Customer Dashboard</p><h1>${title}</h1><p class="lede">${lede}</p>${body}</section>`;
+    }
+
+    function loginView() {
+      return authWrap("Welcome back", "Your cellar is where you left it.", `
+        <form data-form="login">
+          <div class="field"><label for="login-email">Email</label><input class="input" id="login-email" type="email" value="${esc(state.user.email)}" required autocomplete="email"></div>
+          <div class="field"><label for="login-password">Password</label><input class="input" id="login-password" type="password" value="prototype" required autocomplete="current-password"></div>
+          <button class="btn btn-primary" type="submit">Sign In</button>
+        </form>
+        <p><a href="#/dashboard/recover">Forgot your password?</a></p>
+        <div class="auth-separator">or</div>
+        <p>Have a recap email? Open its claim link to keep that evening.</p>
+        <a class="btn btn-secondary" href="#/dashboard/claim/demo-token">Preview Claim Journey</a>
+        <p class="help">Prototype note: any non-empty password signs in.</p>
+      `);
+    }
+
+    function createView() {
+      return authWrap("Start your cellar", "A place for the teas you’ve tasted and the ones you want to remember.", `
+        <form data-form="create">
+          <div class="field"><label for="create-name">Your name</label><input class="input" id="create-name" required value="${esc(state.user.name)}" autocomplete="name"></div>
+          <div class="field"><label for="create-email">Email</label><input class="input" id="create-email" type="email" required value="${esc(state.user.email)}" autocomplete="email"></div>
+          <div class="field"><label for="create-password">Password</label><input class="input" id="create-password" type="password" required minlength="6" autocomplete="new-password"></div>
+          <label style="display:flex;gap:.65rem;align-items:flex-start;margin-top:1rem"><input type="checkbox" id="create-marketing" style="width:20px;height:20px;accent-color:var(--plum)"><span>Send me occasional notes about new teas and tastings. You can unsubscribe any time.</span></label>
+          <button class="btn btn-primary" type="submit">Create My Account</button>
+        </form>
+        <p>Already have an account? <a href="#/dashboard/login">Sign in</a></p>
+        <p class="help">After this address is verified, the system may offer unclaimed evenings recorded under the same exact normalised email.</p>
+      `);
+    }
+
+    function claimView() {
+      return authWrap("Keep your evening", "This claim is a continuation of the tasting, not a new account-management task.", `
+        <div class="card" style="box-shadow:none">
+          <div class="button-row"><h2 class="card-title">Autumn Oolong Flight</h2><span class="chip">In person</span></div>
+          <p class="card-meta">Saturday 8 August 2026 · Hosted by Mei · You joined as “Amara”</p>
+          <div class="claim-summary"><div><strong>4</strong><span>teas tasted</span></div><div><strong>4</strong><span>Passport stamps</span></div><div><strong>4</strong><span>sets of notes</span></div><div><strong>2</strong><span>teas saved</span></div></div>
+        </div>
+        <div class="field"><label>Confirmation address</label><input class="input" value="a•••a@e•••.com" disabled><span class="help">Locked. Confirmation is sent only to the email already stored on the participant record.</span></div>
+        <form data-form="claim">
+          <div class="field"><label for="claim-name">Your name</label><input class="input" id="claim-name" required value="${esc(state.user.name)}"></div>
+          <div class="field"><label for="claim-password">Password</label><input class="input" id="claim-password" type="password" required minlength="6" value="prototype"></div>
+          <button class="btn btn-primary" type="submit">Continue to Verification</button>
+        </form>
+        <p class="help">Nothing is linked until confirmation sent to the stored address is completed. The claim flow never edits that stored email.</p>
+      `);
+    }
+
+    function verifyPendingView() {
+      return authWrap("Check your email", "We sent a confirmation to a•••a@e•••.com.", `
+        <div class="pending-mark" aria-label="Verification pending"></div>
+        <p style="text-align:center"><strong>Nothing is linked yet.</strong></p>
+        <button class="btn btn-secondary" style="width:100%" type="button" data-action="resend-verification">Send it again</button>
+        <button class="btn btn-primary" style="width:100%;margin-top:.65rem" type="button" data-action="complete-verification">Simulate Email Confirmation</button>
+        <p class="help">In production, the claim token is signed, participant-scoped, valid for 30 days and never longer than the anonymous record itself.</p>
+      `);
+    }
+
+    function verifyResultView() {
+      return authWrap(`Your cellar is open, ${esc(state.user.name)}.`, "The verified evening is now attached without moving or copying its child records.", `
+        <div class="notice success"><strong>From Autumn Oolong Flight:</strong><br>4 teas in the order poured · your notes and ratings · 4 Passport stamps · 2 teas saved</div>
+        <div class="button-row">
+          <a class="btn btn-primary" href="#/dashboard/tastings/autumn-oolong">See That Evening</a>
+          <a class="btn btn-secondary" href="#/dashboard">Go to My Cellar</a>
+        </div>
+        <div class="auth-separator">other matches</div>
+        <p>Other unlinked rows under the same verified email are offered unselected. A household-shared email never causes silent linking.</p>
+        <a class="btn btn-secondary" href="#/dashboard/account/linked">Review Other Evenings</a>
+      `);
+    }
+
+    function expiredClaimView() {
+      return authWrap("This claim link has expired", "The recovery shown depends on the underlying participant record.", `
+        <div class="notice warning">The anonymous record still exists and has a stored email. A fresh link can be sent only to a•••a@e•••.com.</div>
+        <button class="btn btn-primary" type="button" data-action="reissue-claim">Send a Fresh Claim Link</button>
+        <p class="help">This screen never accepts a replacement address. If the record had already been deleted, the tasting would not be reconstructed.</p>
+      `);
+    }
+
+    function recoveryView() {
+      return authWrap("Recover your account", "Account recovery changes access only. It never changes tasting links.", `
+        <form data-form="recover">
+          <div class="field"><label for="recover-email">Email</label><input class="input" id="recover-email" type="email" required autocomplete="email"></div>
+          <button class="btn btn-primary" type="submit">Send Reset Link</button>
+        </form>
+        <p class="help">The response is identical whether or not the account exists. Tasting history is never used as authentication.</p>
+        <p><a href="#/dashboard/login">Return to sign in</a></p>
+      `);
+    }
+
+    function missingRecord(message, href, label) {
+      return `<div class="empty-state"><div class="empty-visual">record</div><h1>${esc(message)}</h1><p>The dashboard does not reconstruct deleted or unauthorised records.</p><a class="btn btn-primary" href="#${href}">${esc(label)}</a></div>`;
+    }
+
+    function notFoundView() {
+      return `<div class="empty-state"><div class="empty-visual">404</div><h1>That page is not in your cellar.</h1><p>The route may be old, incomplete or outside this customer account.</p><a class="btn btn-primary" href="#/dashboard">Return Home</a></div>`;
+    }
+
+    function footerNote() {
+      return `<p class="footer-note">Standalone front-end prototype · Data is local demo content · No cart, checkout, payment, inventory authority or live backend is included.</p>`;
+    }
+
+    function bindViewInputs() {
+      $$("[data-state]").forEach(el => {
+        const handler = () => {
+          const [group,key] = el.dataset.state.split(".");
+          state[group][key] = el.value;
+          saveState();
+          render();
+        };
+        el.addEventListener(el.type === "search" ? "input" : "change", debounce(handler, el.type === "search" ? 120 : 0));
+      });
+      $$("[data-setting]").forEach(el => el.addEventListener("change", () => {
+        state.settings[el.dataset.setting] = el.checked;
+        saveState();
+        showToast(`${labelForSetting(el.dataset.setting)} ${el.checked ? "enabled" : "disabled"}.`);
+      }));
+      $$("[data-setting-select]").forEach(el => el.addEventListener("change", () => {
+        state.settings[el.dataset.settingSelect] = el.value;
+        saveState();
+        showToast("Preference saved.");
+      }));
+      $$("[data-claim-match]").forEach(el => el.addEventListener("change", () => {
+        const id = el.value;
+        state.claim.selectedMatches = el.checked
+          ? [...new Set([...state.claim.selectedMatches, id])]
+          : state.claim.selectedMatches.filter(x => x !== id);
+        saveState();
+      }));
+      const deleteText = $("#delete-confirm-text");
+      if (deleteText) deleteText.addEventListener("input", () => {
+        const btn = $("[data-action='delete-account']");
+        btn.disabled = deleteText.value.trim() !== "DELETE";
+      });
+    }
+
+    function labelForSetting(key) {
+      return ({ambience:"Ambience",interfaceSounds:"Interface sounds",haptics:"Haptics",marketing:"Marketing messages",reminders:"Upcoming reminders",dashboardNotices:"Dashboard notices"})[key] || "Setting";
+    }
+
+    function debounce(fn, delay) {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+    }
+
+    function showToast(message, title = "Saved") {
+      const el = document.createElement("div");
+      el.className = "toast";
+      el.innerHTML = `<strong>${esc(title)}</strong><br>${esc(message)}`;
+      $("#toast-stack").append(el);
+      setTimeout(() => el.remove(), 3400);
+    }
+
+    function successFeedback(message, title = "Saved") {
+      showToast(message, title);
+      playCeramicClink();
+      if (state.settings.haptics && navigator.vibrate) navigator.vibrate(35);
+    }
+
+    function playCeramicClink() {
+      if (!state.settings.interfaceSounds) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+        const gain = ctx.createGain();
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        osc1.type = "sine"; osc2.type = "triangle";
+        osc1.frequency.setValueAtTime(1180, now);
+        osc2.frequency.setValueAtTime(1760, now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.055, now + .02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + .16);
+        osc1.connect(gain); osc2.connect(gain); gain.connect(ctx.destination);
+        osc1.start(now); osc2.start(now);
+        osc1.stop(now + .18); osc2.stop(now + .18);
+        setTimeout(() => ctx.close(), 240);
+      } catch { /* Sound is always optional. */ }
+    }
+
+    function openDialog({title, copy, confirmLabel = "Confirm", danger = true, onConfirm}) {
+      $("#dialog-title").textContent = title;
+      $("#dialog-copy").innerHTML = copy;
+      const confirm = $("#dialog-confirm");
+      confirm.textContent = confirmLabel;
+      confirm.className = `btn ${danger ? "btn-danger" : "btn-primary"}`;
+      pendingDialogAction = onConfirm;
+      $("#confirm-dialog").showModal();
+    }
+
+    function closeDialog() {
+      $("#confirm-dialog").close();
+      pendingDialogAction = null;
+    }
+
+    document.addEventListener("click", event => {
+      const actionEl = event.target.closest("[data-action]");
+      const accountMenuEl = event.target.closest("[data-account-menu]");
+      const userButton = event.target.closest("[data-action='toggle-account-menu']");
+
+      if (!accountMenuEl && !userButton) {
+        $("[data-account-menu]")?.remove();
+        const button = $("[data-action='toggle-account-menu']");
+        if (button) button.setAttribute("aria-expanded","false");
+      }
+
+      if (!actionEl) return;
+      const action = actionEl.dataset.action;
+
+      if (action === "toggle-account-menu") {
+        const existing = $("[data-account-menu]");
+        if (existing) {
+          existing.remove();
+          actionEl.setAttribute("aria-expanded","false");
+        } else {
+          document.body.insertAdjacentHTML("beforeend", accountMenu());
+          actionEl.setAttribute("aria-expanded","true");
+          $("[data-account-menu] a, [data-account-menu] button")?.focus();
+        }
+      }
+
+      if (action === "sign-out") {
+        $("[data-account-menu]")?.remove();
+        navigate("/dashboard/login");
+        showToast("You have been signed out of the prototype.", "Signed out");
+      }
+
+      if (action === "toggle-save") {
+        const id = actionEl.dataset.teaId;
+        const tea = teas[id];
+        if (!tea) return;
+        if (state.saved.includes(id)) {
+          openDialog({
+            title: `Remove ${tea.name} from Saved?`,
+            copy: `<p>This removes the bookmark only. The tasting record and Passport stamp stay intact.</p>`,
+            confirmLabel: "Remove from Saved",
+            onConfirm: () => {
+              state.saved = state.saved.filter(x => x !== id);
+              saveState();
+              closeDialog();
+              render();
+              successFeedback(`${tea.name} was removed from Saved to Remember.`, "Bookmark removed");
+            }
+          });
+        } else {
+          state.saved.push(id);
+          saveState();
+          render();
+          successFeedback(`${tea.name} is now saved to remember. This did not add it to a cart.`, "Tea saved");
+        }
+      }
+
+      if (action === "passport-group") {
+        state.passportGroup = actionEl.dataset.group;
+        saveState();
+        render();
+      }
+
+      if (action === "saved-filter") {
+        state.savedFilter = actionEl.dataset.filter;
+        saveState();
+        render();
+      }
+
+      if (action === "clear-journal-filters") {
+        state.journal = structuredClone(defaultState.journal);
+        saveState();
+        render();
+      }
+
+      if (action === "delete-tasting") {
+        const eventId = actionEl.dataset.eventId;
+        const tasting = events.find(e => e.id === eventId);
+        openDialog({
+          title: `Delete ${tasting.name}?`,
+          copy: `<p>This removes this participation and its notes, trivia responses, Passport stamps and saves from the prototype. It does not delete the account.</p><p><strong>This cannot be undone in the demo.</strong></p>`,
+          confirmLabel: "Delete This Tasting",
+          onConfirm: () => {
+            state.deletedEvents = [...new Set([...state.deletedEvents, eventId])];
+            tasting.teaIds.forEach(id => {
+              const appearsElsewhere = events.some(e => e.id !== eventId && !state.deletedEvents.includes(e.id) && e.teaIds.includes(id));
+              if (!appearsElsewhere) state.saved = state.saved.filter(x => x !== id);
+            });
+            saveState();
+            closeDialog();
+            navigate("/dashboard/tastings");
+            showToast("The tasting was removed from this prototype.", "Tasting deleted");
+          }
+        });
+      }
+
+      if (action === "save-account-name") {
+        const input = $("#account-name");
+        if (!input || !input.value.trim()) return;
+        state.user.name = input.value.trim();
+        saveState();
+        render();
+        successFeedback("Your dashboard greeting name was updated. Past tasting display names did not change.");
+      }
+
+      if (action === "change-email") {
+        openDialog({
+          title: "Change sign-in email",
+          copy: `<p>This prototype does not send email. In production, the new primary sign-in email must be verified and no tasting participation email is rewritten or re-matched automatically.</p>`,
+          confirmLabel: "Understood",
+          danger: false,
+          onConfirm: closeDialog
+        });
+      }
+
+      if (action === "change-password") {
+        successFeedback("Password-change flow previewed. No password is stored by this standalone prototype.", "Security");
+      }
+
+      if (action === "download-data") downloadData();
+
+      if (action === "link-selected") {
+        const count = state.claim.selectedMatches.length;
+        if (!count) {
+          showToast("Select at least one evening. Matches are never linked silently.", "Nothing selected");
+          return;
+        }
+        state.claim.selectedMatches = [];
+        saveState();
+        successFeedback(`${count} selected evening${count===1?"":"s"} linked in the prototype after explicit confirmation.`, "Evenings linked");
+        render();
+      }
+
+      if (action === "delete-account") {
+        openDialog({
+          title: "Delete account / customer data?",
+          copy: `<p>This resets all customer-facing demo data on this device. A production staff-bearing account would use a protected customer-data-only path.</p>`,
+          confirmLabel: "Delete Demo Customer Data",
+          onConfirm: () => {
+            localStorage.removeItem(storageKey);
+            state = structuredClone(defaultState);
+            closeDialog();
+            navigate("/dashboard/login");
+            showToast("Local prototype data was cleared.", "Customer data deleted");
+          }
+        });
+      }
+
+      if (action === "resend-verification") {
+        successFeedback("A new confirmation was simulated to the same locked participant email.", "Verification resent");
+      }
+      if (action === "complete-verification") navigate("/dashboard/verify/demo-confirmed");
+      if (action === "reissue-claim") {
+        successFeedback("A fresh claim link was simulated to the masked stored address.", "Claim reissued");
+        navigate("/dashboard/verify/pending");
+      }
+    });
+
+    document.addEventListener("submit", event => {
+      const form = event.target.closest("form[data-form]");
+      if (!form) return;
+      event.preventDefault();
+      const type = form.dataset.form;
+      if (!form.reportValidity()) return;
+      if (type === "login") {
+        successFeedback("Your cellar is open.", "Signed in");
+        navigate("/dashboard");
+      }
+      if (type === "create") {
+        state.user.name = $("#create-name").value.trim();
+        state.user.email = $("#create-email").value.trim();
+        state.settings.marketing = $("#create-marketing").checked;
+        saveState();
+        successFeedback("Account created. Email verification is represented by the next screen.", "Account created");
+        navigate("/dashboard/verify/pending");
+      }
+      if (type === "claim") {
+        state.user.name = $("#claim-name").value.trim();
+        saveState();
+        successFeedback("Ownership confirmation was sent to the locked participant email.", "Check your email");
+        navigate("/dashboard/verify/pending");
+      }
+      if (type === "recover") {
+        showToast("If there is an account for that address, a reset link is on its way.", "Check your email");
+      }
+    });
+
+    $("#confirm-dialog").addEventListener("click", event => {
+      if (event.target === $("#confirm-dialog")) closeDialog();
+    });
+    $("[data-dialog-cancel]").addEventListener("click", closeDialog);
+    $("#dialog-confirm").addEventListener("click", () => pendingDialogAction?.());
+
+    window.addEventListener("hashchange", render);
+    window.addEventListener("storage", () => { state = loadState(); render(); });
+    matchMedia("(prefers-reduced-motion: reduce)").addEventListener?.("change", applyMotionSetting);
+
+    function downloadData() {
+      const payload = {
+        generated_at: new Date().toISOString(),
+        account: state.user,
+        preferences: state.settings,
+        linked_tastings: events.filter(e => !state.deletedEvents.includes(e.id)),
+        tasting_notes: Object.values(teas).map(t => ({tea_id:t.id, tea_name:t.name, first_impression:t.first, descriptors:t.descriptors, intensity:t.intensity, rating:t.rating, notes:t.notes})),
+        passport_stamps: Object.values(teas).filter(t => t.stamped).map(t => ({tea_id:t.id, tea_name:t.name, origin:t.origin})),
+        saved_teas: state.saved.map(id => teas[id]).filter(Boolean).map(t => ({tea_id:t.id, tea_name:t.name, saved_date:t.saveDate, availability:t.available}))
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `vintage-fork-customer-data-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      successFeedback("Your structured JSON export was prepared.", "Download ready");
+    }
+
+    applyMotionSetting();
+    if (!location.hash) history.replaceState(null, "", "#/dashboard");
+    render();
+  })();
+  </script>
+</body>
+</html>

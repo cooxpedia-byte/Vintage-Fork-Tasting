@@ -1,0 +1,5 @@
+{
+  "framework": "nextjs",
+  "regions": ["yul1"],
+  "crons": [{ "path": "/api/cron/retention", "schedule": "15 9 * * *" }]
+}

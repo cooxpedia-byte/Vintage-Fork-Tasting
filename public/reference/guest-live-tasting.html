@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<!--
+  Vintage Fork — Guest Live Tasting Experience
+  Single-file HTML prototype built from UX Design Specification v1.3
+  Route modelled: /event/[invite-code]  (one route, phase-driven)
+
+  NOTES FOR IMPLEMENTERS
+  - Palette, type scale, radii, materials and motion tiers follow spec §4 and §15.
+  - Buttons use radius-md 12px. Only badges/status chips are pill-shaped (spec §4.5).
+  - The logo is represented by a placeholder container (.vf-logo) that must be replaced
+    with the supplied asset file. Never redraw, recolour or animate the mark (spec §4.1).
+  - Screen state is switched by JS (setPhase / show) to emulate SessionPhase transitions.
+  - Real build: replace the mock event bus with the WebSocket contract in spec §20.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Vintage Fork — Guest Live Tasting</title>
+<style>
+/* ============================================================================
+   Vintage Fork — Guest Live Tasting Experience
+   styles.css
+   Derived from: UX Design Specification v1.3 (Final Cross-Surface Integration
+   Correction). Section numbers in comments refer to that document.
+
+   Route styled:  /event/[invite-code]   — one route, phase-driven
+   Companion file: index.html (guest session shell + all 25 screens)
+
+   HOUSE RULES ENCODED HERE
+   - Palette is token-only. Never hard-code a hex in a component rule.
+   - Buttons use radius-md (12px). Pill radius is reserved for the badge /
+     status-chip family — the single named exception in §4.5.
+   - Minimum body size 17px. Nothing below 13px anywhere in the guest UI.
+   - Minimum tap target 48 x 48px, minimum 8px between adjacent targets.
+   - Four materials only: parchment, tea-stained edge, engraved metal, ceramic.
+   - Antique Gold is never body text on plum. Use Foil Gold Light, or Parchment.
+   - No neon, no pure white ground, no pure black, no glassmorphism, no
+     multi-stop gradients, no drop-shadow stacks, one accent hue per screen.
+   - Legibility outranks atmosphere in every conflict.
+
+   CONTENTS
+    1. Tokens
+    2. Base and typography
+    3. Shell and layout
+    4. Logo placement scale
+    5. Session header
+    6. Buttons
+    7. Cards, rules, chips
+    8. Forms
+    9. Guided Exploration tabs
+   10. Brewing timer arc
+   11. Aroma Wheel and List View
+   12. Intensity scale and star rating
+   13. Passport stamp
+   14. Overlays: drawers, banner, pills, toast
+   15. Interface states
+   16. Motion
+   17. Tablet and desktop
+   18. Prototype harness (delete in production)
+   ============================================================================ */
+
+/* ============================================================
+   1. TOKENS  (spec §4.2 palette, §4.4 type, §4.5 shape)
+   ============================================================ */
+:root{
+  --vf-plum:#4B1638;
+  --vf-plum-aged:#33102A;
+  --vf-gold:#C9A227;
+  --vf-gold-light:#E0BE6B;
+  --vf-parchment:#F7F1E4;
+  --vf-ivory:#FBF7EC;
+  --vf-sage:#7C8B5E;
+  --vf-forest:#3F4E36;
+  --vf-walnut:#4A3524;
+  --vf-ink:#2B2420;
+  --vf-fog:#8C8578;
+
+  --radius-md:12px;
+  --radius-sm:8px;
+  --radius-pill:999px;
+
+  --rule:1px solid rgba(201,162,39,.6);      /* engraved metal hairline */
+  --border-ceramic:1px solid rgba(74,53,36,.2);
+  --elev-1:0 1px 2px rgba(43,36,32,.10);
+
+  --ease-enter:cubic-bezier(.22,.61,.36,1);
+  --ease-exit:cubic-bezier(.4,0,.68,.06);
+
+  --font:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --font-ui:"Avenir Next","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+}
+
+/* ============================================================
+   2. BASE
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0;padding:0}
+body{
+  background:var(--vf-parchment);
+  color:var(--vf-ink);
+  font-family:var(--font-ui);
+  font-size:17px;line-height:26px;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+/* Parchment grain: <=3% luminance variance, never over text (spec §4.3) */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.03;
+  background-image:radial-gradient(rgba(74,53,36,.9) .5px,transparent .5px);
+  background-size:3px 3px;
+}
+h1,h2,h3,.display{font-family:var(--font);font-weight:600;margin:0}
+.display{font-size:34px;line-height:40px;letter-spacing:-.01em}
+h1{font-size:26px;line-height:32px}
+h2{font-size:20px;line-height:26px}
+p{margin:0}
+.body-small{font-size:15px;line-height:22px}
+.caption{font-size:13px;line-height:18px;letter-spacing:.02em;text-transform:none;color:var(--vf-fog)}
+.numeral{font-size:56px;line-height:56px;font-variant-numeric:tabular-nums;font-weight:600}
+.muted{color:var(--vf-fog)}
+.center{text-align:center}
+.stack{display:flex;flex-direction:column}
+.gap-8{gap:8px}.gap-12{gap:12px}.gap-16{gap:16px}.gap-24{gap:24px}.gap-32{gap:32px}
+
+/* ============================================================
+   3. SHELL / LAYOUT
+   ============================================================ */
+#app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+.screen{display:none;flex:1;flex-direction:column}
+.screen.is-active{display:flex;animation:tier1-in 320ms var(--ease-enter) both}
+.pane{
+  width:100%;max-width:520px;margin:0 auto;padding:28px 20px 120px;
+  flex:1;display:flex;flex-direction:column;
+}
+.pane--centered{justify-content:center;text-align:center;align-items:center;padding-bottom:64px}
+/* Primary actions live in the bottom third, thumb reach (spec §4.5) */
+.actions{margin-top:auto;padding-top:32px;display:flex;flex-direction:column;gap:12px}
+
+/* Ceremonial plum ground */
+.on-plum{background:var(--vf-plum);color:var(--vf-parchment)}
+.on-plum-aged{
+  background:radial-gradient(120% 90% at 50% 30%,var(--vf-plum) 0%,var(--vf-plum-aged) 100%);
+  color:var(--vf-parchment);
+}
+.on-plum .muted,.on-plum-aged .muted,.on-plum .caption,.on-plum-aged .caption{color:rgba(247,241,228,.72)}
+
+/* ============================================================
+   4. LOGO PLACEHOLDER  (replace with supplied asset — spec §4.1)
+   ============================================================ */
+.vf-logo{
+  display:block;aspect-ratio:1/1;border-radius:50%;
+  background:var(--vf-plum);border:1.5px solid var(--vf-gold);
+  position:relative;flex:0 0 auto;
+  /* clear space = 0.25 x rendered width, on all four sides */
+  margin:calc(var(--logo-w,96px) * .25) auto;
+  width:var(--logo-w,96px);
+}
+.vf-logo::after{
+  content:"VF";position:absolute;inset:0;display:grid;place-items:center;
+  font-family:var(--font);color:var(--vf-gold-light);
+  font-size:calc(var(--logo-w,96px) * .26);letter-spacing:.06em;
+}
+.vf-logo--s01{--logo-w:96px}
+.vf-logo--s02{--logo-w:88px}
+.vf-logo--s03{--logo-w:104px}
+.vf-logo--s04{--logo-w:64px}
+.vf-logo--s05{--logo-w:80px}
+.vf-logo--s17{--logo-w:72px}
+.vf-logo--terminal{--logo-w:80px}
+/* Locked 28px header mark, live session only. Never centred, never enlarged. */
+.vf-logo--header{--logo-w:28px;margin:0;height:28px}
+.vf-logo--dimmed{opacity:.4}
+
+/* ============================================================
+   5. HEADER  (spec §8.1 — no navigation bar; three controls only)
+   ============================================================ */
+.session-header{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;border-bottom:var(--rule);
+  background:var(--vf-parchment);
+}
+.session-header.is-plum{background:var(--vf-plum);border-bottom-color:rgba(201,162,39,.4)}
+.session-header .spacer{flex:1}
+.header-meta{font-size:13px;line-height:18px;color:var(--vf-fog)}
+.session-header.is-plum .header-meta{color:rgba(247,241,228,.72)}
+
+/* ============================================================
+   6. BUTTONS  (ceramic: 1px walnut 20%, radius-md, 2px inward press)
+   ============================================================ */
+.btn{
+  font-family:var(--font-ui);font-size:17px;line-height:24px;font-weight:600;
+  min-height:48px;padding:12px 20px;border-radius:var(--radius-md);
+  border:var(--border-ceramic);background:var(--vf-ivory);color:var(--vf-ink);
+  box-shadow:var(--elev-1);cursor:pointer;
+  transition:transform 120ms var(--ease-enter),background 160ms linear;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn:active{transform:translateY(2px);box-shadow:none}
+.btn--primary{background:var(--vf-sage);color:var(--vf-ivory);border-color:rgba(63,78,54,.5)}
+.btn--primary:hover,.btn--primary:active{background:var(--vf-forest)}
+.btn--quiet{background:transparent;box-shadow:none;border-color:transparent;color:var(--vf-ink);font-weight:500}
+.on-plum .btn--quiet,.on-plum-aged .btn--quiet{color:var(--vf-parchment)}
+.btn--danger{background:var(--vf-ivory);color:var(--vf-plum);border-color:rgba(75,22,56,.35)}
+.btn--icon{min-width:48px;min-height:48px;padding:0 12px;background:transparent;border-color:transparent;box-shadow:none;font-size:15px}
+.session-header.is-plum .btn--icon{color:var(--vf-parchment)}
+.btn:disabled{background:var(--vf-ivory);color:var(--vf-fog);border-color:rgba(74,53,36,.14);cursor:not-allowed;box-shadow:none}
+:focus-visible{outline:2px solid var(--vf-gold);outline-offset:3px;border-radius:var(--radius-sm)}
+
+/* ============================================================
+   7. CARDS, RULES, CHIPS
+   ============================================================ */
+.card{
+  background:var(--vf-ivory);border:var(--border-ceramic);
+  border-radius:var(--radius-md);padding:20px;box-shadow:var(--elev-1);
+}
+.card--tea-stained{
+  border-image:none;position:relative;
+  box-shadow:var(--elev-1),0 0 0 4px rgba(74,53,36,.04);
+}
+.hr{height:0;border:0;border-top:var(--rule);margin:24px 0}
+/* Badge / status-chip family — the single pill-shaped exception (spec §4.5) */
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  min-height:32px;padding:6px 14px;border-radius:var(--radius-pill);
+  font-size:13px;line-height:18px;font-weight:600;
+  background:rgba(74,53,36,.06);border:var(--border-ceramic);color:var(--vf-ink);
+}
+.chip--selected{background:var(--vf-gold);border-color:var(--vf-gold);color:var(--vf-plum-aged)}
+.chip--presence{background:rgba(124,139,94,.14);border-color:rgba(124,139,94,.35);color:var(--vf-forest)}
+.chip-row{display:flex;flex-wrap:wrap;gap:8px}
+
+/* ============================================================
+   8. FORMS  (min body 17px, 48px targets)
+   ============================================================ */
+label{display:block;font-size:15px;line-height:22px;font-weight:600;margin-bottom:6px}
+input[type=text],input[type=email]{
+  width:100%;min-height:52px;padding:12px 14px;font-size:17px;font-family:var(--font-ui);
+  background:var(--vf-ivory);color:var(--vf-ink);
+  border:var(--border-ceramic);border-radius:var(--radius-md);
+}
+.check{display:flex;gap:12px;align-items:flex-start;padding:8px 0;min-height:48px}
+.check input{width:22px;height:22px;margin-top:4px;accent-color:var(--vf-sage);flex:0 0 auto}
+.check span{font-size:15px;line-height:22px}
+
+/* ============================================================
+   9. TABS  (Guided Exploration only — spec §8.2)
+   ============================================================ */
+.tabs{display:flex;gap:8px;padding:12px 16px 0;max-width:520px;margin:0 auto;width:100%}
+.tab{
+  flex:1;min-height:48px;border-radius:var(--radius-md);
+  border:var(--border-ceramic);background:transparent;color:var(--vf-ink);
+  font-size:15px;font-weight:600;cursor:pointer;
+}
+.tab[aria-selected=true]{background:var(--vf-ivory);border-color:var(--vf-gold);box-shadow:var(--elev-1)}
+
+/* ============================================================
+   10. TIMER ARC  (engraved metal, host-controlled — S08)
+   ============================================================ */
+.timer{position:relative;width:200px;height:200px;margin:8px auto}
+.timer svg{transform:rotate(-90deg)}
+.timer .track{stroke:rgba(201,162,39,.22)}
+.timer .arc{stroke:var(--vf-gold);stroke-linecap:round;transition:stroke-dashoffset 1s linear}
+.timer .readout{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+
+/* ============================================================
+   11. AROMA WHEEL  (equivalent to List View — spec §14)
+   ============================================================ */
+.wheel{position:relative;width:296px;height:296px;margin:16px auto;border-radius:50%;
+  border:var(--rule);display:grid;place-items:center}
+.wheel-hub{width:96px;height:96px;border-radius:50%;border:var(--rule);display:grid;place-items:center;
+  font-size:13px;color:var(--vf-fog);text-align:center;padding:8px}
+.petal{
+  position:absolute;min-height:48px;padding:8px 12px;border-radius:var(--radius-pill);
+  white-space:nowrap;
+  border:var(--border-ceramic);background:var(--vf-ivory);color:var(--vf-ink);
+  font-size:13px;font-weight:600;cursor:pointer;box-shadow:var(--elev-1);
+  transition:transform 180ms var(--ease-enter),background 160ms linear;
+}
+.petal[aria-pressed=true]{background:var(--vf-gold);border-color:var(--vf-gold);color:var(--vf-plum-aged);transform:scale(1.04)}
+.selection-count{text-align:center;margin-top:12px}
+
+/* ============================================================
+   12. SCALES: intensity + stars
+   ============================================================ */
+.scale{display:flex;gap:8px}
+.scale button{
+  flex:1;min-height:56px;border-radius:var(--radius-md);border:var(--border-ceramic);
+  background:var(--vf-ivory);font-size:15px;font-weight:600;cursor:pointer;color:var(--vf-ink);
+}
+.scale button[aria-pressed=true]{background:var(--vf-gold);border-color:var(--vf-gold);color:var(--vf-plum-aged)}
+.stars{display:flex;gap:8px;justify-content:center}
+.star{
+  width:52px;height:52px;min-height:48px;border:none;background:transparent;cursor:pointer;
+  font-size:34px;line-height:1;color:rgba(74,53,36,.28);padding:0;
+}
+.star[data-on=true]{color:var(--vf-gold)}
+
+/* ============================================================
+   13. PASSPORT STAMP  (Tier 1 confirmation, not a ceremony — S14)
+   ============================================================ */
+.stamp{
+  width:168px;height:168px;margin:8px auto;border-radius:50%;
+  /* Gold ring is ornament; the text inside is Ink so it passes contrast on
+     parchment. Gold is never small text on a light ground (spec 4.2). */
+  border:2px solid var(--vf-gold);color:var(--vf-ink);
+  display:grid;place-items:center;text-align:center;font-family:var(--font);
+  animation:stamp-set 420ms var(--ease-enter) both;
+}
+.passport-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.passport-cell{
+  aspect-ratio:1/1;border-radius:50%;border:1px dashed rgba(74,53,36,.3);
+  display:grid;place-items:center;font-size:13px;color:var(--vf-fog);
+}
+.passport-cell[data-stamped=true]{border:2px solid var(--vf-gold);color:var(--vf-plum);font-weight:700;border-style:solid}
+
+/* ============================================================
+   14. OVERLAYS: notes drawer, sound sheet, connection banner, pills, toast
+   ============================================================ */
+.scrim{
+  position:fixed;inset:0;z-index:60;background:rgba(51,16,42,.55);
+  display:none;animation:fade-in 200ms linear both;
+}
+.scrim.is-open{display:block}
+.drawer{
+  position:fixed;z-index:61;left:0;right:0;bottom:0;
+  max-width:520px;margin:0 auto;background:var(--vf-ivory);
+  border-top-left-radius:16px;border-top-right-radius:16px;
+  border-top:var(--rule);padding:16px 20px 28px;
+  transform:translateY(100%);transition:transform 280ms var(--ease-enter);
+  max-height:86vh;overflow:auto;
+}
+.drawer.is-open{transform:translateY(0)}
+.drawer-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.notes-area{
+  width:100%;min-height:200px;padding:14px;font-size:17px;line-height:26px;
+  font-family:var(--font-ui);background:var(--vf-parchment);color:var(--vf-ink);
+  border:var(--border-ceramic);border-radius:var(--radius-md);resize:vertical;
+}
+.setting-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid rgba(74,53,36,.12);min-height:56px}
+.setting-row:last-child{border-bottom:0}
+.setting-row .grow{flex:1}
+.switch{width:52px;height:32px;border-radius:var(--radius-pill);border:var(--border-ceramic);
+  background:rgba(74,53,36,.1);position:relative;cursor:pointer;flex:0 0 auto}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;
+  background:var(--vf-ivory);box-shadow:var(--elev-1);transition:left 160ms var(--ease-enter)}
+.switch[aria-checked=true]{background:var(--vf-sage);border-color:var(--vf-forest)}
+.switch[aria-checked=true]::after{left:25px}
+
+/* Connection banner S22 — persistent, never blocking */
+.conn-banner{
+  position:fixed;top:0;left:0;right:0;z-index:70;display:none;
+  padding:10px 16px;text-align:center;font-size:15px;line-height:22px;font-weight:600;
+  background:var(--vf-plum-aged);color:var(--vf-parchment);border-bottom:var(--rule);
+}
+.conn-banner.is-visible{display:block}
+.conn-banner[data-tone=warn]{background:var(--vf-walnut);color:var(--vf-ivory)}
+.conn-banner[data-tone=ok]{background:var(--vf-forest);color:var(--vf-ivory)}
+
+/* Floating pills — mutually exclusive (spec §8.1) */
+.pill-dock{position:fixed;left:0;right:0;bottom:20px;z-index:50;display:flex;justify-content:center;pointer-events:none}
+.pill{
+  pointer-events:auto;display:none;align-items:center;gap:8px;
+  min-height:48px;padding:12px 20px;border-radius:var(--radius-pill);
+  background:var(--vf-plum);color:var(--vf-parchment);border:1px solid var(--vf-gold);
+  font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(51,16,42,.28);
+}
+.pill.is-visible{display:inline-flex}
+
+/* Transition announcement toast — 240ms in, 1.6s hold, 200ms out (spec §8.3) */
+.toast{
+  position:fixed;z-index:80;left:50%;transform:translateX(-50%);top:24px;
+  padding:12px 18px;border-radius:var(--radius-md);
+  background:var(--vf-ivory);border:var(--border-ceramic);box-shadow:var(--elev-1);
+  font-size:15px;font-weight:600;display:none;
+}
+.toast.is-visible{display:block;animation:toast 2040ms linear both}
+
+/* ============================================================
+   15. STATES: loading, success, warning, error
+   ============================================================ */
+.spinner{
+  width:36px;height:36px;border-radius:50%;margin:0 auto;
+  border:2px solid rgba(201,162,39,.25);border-top-color:var(--vf-gold);
+  animation:spin 1100ms linear infinite;
+}
+.note{border-left:2px solid var(--vf-gold);padding:12px 14px;background:rgba(201,162,39,.08);border-radius:var(--radius-sm)}
+.note--ok{border-left-color:var(--vf-forest);background:rgba(124,139,94,.12)}
+.note--warn{border-left-color:var(--vf-gold);background:rgba(201,162,39,.14)}
+.note--err{border-left-color:var(--vf-plum);background:rgba(75,22,56,.08)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ============================================================
+   16. MOTION  (spec §15 — Tier 0/1/2, reduced-motion honoured)
+   ============================================================ */
+@keyframes tier1-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes stamp-set{0%{opacity:0;transform:scale(1.18)}60%{opacity:1;transform:scale(.98)}100%{transform:scale(1)}}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,-6px)}12%{opacity:1;transform:translate(-50%,0)}90%{opacity:1}100%{opacity:0}}
+/* Tier 2 — the Tea Reveal, the only Tier 2 ceremony in the system (S07) */
+@keyframes reveal-name{0%{opacity:0;letter-spacing:.16em;transform:translateY(10px)}100%{opacity:1;letter-spacing:-.01em;transform:none}}
+@keyframes reveal-rule{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.reveal-name{animation:reveal-name 900ms var(--ease-enter) both}
+.reveal-rule{height:1px;background:var(--vf-gold);width:120px;margin:20px auto;transform-origin:center;
+  animation:reveal-rule 700ms 280ms var(--ease-enter) both}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:1ms !important;animation-delay:0ms !important;transition-duration:1ms !important}
+}
+
+/* ============================================================
+   17. TABLET / DESKTOP  (spec §11 — wider measure, never a dashboard)
+   ============================================================ */
+@media (min-width:768px){
+  .pane{max-width:640px;padding:40px 32px 140px}
+  .display{font-size:40px;line-height:46px}
+  h1{font-size:30px;line-height:36px}
+  .tabs,.drawer{max-width:640px}
+  .actions{flex-direction:row;justify-content:center}
+  .actions .btn{min-width:220px}
+}
+
+/* Prototype-only harness — remove in production build */
+#harness{
+  position:fixed;z-index:90;right:12px;bottom:12px;font-family:var(--font-ui);font-size:13px;
+}
+#harness[open] summary{margin-bottom:0}
+#harness summary{
+  list-style:none;cursor:pointer;background:var(--vf-plum);color:var(--vf-parchment);
+  border:1px solid var(--vf-gold);border-radius:var(--radius-md);padding:10px 14px;min-height:44px;
+  display:inline-flex;align-items:center;
+}
+#harness .panel{
+  margin-top:8px;max-height:60vh;overflow:auto;background:var(--vf-ivory);
+  border:var(--border-ceramic);border-radius:var(--radius-md);padding:10px;width:230px;
+}
+#harness button{display:block;width:100%;text-align:left;min-height:36px;margin-bottom:4px;
+  border:var(--border-ceramic);border-radius:var(--radius-sm);background:var(--vf-parchment);
+  font-size:13px;cursor:pointer;padding:6px 8px;color:var(--vf-ink)}
+
+</style>
+</head>
+<body>
+
+<!-- S22 — Connection banner (persistent overlay, every phase) -->
+<div class="conn-banner" id="connBanner" role="status" aria-live="polite"></div>
+
+<!-- §8.3 transition announcement toast -->
+<div class="toast" id="toast" role="status"></div>
+
+<div id="app">
+
+  <!-- ==========================================================
+       LIVE SESSION HEADER — 28px logo locked top-left (spec §4.1)
+       Controls: Stage | Notes | Sound (spec §8.1)
+       ========================================================== -->
+  <header class="session-header" id="sessionHeader" hidden>
+    <div class="vf-logo vf-logo--header" id="headerLogo" role="img" aria-label="Vintage Fork"></div>
+    <button class="btn btn--icon" id="stageBtn" onclick="returnToStage()">Stage</button>
+    <span class="spacer"></span>
+    <span class="header-meta" id="headerMeta">Tea 1 of 4</span>
+    <button class="btn btn--icon" onclick="openNotes()" aria-haspopup="dialog">Notes</button>
+    <button class="btn btn--icon" onclick="openSound()" aria-haspopup="dialog" aria-label="Sound, motion and haptics">♪</button>
+  </header>
+
+  <!-- Guided Exploration tabs (suppressed during Host Focus) -->
+  <div class="tabs" id="tabs" role="tablist" hidden>
+    <button class="tab" role="tab" aria-selected="true"  onclick="setTab(this,'stage')">Stage</button>
+    <button class="tab" role="tab" aria-selected="false" onclick="setTab(this,'wheel')">Aroma Wheel</button>
+    <button class="tab" role="tab" aria-selected="false" onclick="setTab(this,'origin')">Origin</button>
+  </div>
+
+  <!-- ==========================================================
+       S01 — Invite validation (transient, Tier 1-Loop)
+       ========================================================== -->
+  <section class="screen is-active" id="S01" aria-label="Checking your invitation">
+    <div class="pane pane--centered stack gap-24">
+      <div class="vf-logo vf-logo--s01" role="img" aria-label="Vintage Fork"></div>
+      <div class="spinner" aria-hidden="true"></div>
+      <h1>Checking your invitation…</h1>
+      <p class="caption">tasting.vintagefork.ca / event / SPRING-OOLONG-24</p>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S02 — Invite blocked (five variants, a–e). Tier 0.
+       ========================================================== -->
+  <section class="screen" id="S02" aria-label="Invitation problem">
+    <div class="pane pane--centered stack gap-16">
+      <div class="vf-logo vf-logo--s02" role="img" aria-label="Vintage Fork"></div>
+      <h1 id="s02Title">We couldn’t find that invitation.</h1>
+      <p id="s02Body">Check the link in your email, or ask your host to resend it.</p>
+      <div class="actions" style="width:100%">
+        <button class="btn btn--quiet" onclick="show('S01')">Try again</button>
+      </div>
+      <p class="caption" id="s02Foot"></p>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S03 — Registration: join by name. No account, no password.
+       Writes EventParticipant (spec §2.8). No location question.
+       ========================================================== -->
+  <section class="screen" id="S03" aria-label="Registration">
+    <div class="pane stack gap-24">
+      <div class="vf-logo vf-logo--s03" role="img" aria-label="Vintage Fork"></div>
+      <div class="stack gap-8 center">
+        <h1>What should we call you tonight?</h1>
+        <p class="body-small muted">A first name or a nickname is plenty.</p>
+      </div>
+
+      <form id="regForm" onsubmit="submitRegistration(event)" class="stack gap-16" novalidate>
+        <div>
+          <label for="displayName">Your name</label>
+          <input id="displayName" name="displayName" type="text" autocomplete="given-name"
+                 maxlength="40" required aria-describedby="nameHelp" />
+          <p class="caption" id="nameHelp">Shown to your host and the room.</p>
+        </div>
+
+        <div>
+          <label for="email">Email (optional)</label>
+          <input id="email" name="email" type="email" autocomplete="email"
+                 inputmode="email" aria-describedby="emailHelp regError" oninput="handleEmailInput()" />
+          <p class="caption" id="emailHelp">
+            Add your email to get your tasting notes and Passport sent to you afterward (optional)
+          </p>
+        </div>
+
+        <p class="note note--err body-small" id="regError" role="alert" hidden></p>
+
+        <!-- Marketing consent appears only after an email is entered. -->
+        <label class="check" id="marketingConsentRow" hidden>
+          <input type="checkbox" id="marketingConsent" />
+          <span>Send me occasional notes about new teas and tastings
+                (you can unsubscribe any time)</span>
+        </label>
+
+        <div class="actions">
+          <button class="btn btn--primary" type="submit">Save My Seat</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S04 — Sound entry: consent gate before any audio (spec §16.2)
+       Logo is deliberately subordinate at 64px.
+       ========================================================== -->
+  <section class="screen" id="S04" aria-label="Sound entry">
+    <div class="pane stack gap-24">
+      <div class="vf-logo vf-logo--s04" role="img" aria-label="Vintage Fork"></div>
+      <div class="stack gap-8 center">
+        <h1>Would you like sound?</h1>
+        <p class="body-small muted">
+          A little room tone and small confirmations. Your host’s voice comes through Zoom either way.
+        </p>
+      </div>
+      <div class="actions">
+        <button class="btn btn--primary" onclick="chooseSound(true)">Yes, with sound</button>
+        <button class="btn" onclick="chooseSound(false)">No, keep it quiet</button>
+        <p class="caption center">You can change this at any time.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S05 — Waiting Room. SessionPhase: lobby.
+       ParticipantStatus: waiting -> admitted
+       ========================================================== -->
+  <section class="screen" id="S05" aria-label="Waiting room">
+    <div class="pane stack gap-24 center">
+      <div class="vf-logo vf-logo--s05" role="img" aria-label="Vintage Fork"></div>
+      <div class="stack gap-8">
+        <h1>You’re in. Mei will open the room shortly.</h1>
+        <p class="body-small muted" id="lobbyCount">3 others are here.</p>
+      </div>
+
+      <h2>Spring Oolong Flight</h2>
+      <div class="chip-row" style="justify-content:center" id="presence" aria-label="Guests present">
+        <span class="chip chip--presence">Mei · host</span>
+        <span class="chip chip--presence">Daniel</span>
+        <span class="chip chip--presence">Priya</span>
+        <span class="chip chip--presence">You</span>
+      </div>
+
+      <!-- S05a — remote device guidance, dismissible, remote events only -->
+      <div class="card note" id="S05a" style="text-align:left">
+        <p class="body-small"><strong>Your host’s voice and captions are in Zoom, not here.</strong></p>
+        <p class="body-small muted">Keep Zoom on your laptop and this page on your phone if you can.</p>
+        <button class="btn btn--quiet" onclick="document.getElementById('S05a').remove()">Got it</button>
+      </div>
+
+      <div class="actions">
+        <p class="caption" id="lobbyStatus">Waiting for your host…</p>
+        <button class="btn btn--quiet" onclick="openSound()">Sound and motion</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S06 — Welcome transition. Host Focus. Tier 1.
+       ========================================================== -->
+  <section class="screen on-plum" id="S06" aria-label="Welcome">
+    <div class="pane pane--centered stack gap-16">
+      <p class="caption">with Mei</p>
+      <h1 class="display">Welcome to the table.</h1>
+      <div class="reveal-rule" aria-hidden="true"></div>
+      <h2>Spring Oolong Flight</h2>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S07 — Tea Reveal. Host Focus. TIER 2 — the only Tier 2.
+       No logo competes with the reveal (spec §4.1).
+       ========================================================== -->
+  <section class="screen on-plum-aged" id="S07" aria-label="Tea reveal">
+    <div class="pane pane--centered stack gap-12">
+      <p class="caption" id="revealCounter">Tea 1 of 4</p>
+      <h1 class="display reveal-name" id="revealName">Ali Shan High Mountain Oolong</h1>
+      <div class="reveal-rule" aria-hidden="true"></div>
+      <p class="body-small" id="revealOrigin">Chiayi County, Taiwan · 1,600 m · spring 2025</p>
+      <p class="body-small muted" id="revealCaption">
+        Cool nights, slow growth, and a lot of hand work. Listen for what Mei says about the roast.
+      </p>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S23 — Missed reveal catch-up. Resolved static state, NO animation.
+       ========================================================== -->
+  <section class="screen on-plum-aged" id="S23" aria-label="Missed reveal">
+    <div class="pane pane--centered stack gap-12">
+      <p class="caption">The host revealed this while you were away.</p>
+      <h1 class="display">Ali Shan High Mountain Oolong</h1>
+      <p class="body-small">Chiayi County, Taiwan · 1,600 m · spring 2025</p>
+      <div class="actions" style="width:100%">
+        <button class="btn btn--primary" onclick="catchUpToRoom()">Catch up with the room</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S08 — Brewing + host-controlled timer. Guided Exploration.
+       The guest cannot start, stop or reset the timer.
+       ========================================================== -->
+  <section class="screen" id="S08" aria-label="Brewing">
+    <div class="pane stack gap-16">
+      <h1>Brew it like this</h1>
+      <p class="body-small muted">95&deg;C · 45 seconds · 5 g per 150 ml</p>
+
+      <div class="timer" role="timer" aria-live="off" aria-label="Brewing timer, host controlled">
+        <svg width="200" height="200" viewBox="0 0 200 200" aria-hidden="true">
+          <circle class="track" cx="100" cy="100" r="88" fill="none" stroke-width="2"></circle>
+          <circle class="arc" id="timerArc" cx="100" cy="100" r="88" fill="none" stroke-width="3"
+                  stroke-dasharray="553" stroke-dashoffset="0"></circle>
+        </svg>
+        <div class="readout">
+          <div>
+            <div class="numeral" id="timerReadout">0:45</div>
+            <p class="caption">host controlled</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="body-small">Warm the cup. Pour off the first rinse. Keep the lid on between infusions.</p>
+      </div>
+      <p class="caption" id="brewOverrun" hidden>The host is running a little long. Nothing to do.</p>
+
+      <div class="actions">
+        <button class="btn" onclick="setPhase('tasting')">Go to the tasting steps</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S09 — Optional first impression. Quick Path step 1 of 4.
+       ========================================================== -->
+  <section class="screen" id="S09" aria-label="First impression">
+    <div class="pane stack gap-16">
+      <p class="caption">Step 1 of 4</p>
+      <h1>What did you notice first?</h1>
+      <p class="body-small muted">No wrong answers — just what came to mind. (optional)</p>
+      <label class="sr-only" for="firstImpression">First impression</label>
+      <textarea class="notes-area" id="firstImpression" rows="4"
+                placeholder="Warm, a little like orchids…"></textarea>
+      <div class="actions">
+        <button class="btn btn--primary" onclick="saveFirstImpressionAndContinue()">Continue</button>
+        <button class="btn btn--quiet" onclick="skipFirstImpression()">Skip</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S10 — Aroma Wheel and List View. Equivalent surfaces (spec §14.1).
+       Max three descriptors.
+       ========================================================== -->
+  <section class="screen" id="S10" aria-label="Aroma wheel">
+    <div class="pane stack gap-16">
+      <p class="caption">Step 2 of 4</p>
+      <h1>What do you notice?</h1>
+      <p class="body-small muted">Pick up to three.</p>
+
+      <!-- Wheel view -->
+      <div id="wheelView">
+        <div class="wheel" role="group" aria-label="Aroma descriptors, wheel view">
+          <div class="wheel-hub">Ali Shan<br />Oolong</div>
+        </div>
+        <p class="selection-count caption" id="wheelCount" role="status">0 of 3 chosen</p>
+        <button class="btn btn--quiet" onclick="toggleWheelView()">Use the list instead</button>
+      </div>
+
+      <!-- List view — identical descriptor set, identical limits -->
+      <div id="listView" hidden>
+        <label for="descriptorSearch">Search descriptors</label>
+        <input id="descriptorSearch" type="text" oninput="filterDescriptors(this.value)" />
+        <div class="chip-row" id="descriptorList" style="margin-top:12px"></div>
+        <p class="selection-count caption" id="listCount" role="status">0 of 3 chosen</p>
+        <button class="btn btn--quiet" onclick="toggleWheelView()">Use the wheel instead</button>
+      </div>
+
+      <p class="caption" id="wheelLimit" hidden>Three is the most — remove one to change your mind.</p>
+
+      <div class="actions">
+        <button class="btn btn--primary" onclick="show('S11')">Continue</button>
+        <button class="btn btn--quiet" onclick="show('S11')">Skip</button>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Origin tab — Guided Exploration surface, not a new route or SessionPhase. -->
+  <section class="screen" id="ORIGIN_TAB" aria-label="Tea origin">
+    <div class="pane stack gap-16">
+      <p class="caption">Tea 1 of 4</p>
+      <h1>Ali Shan High Mountain Oolong</h1>
+      <div class="card card--tea-stained stack gap-8">
+        <h2>Chiayi County, Taiwan</h2>
+        <p class="body-small muted">1,600 m · spring 2025</p>
+        <div class="hr" style="margin:12px 0"></div>
+        <p class="body-small">Cool nights and slow growth help preserve the tea’s floral character. This is the same event-specific origin and reveal context shared by your host.</p>
+      </div>
+      <div class="actions">
+        <button class="btn btn--primary" onclick="returnToStage()">Return to the stage</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S11 — Overall intensity. One answer for the whole tea.
+       ========================================================== -->
+  <section class="screen" id="S11" aria-label="Overall intensity">
+    <div class="pane stack gap-16">
+      <p class="caption">Step 3 of 4</p>
+      <h1>How strong was this tea, overall?</h1>
+      <p class="body-small muted">One answer for the whole tea.</p>
+      <div class="scale" role="group" aria-label="Overall intensity">
+        <button aria-pressed="false" onclick="pickOne(this)">subtle</button>
+        <button aria-pressed="false" onclick="pickOne(this)">clear</button>
+        <button aria-pressed="false" onclick="pickOne(this)">dominant</button>
+      </div>
+      <div class="actions">
+        <button class="btn btn--primary" onclick="show('S12')">Continue</button>
+        <button class="btn btn--quiet" onclick="show('S12')">Skip</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S12 — Overall star rating, then Submit My Notes.
+       ========================================================== -->
+  <section class="screen" id="S12" aria-label="Star rating">
+    <div class="pane stack gap-16">
+      <p class="caption">Step 4 of 4</p>
+      <h1>Rate this tea overall</h1>
+      <p class="body-small muted">You can change this until the host moves on.</p>
+
+      <div class="stars" role="radiogroup" aria-label="Overall rating out of five">
+        <button class="star" role="radio" aria-checked="false" aria-label="1 star" data-on="false" onclick="setStars(1)">&#9733;</button>
+        <button class="star" role="radio" aria-checked="false" aria-label="2 stars" data-on="false" onclick="setStars(2)">&#9733;</button>
+        <button class="star" role="radio" aria-checked="false" aria-label="3 stars" data-on="false" onclick="setStars(3)">&#9733;</button>
+        <button class="star" role="radio" aria-checked="false" aria-label="4 stars" data-on="false" onclick="setStars(4)">&#9733;</button>
+        <button class="star" role="radio" aria-checked="false" aria-label="5 stars" data-on="false" onclick="setStars(5)">&#9733;</button>
+      </div>
+
+      <div class="note note--ok" id="saveOk" hidden><p class="body-small">Your notes are saved.</p></div>
+      <div class="note note--err" id="saveErr" hidden>
+        <p class="body-small">We couldn’t save that just now. Reconnect and try again.</p>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn--primary" onclick="submitNotes()">Submit My Notes</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S13 — Trivia question and answer confirmation.
+       Host Focus at open only. 90-second grace rule (spec §21.4).
+       ========================================================== -->
+  <section class="screen" id="S13" aria-label="Trivia">
+    <div class="pane stack gap-16">
+      <p class="caption">A question about Ali Shan High Mountain Oolong</p>
+      <h1 id="triviaQ">At what elevation is this tea grown?</h1>
+      <div class="stack gap-8" role="radiogroup" aria-label="Answers" id="triviaOptions">
+        <button class="btn" role="radio" aria-checked="false" onclick="answerTrivia(this,false)">About 600 m</button>
+        <button class="btn" role="radio" aria-checked="false" onclick="answerTrivia(this,false)">About 1,000 m</button>
+        <button class="btn" role="radio" aria-checked="false" onclick="answerTrivia(this,true)">About 1,600 m</button>
+        <button class="btn" role="radio" aria-checked="false" onclick="answerTrivia(this,false)">About 2,400 m</button>
+      </div>
+
+      <div class="note" id="triviaLocked" hidden>
+        <p class="body-small"><strong>Answer locked in.</strong></p>
+        <p class="body-small muted">We’ll show the answer when the host closes the question.</p>
+      </div>
+      <div class="note note--ok" id="triviaResult" hidden><p class="body-small"></p></div>
+      <p class="caption" id="triviaWait">Waiting for the host…</p>
+
+      <div class="actions">
+        <button class="btn btn--quiet" onclick="show('S14')">Continue</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S14 — Passport stamp. Tier 1 confirmation, not a ceremony.
+       ========================================================== -->
+  <section class="screen" id="S14" aria-label="Passport stamp">
+    <div class="pane stack gap-16 center">
+      <div class="stamp" role="img" aria-label="Stamped, tea 1 of 4">
+        <div>
+          <div style="font-size:13px;letter-spacing:.16em">ALI SHAN</div>
+          <div style="font-size:26px">01</div>
+          <div style="font-size:13px">2026</div>
+        </div>
+      </div>
+      <h1 id="stampTitle">Stamped. Tea 1 of 4.</h1>
+      <div class="actions">
+        <button class="btn btn--primary" onclick="show('S15')">Back to the stage</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S15 — Save This Tea. Tier 0, with Undo.
+       ========================================================== -->
+  <section class="screen" id="S15" aria-label="Save this tea">
+    <div class="pane stack gap-16">
+      <h1>Save This Tea</h1>
+      <div class="card card--tea-stained stack gap-8">
+        <h2>Ali Shan High Mountain Oolong</h2>
+        <p class="body-small muted">Chiayi County, Taiwan · spring 2025</p>
+        <div class="hr" style="margin:12px 0"></div>
+        <p class="body-small" id="saveState">Save it to include it in your recap.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn--primary" id="saveTeaBtn" onclick="saveTea()">Save This Tea</button>
+          <button class="btn btn--quiet" id="undoSaveBtn" hidden onclick="undoSave()">Undo</button>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="show('S16')">Back to the stage</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S16 — Between teas. Tier 1-Loop.
+       ========================================================== -->
+  <section class="screen" id="S16" aria-label="Between teas">
+    <div class="pane stack gap-16">
+      <p class="caption" id="teasToGo">3 teas to go.</p>
+      <h1>Rinse your cup and settle in.</h1>
+      <p class="body-small muted">Your host will introduce the next one shortly.</p>
+
+      <div class="hr"></div>
+      <h2>So far tonight</h2>
+      <div class="passport-grid" aria-label="Your passport so far">
+        <div class="passport-cell" data-stamped="true">01</div>
+        <div class="passport-cell">02</div>
+        <div class="passport-cell">03</div>
+        <div class="passport-cell">04</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" onclick="openNotes()">Your notes</button>
+        <button class="btn btn--quiet" onclick="setPhase('recap')">Skip ahead to recap (demo)</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S17 / S18 — Session recap, and the recap email.
+       ========================================================== -->
+  <section class="screen" id="S17" aria-label="Your evening">
+    <div class="pane stack gap-24">
+      <div class="center">
+        <div class="vf-logo vf-logo--s17" role="img" aria-label="Vintage Fork"></div>
+        <h1>Your evening, Daniel</h1>
+        <p class="caption">Spring Oolong Flight with Mei · 31 July 2026</p>
+      </div>
+
+      <div class="card stack gap-12">
+        <h2>4 teas</h2>
+        <div class="stack gap-8">
+          <div style="display:flex;justify-content:space-between;gap:12px">
+            <span class="body-small">1 · Ali Shan Oolong</span>
+            <span class="body-small" style="color:var(--vf-gold)">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          </div>
+          <p class="caption">honeyed · orchid · buttery — “clear”</p>
+          <div class="hr" style="margin:8px 0"></div>
+          <div style="display:flex;justify-content:space-between;gap:12px">
+            <span class="body-small">2 · Dong Ding Roasted Oolong</span>
+            <span class="body-small" style="color:var(--vf-gold)">&#9733;&#9733;&#9733;&#9733;</span>
+          </div>
+          <p class="caption">toasted grain · caramel — “dominant”</p>
+          <div class="hr" style="margin:8px 0"></div>
+          <div style="display:flex;justify-content:space-between;gap:12px">
+            <span class="body-small">3 · Wenshan Baozhong</span>
+            <span class="caption">Not tasted</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card stack gap-8">
+        <h2>Trivia</h2>
+        <p class="body-small">You answered 3 of 4 · 2 correct</p>
+      </div>
+
+      <div class="card stack gap-12">
+        <h2>Your Passport</h2>
+        <p class="body-small">3 teas stamped tonight.</p>
+        <div class="passport-grid">
+          <div class="passport-cell" data-stamped="true">01</div>
+          <div class="passport-cell" data-stamped="true">02</div>
+          <div class="passport-cell">03</div>
+          <div class="passport-cell" data-stamped="true">04</div>
+        </div>
+      </div>
+
+      <div class="card stack gap-8">
+        <h2>Teas you saved</h2>
+        <p class="body-small">Ali Shan High Mountain Oolong</p>
+      </div>
+
+      <!-- S18 — recap email: confirm, resend, failure -->
+      <div class="card stack gap-12" id="S18">
+        <h2>Get this by email</h2>
+        <p class="body-small muted">Your notes, your ratings, your stamps, and the teas you saved.</p>
+
+        <div class="stack gap-8" id="emailOffer">
+          <button class="btn btn--primary" onclick="sendRecap()">Send me my recap</button>
+          <button class="btn btn--quiet" onclick="declineRecap()">No thanks — I’ll just read it here</button>
+        </div>
+
+        <div class="note note--ok" id="emailSent" hidden>
+          <p class="body-small"><strong>Your recap is on its way</strong></p>
+          <p class="body-small muted">We’ll send it to d•••@gmail.com about 15 minutes after we finish.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <button class="btn btn--quiet" onclick="resendRecap()">Send this to me again</button>
+            <button class="btn btn--quiet" onclick="editRecapEmail()">Wrong address? Change it</button>
+          </div>
+          <p class="caption" id="resendQuota">(3 left today)</p>
+        </div>
+
+        <div class="stack gap-8" id="emailEdit" hidden>
+          <label for="recapEmailEdit">Send to a different address</label>
+          <input id="recapEmailEdit" type="email" autocomplete="email" />
+          <p class="caption" id="recapEmailEditError" role="alert" hidden>Enter a complete email address.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn--primary" onclick="saveRecapEmail()">Update and send</button>
+            <button class="btn btn--quiet" onclick="cancelRecapEmailEdit()">Cancel</button>
+          </div>
+        </div>
+
+        <div class="note note--err" id="emailFail" hidden>
+          <p class="body-small"><strong>That address didn’t accept it</strong></p>
+          <p class="body-small muted">We tried d•••@gmail.com and it came back. Check the spelling, or use another address.</p>
+          <label for="altEmail" style="margin-top:8px">Try this address</label>
+          <input id="altEmail" type="email" />
+          <button class="btn btn--primary" style="margin-top:8px" onclick="sendRecap()">Send me my recap</button>
+          <p class="caption">Your notes are safe either way — nothing was lost.</p>
+        </div>
+      </div>
+
+      <p class="center body-small">Thank you for tasting with us.</p>
+
+      <div class="actions">
+        <button class="btn btn--quiet" onclick="show('S19')">Delete my notes from this tasting</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S19 — Delete my tasting data. Signed-token route. Terminal.
+       ========================================================== -->
+  <section class="screen" id="S19" aria-label="Delete my tasting data">
+    <div class="pane stack gap-16">
+      <div class="center"><div class="vf-logo vf-logo--terminal" role="img" aria-label="Vintage Fork"></div></div>
+      <h1>Delete your notes from this tasting?</h1>
+      <p class="body-small">
+        This removes everything you wrote on 31 July 2026: your first impressions, your descriptors,
+        your ratings, your trivia answers, your stamps, and the teas you saved.
+      </p>
+      <p class="body-small"><strong>It happens straight away and it can’t be undone.</strong></p>
+
+      <label class="check">
+        <input type="checkbox" id="alsoUnsubscribe" />
+        <span>Also remove my email from the new-teas list</span>
+      </label>
+
+      <div class="actions">
+        <button class="btn btn--danger" onclick="confirmDelete()">Delete my notes</button>
+        <button class="btn btn--quiet" onclick="show('S17')">Keep my notes</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="S19done" aria-label="Data deleted">
+    <div class="pane pane--centered stack gap-16">
+      <div class="vf-logo vf-logo--terminal" role="img" aria-label="Vintage Fork"></div>
+      <h1>Your tasting data has been deleted.</h1>
+      <!-- Exactly one of the two lines below is rendered -->
+      <p class="body-small" id="deleteSubLine">
+        You remain subscribed to Vintage Fork emails. You can unsubscribe at any time.
+      </p>
+      <p class="body-small muted">Thank you for tasting with us.</p>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S20 — Session ended. Host Focus. Terminal.
+       ========================================================== -->
+  <section class="screen on-plum" id="S20" aria-label="Session ended">
+    <div class="pane pane--centered stack gap-16">
+      <div class="vf-logo vf-logo--terminal" role="img" aria-label="Vintage Fork"></div>
+      <h1 class="display">That’s the evening.</h1>
+      <p class="body-small muted">Your recap will also arrive by email shortly.</p>
+      <div class="actions" style="width:100%">
+        <button class="btn btn--primary" onclick="viewRecapAfterSession()">See your recap</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       S21 — Removed participant. Terminal, steady in tone.
+       ========================================================== -->
+  <section class="screen" id="S21" aria-label="Removed from tasting">
+    <div class="pane stack gap-16 center">
+      <div class="vf-logo vf-logo--terminal" role="img" aria-label="Vintage Fork"></div>
+      <h1>You’ve been removed from this tasting.</h1>
+      <p class="body-small">
+        The host ended your place in the room. If you think this was a mistake,
+        speak to your host or email the shop.
+      </p>
+      <p class="body-small muted">
+        Your notes from tonight are still yours. You can read them, have them emailed, or delete them.
+      </p>
+      <div class="actions" style="width:100%">
+        <button class="btn btn--primary" onclick="viewRecapAfterRemoval()">See my notes</button>
+        <button class="btn btn--quiet" onclick="show('S19')">Delete my notes from this tasting</button>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /#app -->
+
+<!-- ============================================================
+     FLOATING PILLS — mutually exclusive (spec §8.1)
+     ============================================================ -->
+<div class="pill-dock">
+  <button class="pill" id="stagePill" onclick="returnToStage()">Return to Stage</button>
+  <button class="pill" id="revealPill" onclick="takeDeferredReveal()">New reveal — tap to view</button>
+</div>
+
+<!-- ============================================================
+     S24 — Personal Notes drawer. Overlay, not a mode.
+     Never blocking, never loses focus, never loses characters (spec §13)
+     ============================================================ -->
+<div class="scrim" id="notesScrim" onclick="closeNotes()"></div>
+<div class="drawer" id="notesDrawer" role="dialog" aria-modal="false" aria-label="Your notes" hidden>
+  <div class="drawer-head">
+    <h2 style="flex:1">Your notes</h2>
+    <span class="chip" id="notesSync">Saved &#10003;</span>
+    <button class="btn btn--icon" onclick="closeNotes()" aria-label="Close notes">&#10005;</button>
+  </div>
+  <label class="sr-only" for="personalNotes">Personal notes</label>
+  <textarea class="notes-area" id="personalNotes" oninput="onNotesInput()"
+            placeholder="Anything you want to remember about tonight…"></textarea>
+  <p class="caption" id="notesFooter">Saved on this device</p>
+</div>
+
+<!-- ============================================================
+     S25 — Sound, motion and haptics sheet
+     ============================================================ -->
+<div class="scrim" id="soundScrim" onclick="closeSound()"></div>
+<div class="drawer" id="soundDrawer" role="dialog" aria-modal="true" aria-label="Sound and motion" hidden>
+  <div class="drawer-head">
+    <h2 style="flex:1">Sound and motion</h2>
+    <button class="btn btn--icon" onclick="closeSound()" aria-label="Close settings">&#10005;</button>
+  </div>
+
+  <div class="setting-row">
+    <div class="grow">
+      <p><strong>Ambience</strong></p>
+      <p class="caption">Soft room sound during the tasting</p>
+    </div>
+    <button class="switch" role="switch" aria-checked="true" aria-label="Ambience" data-pref="ambience" onclick="toggleSwitch(this)"></button>
+  </div>
+  <div class="setting-row">
+    <div class="grow">
+      <p><strong>Interface sounds</strong></p>
+      <p class="caption">Small confirmations when you tap</p>
+    </div>
+    <button class="switch" role="switch" aria-checked="true" aria-label="Interface sounds" data-pref="interfaceSounds" onclick="toggleSwitch(this)"></button>
+  </div>
+  <div class="setting-row">
+    <div class="grow">
+      <p><strong>Haptics</strong></p>
+      <p class="caption">Gentle taps on this device</p>
+    </div>
+    <button class="switch" role="switch" aria-checked="false" aria-label="Haptics" data-pref="haptics" onclick="toggleSwitch(this)"></button>
+  </div>
+  <div class="setting-row">
+    <div class="grow">
+      <p><strong>Reduced motion</strong></p>
+      <p class="caption">Following your device setting</p>
+    </div>
+    <span class="chip" id="reducedMotionChip">Off</span>
+  </div>
+  <p class="body-small" style="margin-top:12px">
+    <strong>Your host’s voice and captions are in Zoom, not here.</strong>
+  </p>
+</div>
+
+<!-- ============================================================
+     PROTOTYPE HARNESS — emulates the host console + connection.
+     DELETE THIS BLOCK IN THE PRODUCTION BUILD.
+     ============================================================ -->
+<details id="harness">
+  <summary aria-label="Prototype controls">Prototype controls</summary>
+  <div class="panel">
+    <p class="caption">Phases (host-driven)</p>
+    <button onclick="setPhase('lobby')">lobby — S05</button>
+    <button onclick="setPhase('welcome')">welcome — S06</button>
+    <button onclick="setPhase('reveal')">reveal — S07</button>
+    <button onclick="setPhase('brewing')">brewing — S08</button>
+    <button onclick="setPhase('tasting')">tasting — S09</button>
+    <button onclick="setPhase('trivia')">trivia — S13</button>
+    <button onclick="setPhase('recap')">recap — S17</button>
+    <button onclick="setPhase('ended')">ended — S20</button>
+    <p class="caption">Entry &amp; exceptions</p>
+    <button onclick="show('S01')">S01 validation</button>
+    <button onclick="blocked('a')">S02a invalid</button>
+    <button onclick="blocked('b')">S02b expired</button>
+    <button onclick="blocked('c')">S02c not open</button>
+    <button onclick="blocked('d')">S02d full</button>
+    <button onclick="blocked('e')">S02e cancelled</button>
+    <button onclick="show('S03')">S03 registration</button>
+    <button onclick="show('S04')">S04 sound entry</button>
+    <button onclick="show('S23')">S23 missed reveal</button>
+    <button onclick="showRemoved()">S21 removed</button>
+    <button onclick="show('S19')">S19 delete data</button>
+    <p class="caption">Connection</p>
+    <button onclick="setConnection('unstable')">unstable</button>
+    <button onclick="setConnection('reconnecting')">reconnecting</button>
+    <button onclick="setConnection('offline')">offline</button>
+    <button onclick="setRoomSync('catching_up')">catching up</button>
+    <button onclick="setRoomSync('stale')">stale</button>
+    <button onclick="setRoomSync('current')">current</button>
+    <button onclick="setConnection('online')">back with the room</button>
+    <p class="caption">Other</p>
+    <button onclick="deferReveal()">defer a reveal (typing)</button>
+    <button onclick="failRecapEmail()">recap email failure</button>
+  </div>
+</details>
+
+<script>
+/* ============================================================================
+   Vintage Fork — Guest Live Tasting Experience
+   script.js
+   Derived from: UX Design Specification v1.3 (Final Cross-Surface Integration
+   Correction). Section numbers in comments refer to that document.
+
+   Route driven:   /event/[invite-code]   — one route, phase-driven
+   Companion files: index.html, styles.css
+
+   INVARIANTS ENCODED HERE
+   - ConnectionStatus and SyncStatus are ephemeral and in-memory. They are
+     never written to the database (§3.1, §3.2).
+   - ParticipantStatus and SessionPhase are durable. SessionPhase is always
+     paired with a monotonic sequence_number (§3.3, §3.4).
+   - setPhase() is the ONE authority for phase transitions. No other function
+     assigns state.sessionPhase (§2.4b).
+   - The room never travels backward through completed phases, and there is no
+     back navigation once the guest is past the Waiting Room (§8.1).
+   - Personal Notes are local-first. A sync failure never blocks typing, never
+     steals focus, and never drops characters (§13).
+   - A Host Focus takeover is deferred, not forced, when the guest has keyboard
+     focus in a Notes field. The reveal chip wins over the stage pill (§8.1).
+   - Header, tabs and pills are DERIVED from phase in chrome(). Never set them
+     per screen by hand.
+   - Sound consent precedes any audio playback (§16.2).
+   - Offline: Personal Notes get the "saved on this device" line; every other
+     capture gets "You're offline. Reconnect to save this." (§18.6)
+
+   MOCK BOUNDARY
+   In this prototype, host actions are simulated by setPhase(), setConnection()
+   and the harness buttons. In the real build, replace those entry points with
+   the inbound WebSocket handlers listed in §20.1, and replace the prototype capture functions /
+   submitNotes() with the durable server actions in §20.3. The rest of this
+   file — state shape, derivation, guards — is intended to survive that swap.
+
+   CONTENTS
+    1. State
+    2. Phase maps
+    3. Screen switching and derived chrome
+    4. Phase transitions and announcements
+    5. Stage, tabs and deferred reveals
+    6. S01 / S02  invite validation and blocked variants
+    7. S03 / S04  registration and sound consent
+    8. S08        host-controlled brewing timer
+    9. S10        Aroma Wheel and List View
+   10. S11 / S12  intensity, stars, submit
+   11. S13        trivia
+   12. S14–S16    stamp, save, between teas
+   13. S18        recap email
+   14. S19        deletion
+   15. S24        Personal Notes
+   16. S25        sound, motion and haptics
+   17. S22        connection banner
+   18. Boot
+   ============================================================================ */
+
+'use strict';
+
+/* ============================================================
+   STATE  (spec §3 — ephemeral vs durable is kept explicit)
+   ============================================================ */
+var state = {
+  // durable shared-contract state
+  participantStatus:'registered',        // invited|registered|waiting|admitted|active|left|removed
+  sessionPhase:'lobby',                  // lobby|welcome|reveal|brewing|tasting|trivia|recap|ended
+  sequenceNumber:0,
+
+  // ephemeral shared-contract state
+  connectionStatus:'online',             // online|unstable|reconnecting|offline
+  syncStatus:'current',                  // current|catching_up|stale
+
+  // prototype identity used only to scope local drafts safely
+  eventId:'spring-oolong-2026-07-31',
+  participantId:'prototype-guest',
+  flightItemId:'ali-shan-01',
+
+  // participant-owned prototype data
+  teaIndex:1, teaTotal:4,
+  firstImpression:'', descriptors:[], intensity:null, stars:0, savedTea:false,
+  email:'', emailMarketingConsent:null,
+  dataDeleted:false,
+
+  // local UI preferences and overlay state
+  preferences:{ ambience:true, interfaceSounds:true, haptics:true },
+  noteSaveStatus:'saved',                 // separate from SyncStatus
+  deferredReveal:false, awayFromStage:false, notesFocused:false
+};
+
+var PHASE_SCREEN = {
+  lobby:'S05', welcome:'S06', reveal:'S07', brewing:'S08',
+  tasting:'S09', trivia:'S13', recap:'S17', ended:'S20'
+};
+var LIVE_PHASES  = ['welcome','reveal','brewing','tasting','trivia','recap','ended'];
+var HOST_FOCUS   = ['welcome','reveal','ended'];          // trivia is Host Focus at open only
+var PLUM_SCREENS = ['S06','S07','S20','S23'];
+
+/* ============================================================
+   SCREEN SWITCHING
+   ============================================================ */
+function show(id){
+  var screens = document.querySelectorAll('.screen');
+  for(var i=0;i<screens.length;i++) screens[i].classList.remove('is-active');
+  var el = document.getElementById(id);
+  if(!el) return;
+  el.classList.add('is-active');
+  window.scrollTo(0,0);
+  chrome(id);
+}
+
+/* Header, tabs and pills are derived, never hand-managed per screen. */
+function chrome(id){
+  var live = LIVE_PHASES.indexOf(state.sessionPhase) > -1;
+  var postSessionRecap = id === 'S17' && (state.sessionPhase === 'ended' || state.participantStatus === 'removed');
+  var inLive = live && !postSessionRecap && ['S06','S07','S08','S09','S10','ORIGIN_TAB','S11','S12','S13','S14','S15','S16','S17','S23'].indexOf(id) > -1;
+  var guided = live && !postSessionRecap && HOST_FOCUS.indexOf(state.sessionPhase) === -1;
+
+  var header = document.getElementById('sessionHeader');
+  header.hidden = !inLive;
+  header.classList.toggle('is-plum', PLUM_SCREENS.indexOf(id) > -1);
+  document.getElementById('headerLogo').classList.toggle('vf-logo--dimmed', id === 'S07');
+  document.getElementById('stageBtn').style.display = guided ? '' : 'none';
+  document.getElementById('headerMeta').textContent = 'Tea ' + state.teaIndex + ' of ' + state.teaTotal;
+
+  document.getElementById('tabs').hidden = !(inLive && guided && ['S08','S09','S10','ORIGIN_TAB','S11','S12','S16','S17'].indexOf(id) > -1);
+
+  // Return to Stage and the reveal chip never appear together; the reveal chip wins.
+  var stagePill  = document.getElementById('stagePill');
+  var revealPill = document.getElementById('revealPill');
+  revealPill.classList.toggle('is-visible', state.deferredReveal);
+  stagePill.classList.toggle('is-visible', !state.deferredReveal && guided && state.awayFromStage);
+}
+
+/* ============================================================
+   PHASE TRANSITIONS — one authority, monotonic sequence (spec §2.4b)
+   ============================================================ */
+function setPhase(phase, opts){
+  opts = opts || {};
+  if(!Object.prototype.hasOwnProperty.call(PHASE_SCREEN, phase)) return;
+
+  // ended is terminal in the Pilot. Recap remains viewable without changing phase.
+  if(state.sessionPhase === 'ended' && phase !== 'ended' && !opts.forceDemo){
+    setBanner('This tasting has ended. Your recap is still available.','warn');
+    return;
+  }
+
+  // Duplicate phase messages are idempotent and do not consume another sequence number.
+  if(state.sessionPhase !== phase){
+    state.sequenceNumber += 1;
+    state.sessionPhase = phase;
+  }
+  state.awayFromStage = false;
+
+  if(phase === 'lobby') state.participantStatus = 'waiting';
+  if(LIVE_PHASES.indexOf(phase) > -1 && state.participantStatus === 'waiting'){
+    state.participantStatus = 'admitted';
+  }
+
+  // A Host Focus takeover is announced calmly. The durable phase can advance
+  // while the visual reveal waits for a guest who is actively typing.
+  if(HOST_FOCUS.indexOf(phase) > -1 && !opts.silent){
+    if(phase === 'reveal'){
+      document.getElementById('revealCounter').textContent = 'Tea ' + state.teaIndex + ' of ' + state.teaTotal;
+      if(state.notesFocused){ deferReveal(); return; }
+      announce('The host revealed a tea.');
+    }
+    if(phase === 'welcome') announce('Your host is opening the room…');
+  }
+
+  if(phase === 'brewing') startBrewTimer(45);
+  show(opts.screen || PHASE_SCREEN[phase]);
+}
+
+function announce(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  // polite when the guest has focus in a Notes field, otherwise assertive (spec §8.3)
+  t.setAttribute('aria-live', state.notesFocused ? 'polite' : 'assertive');
+  t.classList.remove('is-visible');
+  void t.offsetWidth;
+  t.classList.add('is-visible');
+  setTimeout(function(){ t.classList.remove('is-visible'); }, 2100);
+}
+
+function returnToStage(){
+  state.awayFromStage = false;
+  show(PHASE_SCREEN[state.sessionPhase]);
+}
+function setTab(btn,which){
+  var tabs = btn.parentNode.querySelectorAll('.tab');
+  for(var i=0;i<tabs.length;i++) tabs[i].setAttribute('aria-selected','false');
+  btn.setAttribute('aria-selected','true');
+  state.awayFromStage = (which !== 'stage');
+  if(which === 'wheel') show('S10');
+  else if(which === 'origin') show('ORIGIN_TAB');
+  else returnToStage();
+}
+
+function markActive(){
+  if(state.participantStatus === 'admitted') state.participantStatus = 'active';
+}
+function requireOnline(){
+  if(state.connectionStatus !== 'offline') return true;
+  setBanner('You’re offline. Reconnect to save this.','warn');
+  return false;
+}
+function notesStorageKey(){
+  return ['vf.notes',state.eventId,state.participantId,state.flightItemId].join(':');
+}
+function catchUpToRoom(){
+  var target = PHASE_SCREEN[state.sessionPhase] || 'S05';
+  show(target === 'S07' ? 'S23' : target);
+}
+function viewRecapAfterSession(){ show('S17'); }
+function showRemoved(){ state.participantStatus = 'removed'; show('S21'); }
+function viewRecapAfterRemoval(){ show('S17'); }
+function deferReveal(){
+  state.deferredReveal = true;
+  announce('The host revealed a tea.');
+  chrome(currentScreen());
+}
+function takeDeferredReveal(){
+  state.deferredReveal = false;
+  // The durable phase already changed when reveal.scheduled arrived.
+  // Showing it now must not increment sequence_number a second time.
+  show('S07');
+}
+function currentScreen(){
+  var el = document.querySelector('.screen.is-active');
+  return el ? el.id : 'S01';
+}
+
+/* ============================================================
+   S01 / S02 — validation and blocked variants
+   ============================================================ */
+var BLOCKED = {
+  a:['We couldn’t find that invitation.','Check the link in your email, or ask your host to resend it.',''],
+  b:['This invitation has expired.','Your host can send a new one.',''],
+  c:['This tasting hasn’t opened yet.','Come back at 7:00 PM and your link will work.','Retrying automatically…'],
+  d:['This tasting is full.','Speak to your host — they may be able to make room.',''],
+  e:['This tasting was cancelled.','Your host will be in touch.','']
+};
+function blocked(v){
+  var c = BLOCKED[v];
+  document.getElementById('s02Title').textContent = c[0];
+  document.getElementById('s02Body').textContent  = c[1];
+  document.getElementById('s02Foot').textContent  = c[2];
+  show('S02');
+}
+
+/* ============================================================
+   S03 / S04 — registration and sound consent
+   ============================================================ */
+function handleEmailInput(){
+  var email = document.getElementById('email').value.trim();
+  var row = document.getElementById('marketingConsentRow');
+  row.hidden = !email;
+  if(!email) document.getElementById('marketingConsent').checked = false;
+}
+function submitRegistration(e){
+  e.preventDefault();
+  var name = document.getElementById('displayName').value.trim();
+  var email = document.getElementById('email').value.trim();
+  var error = document.getElementById('regError');
+  error.hidden = true;
+  if(!name){ document.getElementById('displayName').focus(); return; }
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    error.textContent = 'That email looks incomplete. Check it, or leave it blank.';
+    error.hidden = false;
+    document.getElementById('email').focus();
+    return;
+  }
+  state.email = email;
+  state.emailMarketingConsent = email ? document.getElementById('marketingConsent').checked : null;
+  state.participantStatus = 'registered';
+  show('S04');
+}
+function chooseSound(on){
+  state.preferences.ambience = on;
+  state.preferences.interfaceSounds = on;
+  state.preferences.haptics = on;
+  renderPreferences();
+  setPhase('lobby');
+}
+
+/* ============================================================
+   S08 — host-controlled brewing timer (guest cannot control it)
+   ============================================================ */
+var brewInterval = null;
+function startBrewTimer(seconds){
+  var total = seconds, left = seconds;
+  var arc = document.getElementById('timerArc');
+  var out = document.getElementById('timerReadout');
+  var CIRC = 553;
+  if(brewInterval) clearInterval(brewInterval);
+  paint();
+  brewInterval = setInterval(function(){
+    left -= 1;
+    if(left <= 0){
+      left = 0; clearInterval(brewInterval);
+      document.getElementById('brewOverrun').hidden = false;
+    }
+    paint();
+  },1000);
+  function paint(){
+    var m = Math.floor(left/60), s = left % 60;
+    out.textContent = m + ':' + (s<10?'0':'') + s;
+    arc.setAttribute('stroke-dashoffset', String(CIRC * (1 - left/total)));
+  }
+}
+
+/* ============================================================
+   S10 — descriptors: wheel and list are equivalent (spec §14.1)
+   ============================================================ */
+var DESCRIPTORS = ['honeyed','orchid','buttery','toasted grain','stone fruit','cream',
+                   'green bean','jasmine','caramel','mineral','citrus peel','sweet hay'];
+
+/* Petals sit on two alternating radii so long labels never collide. */
+function buildWheel(){
+  var wheel = document.querySelector('.wheel');
+  var cx = 148, cy = 148;
+  DESCRIPTORS.forEach(function(d,i){
+    var r = (i % 2 === 0) ? 94 : 140;
+    var a = (i / DESCRIPTORS.length) * Math.PI * 2 - Math.PI/2;
+    var b = document.createElement('button');
+    b.className = 'petal';
+    b.type = 'button';
+    b.textContent = d;
+    b.setAttribute('aria-pressed','false');
+    b.style.left = (cx + r*Math.cos(a)) + 'px';
+    b.style.top  = (cy + r*Math.sin(a)) + 'px';
+    b.style.transform = 'translate(-50%,-50%)';
+    b.onclick = function(){ toggleDescriptor(d); };
+    wheel.appendChild(b);
+  });
+}
+function buildList(){
+  var list = document.getElementById('descriptorList');
+  list.innerHTML = '';
+  DESCRIPTORS.forEach(function(d){
+    var b = document.createElement('button');
+    b.className = 'chip';
+    b.type = 'button';
+    b.dataset.descriptor = d;
+    b.textContent = d;
+    b.setAttribute('aria-pressed','false');
+    b.onclick = function(){ toggleDescriptor(d); };
+    list.appendChild(b);
+  });
+}
+function toggleDescriptor(d){
+  if(!requireOnline()) return;
+  markActive();
+  var i = state.descriptors.indexOf(d);
+  if(i > -1) state.descriptors.splice(i,1);
+  else if(state.descriptors.length >= 3){
+    document.getElementById('wheelLimit').hidden = false;   // "Three is the most…"
+    return;
+  } else state.descriptors.push(d);
+  document.getElementById('wheelLimit').hidden = state.descriptors.length < 3;
+  syncDescriptorUI();
+}
+function syncDescriptorUI(){
+  var on = state.descriptors;
+  document.querySelectorAll('.petal').forEach(function(p){
+    p.setAttribute('aria-pressed', on.indexOf(p.textContent) > -1 ? 'true' : 'false');
+  });
+  document.querySelectorAll('#descriptorList .chip').forEach(function(c){
+    var sel = on.indexOf(c.dataset.descriptor) > -1;
+    c.setAttribute('aria-pressed', sel ? 'true' : 'false');
+    c.classList.toggle('chip--selected', sel);
+  });
+  var label = on.length + ' of 3 chosen';
+  document.getElementById('wheelCount').textContent = label;
+  document.getElementById('listCount').textContent = label;
+}
+function toggleWheelView(){
+  var w = document.getElementById('wheelView'), l = document.getElementById('listView');
+  var toList = !w.hidden;
+  w.hidden = toList; l.hidden = !toList;
+  (toList ? document.getElementById('descriptorSearch') : document.querySelector('.petal')).focus();
+}
+function filterDescriptors(q){
+  q = (q||'').toLowerCase();
+  document.querySelectorAll('#descriptorList .chip').forEach(function(c){
+    c.style.display = c.dataset.descriptor.indexOf(q) > -1 ? '' : 'none';
+  });
+}
+
+/* ============================================================
+   S11 / S12 — intensity, stars, submit
+   ============================================================ */
+function pickOne(btn){
+  if(!requireOnline()) return;
+  markActive();
+  var group = btn.parentNode.querySelectorAll('button');
+  for(var i=0;i<group.length;i++) group[i].setAttribute('aria-pressed','false');
+  btn.setAttribute('aria-pressed','true');
+  state.intensity = btn.textContent;
+}
+function setStars(n){
+  if(!requireOnline()) return;
+  markActive();
+  state.stars = n;
+  var stars = document.querySelectorAll('.star');
+  for(var i=0;i<stars.length;i++){
+    var on = i < n;
+    stars[i].dataset.on = on ? 'true' : 'false';
+    stars[i].setAttribute('aria-checked', (i === n-1) ? 'true' : 'false');
+  }
+}
+function saveFirstImpressionAndContinue(){
+  var value = document.getElementById('firstImpression').value.trim();
+  if(value && !requireOnline()) return;
+  state.firstImpression = value;
+  if(value) markActive();
+  show('S10');
+}
+function skipFirstImpression(){
+  state.firstImpression = '';
+  document.getElementById('firstImpression').value = '';
+  show('S10');
+}
+function submitNotes(){
+  if(!requireOnline()){
+    // The one line used wherever a non-Notes capture is attempted offline (spec §18.6)
+    return;
+  }
+  document.getElementById('saveErr').hidden = true;
+  document.getElementById('saveOk').hidden = false;
+  markActive();
+  setTimeout(function(){ setPhase('trivia'); }, 700);
+}
+
+/* ============================================================
+   S13 — trivia
+   ============================================================ */
+function answerTrivia(btn,correct){
+  if(!requireOnline()) return;
+  markActive();
+  var opts = document.querySelectorAll('#triviaOptions button');
+  for(var i=0;i<opts.length;i++){ opts[i].setAttribute('aria-checked','false'); opts[i].disabled = true; }
+  btn.setAttribute('aria-checked','true');
+  btn.classList.add('btn--primary');
+  document.getElementById('triviaLocked').hidden = false;
+  document.getElementById('triviaWait').hidden = true;
+  setTimeout(function(){                       // host closes the question
+    var r = document.getElementById('triviaResult');
+    r.hidden = false;
+    r.className = 'note ' + (correct ? 'note--ok' : 'note--warn');
+    r.querySelector('p').textContent = correct ? 'That’s it.' : 'Not this time.';
+    setTimeout(function(){ show('S14'); }, 1200);
+  }, 1600);
+}
+
+/* ============================================================
+   S14 / S15 / S16 — stamp, save, between teas
+   ============================================================ */
+function saveTea(){
+  if(!requireOnline()) return;
+  markActive();
+  state.savedTea = true;
+  document.getElementById('saveTeaBtn').textContent = 'Saved to your evening';
+  document.getElementById('undoSaveBtn').hidden = false;
+  document.getElementById('saveState').textContent = 'Saved. We’ll include this in your recap.';
+}
+function undoSave(){
+  if(!requireOnline()) return;
+  state.savedTea = false;
+  document.getElementById('saveTeaBtn').textContent = 'Save This Tea';
+  document.getElementById('undoSaveBtn').hidden = true;
+  document.getElementById('saveState').textContent = 'Save it to include it in your recap.';
+}
+
+/* ============================================================
+   S18 — recap email
+   ============================================================ */
+function sendRecap(){
+  document.getElementById('emailOffer').hidden = true;
+  document.getElementById('emailFail').hidden = true;
+  document.getElementById('emailEdit').hidden = true;
+  document.getElementById('emailSent').hidden = false;
+}
+function declineRecap(){ document.getElementById('emailOffer').hidden = true; }
+function resendRecap(){ document.getElementById('resendQuota').textContent = '(2 left today)'; }
+function editRecapEmail(){
+  document.getElementById('emailSent').hidden = true;
+  document.getElementById('emailEdit').hidden = false;
+  var input = document.getElementById('recapEmailEdit');
+  input.value = state.email || '';
+  input.focus();
+}
+function cancelRecapEmailEdit(){
+  document.getElementById('emailEdit').hidden = true;
+  document.getElementById('emailSent').hidden = false;
+}
+function saveRecapEmail(){
+  var input = document.getElementById('recapEmailEdit');
+  var email = input.value.trim();
+  var err = document.getElementById('recapEmailEditError');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    err.hidden = false; input.focus(); return;
+  }
+  err.hidden = true;
+  state.email = email;
+  sendRecap();
+}
+function failRecapEmail(){
+  show('S17');
+  document.getElementById('emailOffer').hidden = true;
+  document.getElementById('emailSent').hidden  = true;
+  document.getElementById('emailFail').hidden  = false;
+}
+
+/* ============================================================
+   S19 — deletion. Exactly one subscription line is shown.
+   ============================================================ */
+function confirmDelete(){
+  var also = document.getElementById('alsoUnsubscribe').checked;
+  document.getElementById('deleteSubLine').textContent = also
+    ? 'Your Vintage Fork email subscription was also removed.'
+    : 'You remain subscribed to Vintage Fork emails. You can unsubscribe at any time.';
+  state.dataDeleted = true;
+  state.firstImpression = '';
+  state.descriptors = [];
+  state.intensity = null;
+  state.stars = 0;
+  state.savedTea = false;
+  document.getElementById('personalNotes').value = '';
+  try{ localStorage.removeItem(notesStorageKey()); }catch(e){}
+  show('S19done');
+}
+
+/* ============================================================
+   S24 — Personal Notes: local-first, never blocking (spec §13)
+   ============================================================ */
+var notesTimer = null;
+function openNotes(){
+  var d = document.getElementById('notesDrawer');
+  d.hidden = false;
+  document.getElementById('notesScrim').classList.add('is-open');
+  requestAnimationFrame(function(){ d.classList.add('is-open'); });
+  var ta = document.getElementById('personalNotes');
+  ta.onfocus = function(){ state.notesFocused = true; };
+  ta.onblur  = function(){ state.notesFocused = false; };
+  ta.focus();
+}
+function closeNotes(){
+  var d = document.getElementById('notesDrawer');
+  d.classList.remove('is-open');
+  document.getElementById('notesScrim').classList.remove('is-open');
+  state.notesFocused = false;
+  setTimeout(function(){ d.hidden = true; }, 280);
+}
+function onNotesInput(){
+  // Written to event/participant/flight-scoped local storage first.
+  setNoteSaveStatus('pending');
+  try{ localStorage.setItem(notesStorageKey(), document.getElementById('personalNotes').value); }catch(e){}
+  if(notesTimer) clearTimeout(notesTimer);
+  notesTimer = setTimeout(function(){
+    setNoteSaveStatus(state.connectionStatus === 'offline' ? 'local-only' : 'saved');
+  }, 600);
+}
+function setNoteSaveStatus(s){
+  state.noteSaveStatus = s;
+  var chip = document.getElementById('notesSync'), foot = document.getElementById('notesFooter');
+  if(s === 'saved'){ chip.textContent = 'Saved \u2713'; foot.textContent = 'Saved on this device'; }
+  if(s === 'pending'){ chip.textContent = 'Saving…'; foot.textContent = 'Saved on this device'; }
+  if(s === 'local-only'){
+    chip.textContent = 'On this device';
+    foot.textContent = 'Saved on this device. We’ll sync it when you reconnect.';
+  }
+}
+function openSound(){
+  renderPreferences();
+  var d = document.getElementById('soundDrawer');
+  d.hidden = false;
+  document.getElementById('soundScrim').classList.add('is-open');
+  requestAnimationFrame(function(){ d.classList.add('is-open'); });
+}
+function closeSound(){
+  var d = document.getElementById('soundDrawer');
+  d.classList.remove('is-open');
+  document.getElementById('soundScrim').classList.remove('is-open');
+  setTimeout(function(){ d.hidden = true; }, 280);
+}
+function renderPreferences(){
+  document.querySelectorAll('.switch[data-pref]').forEach(function(btn){
+    btn.setAttribute('aria-checked', state.preferences[btn.dataset.pref] ? 'true' : 'false');
+  });
+}
+function toggleSwitch(btn){
+  var key = btn.dataset.pref;
+  if(!key) return;
+  state.preferences[key] = !state.preferences[key];
+  renderPreferences();
+}
+
+/* ============================================================
+   S22 — connection banner (spec §19)
+   ============================================================ */
+var CONN = {
+  online:       ['\u2713 Back with the room.','ok'],
+  unstable:     ['Your connection is unstable.','warn'],
+  reconnecting: ['Reconnecting…','warn'],
+  offline:      ['You’re offline. Personal Notes are saved on this device.','err']
+};
+function setConnection(s){
+  if(!Object.prototype.hasOwnProperty.call(CONN,s)) return;
+  state.connectionStatus = s;
+  var c = CONN[s];
+  setBanner(c[0], c[1]);
+  if(s === 'offline') setNoteSaveStatus('local-only');
+  if(s === 'online'){
+    setNoteSaveStatus('saved');
+    setTimeout(function(){ document.getElementById('connBanner').classList.remove('is-visible'); }, 2400);
+  }
+}
+function setRoomSync(s){
+  if(['current','catching_up','stale'].indexOf(s) === -1) return;
+  state.syncStatus = s;
+  if(s === 'catching_up') setBanner('Catching up with the room…','warn');
+  if(s === 'stale') setBanner('Bringing you up to date…','warn');
+  if(s === 'current' && state.connectionStatus === 'online'){
+    document.getElementById('connBanner').classList.remove('is-visible');
+  }
+}
+function setBanner(text,tone){
+  var b = document.getElementById('connBanner');
+  b.textContent = text;
+  b.dataset.tone = tone;
+  b.classList.add('is-visible');
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+(function init(){
+  buildWheel();
+  buildList();
+  syncDescriptorUI();
+  renderPreferences();
+  handleEmailInput();
+  try{
+    var saved = localStorage.getItem(notesStorageKey());
+    if(saved) document.getElementById('personalNotes').value = saved;
+  }catch(e){}
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    document.getElementById('reducedMotionChip').textContent = 'On';
+  }
+  // S01 is transient: validate, then hand off to registration.
+  setTimeout(function(){ if(currentScreen() === 'S01') show('S03'); }, 1600);
+})();
+
+</script>
+</body>
+</html>

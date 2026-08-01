@@ -1,0 +1,29 @@
+import Link from "next/link";
+import { SiteHeader } from "@/components/SiteHeader";
+import { StatusChip } from "@/components/StatusChip";
+import { requireStaff } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
+
+export default async function AdminPage() {
+  await requireStaff();
+  const supabase = await createClient();
+  const { data: events } = await supabase.from("events").select(`id,title,starts_at,location_mode,capacity,status,phase,invite_code,
+    participants(count),flight:event_flight_items(count)`)
+    .order("starts_at", { ascending: false });
+  const live = events?.filter(e => e.status === "live") ?? [];
+  const attention = events?.filter(e => e.status === "draft") ?? [];
+
+  return <><SiteHeader /><main className="page-shell" id="main-content">
+    <div className="row" style={{ alignItems: "flex-end" }}><div><p className="eyebrow">Tasting administration</p><h1 className="page-title">Events</h1><p className="page-lede">Create the flight, prepare trivia, issue the invite and run the room from one shared event record.</p></div><span className="spacer" /><Link className="btn btn-secondary" href="/admin/teas">Tea library</Link><Link className="btn btn-primary" href="/admin/events/new">+ New event</Link></div>
+    {live.length > 0 && <section style={{ marginTop: 24 }}><div className="section-label"><span>Live now</span></div>{live.map(event => <article className="card" key={event.id} style={{ background: "var(--vf-plum-aged)", color: "var(--vf-ivory)", borderColor: "var(--vf-gold-light)" }}><div className="card-header"><div><h2 className="card-title" style={{ color: "var(--vf-gold-light)" }}>{event.title}</h2><p style={{ opacity: .8 }}>{event.phase} · {new Date(event.starts_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</p></div><StatusChip value="live" /></div><div className="card-footer" style={{ borderColor: "rgba(224,190,107,.25)" }}><span>{countOf(event.participants)} joined</span><Link className="btn btn-gold" href={`/admin/events/${event.id}/live`}>Open live console</Link></div></article>)}</section>}
+    {attention.length > 0 && <section><div className="section-label"><span>Needs attention</span></div><div className="stack">{attention.map(event => <Link key={event.id} href={`/admin/events/${event.id}`} className="card" style={{ textDecoration: "none", borderLeft: "4px solid var(--vf-gold)" }}><div className="row"><span aria-hidden="true">⚠</span><strong>{event.title}</strong><span className="spacer" /><span className="muted">Finish setup →</span></div></Link>)}</div></section>}
+    <section><div className="section-label"><span>All events</span></div><div className="table-wrap"><table><thead><tr><th>Date</th><th>Event</th><th>Type</th><th>Seats</th><th>Status</th><th>Actions</th></tr></thead><tbody>{(events ?? []).map(event => <tr key={event.id}><td>{new Date(event.starts_at).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}</td><td><strong>{event.title}</strong><br /><small className="muted">{event.invite_code ?? "No invite yet"}</small></td><td>{event.location_mode === "remote" ? "Remote" : "In person"}</td><td>{countOf(event.participants)} / {event.capacity}</td><td><StatusChip value={event.status} /></td><td><div className="row">{["draft","scheduled"].includes(event.status) && <Link className="btn btn-secondary" href={`/admin/events/${event.id}`}>Edit</Link>}{["scheduled","live"].includes(event.status) && <Link className="btn btn-primary" href={`/admin/events/${event.id}/live`}>{event.status === "live" ? "Resume" : "Launch"}</Link>}{event.status === "completed" && <Link className="btn btn-primary" href={`/admin/events/${event.id}/results`}>Results</Link>}{event.status === "cancelled" && <span className="muted">Locked</span>}</div></td></tr>)}</tbody></table></div>{!events?.length && <div className="empty-state"><h2>No events yet.</h2><p>Create the first tasting to begin.</p></div>}</section>
+  </main></>;
+}
+
+function countOf(value: unknown): number {
+  if (Array.isArray(value) && value[0] && typeof value[0] === "object" && "count" in value[0]) return Number((value[0] as { count: number }).count);
+  return 0;
+}

@@ -1,0 +1,3120 @@
+<!DOCTYPE html>
+<!--
+  Vintage Fork — Admin Dashboard prototype
+  Single-file screen host built from Vintage_Fork_Admin_Dashboard_UX_Spec_v1.2_Master_Integrated.md
+  Routes modelled: /admin/* — staff-authenticated operational surface.
+
+  NOTES FOR IMPLEMENTERS
+  - Palette, type scale, radii, materials and motion tiers follow spec §3.
+  - Buttons use radius-btn 6px. Only status chips/badges are pill-shaped (§3.5, §3.7).
+  - The logo is a placeholder container (.vf-logo) standing in for the supplied asset.
+    Never redraw, recolour, crop or animate the mark (§3.1). Clear space is baked into
+    the container's own margin: calc(var(--logo-w) * .25), min 8px.
+  - Screen switching, the readiness validator, autosave, drag/reorder and the live
+    pulse are emulated by admin.js. Real build: replace the mock event/lease channel
+    with the server-authoritative feed in spec §2.5 / §21.3, and make the validator
+    (admin.js §readinessFor) a server call rather than a client function.
+  - This file intentionally renders every pilot screen (§8) as a hidden <section
+    class="screen">, toggled by admin.js. Phase 2 items (A13, A14, A20, A25, A27,
+    duplicate, archive, export, previews, global search, multi-select) have NO
+    markup anywhere in this document — not even commented out.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Vintage Fork — Admin</title>
+<style>
+/* ============================================================================
+   Vintage Fork — Admin Dashboard prototype
+   admin.css
+   Derived from: Vintage_Fork_Admin_Dashboard_UX_Spec_v1.2_Master_Integrated.md
+   Section numbers in comments refer to that document.
+
+   Route styled: /admin/*  — staff-authenticated operational surface.
+   Companion files: admin.html (all screens as panels), admin.js (behaviour).
+
+   HOUSE RULES ENCODED HERE (spec §3, §12–15)
+   - Palette is token-only. Never hard-code a hex in a component rule.
+   - Buttons are RECTANGULAR, 6px radius. No pills. The only pill shapes are
+     status chips/badges (spec §3.5, §3.7).
+   - One primary action per screen, Sage Leaf Green. Destructive actions are
+     Aged Plum, always >=24px from the primary, never adjacent (spec §3.7).
+   - No red anywhere. Failure = Aged Plum + glyph + word (spec §3.2).
+   - Nothing conveyed by colour alone — every status carries a glyph AND a
+     word (spec §3.2, §25).
+   - Tabular numerals on every table cell, count, seat figure, timer, result.
+   - Cards: Warm Ivory, 1px Walnut Wood at 15%, 12px radius, <=2px shadow,
+     16px padding (spec §3.7, §12).
+   - Min interactive target 44x44px everywhere, including desktop (spec §3.4).
+   - Motion tiers: 0 (instant), 1 (200-280ms), 1-Loop (1.2-1.5s). Tier 2 does
+     not exist (spec §3.6).
+   - Parchment grain at 3% on the app background ONLY, never behind tables.
+   - The logo is a placeholder container (.vf-logo) standing in for the
+     supplied asset. Never redraw, recolour or animate the mark (spec §3.1).
+
+   CONTENTS
+    1. Tokens
+    2. Base and typography
+    3. Layout shell — top bar, left rail, content max-width
+    4. Logo placeholder
+    5. Buttons
+    6. Status chips and glyphs
+    7. Cards — generic and event-card
+    8. Forms
+    9. Tables
+   10. Tabs — event workspace strip
+   11. Drawers and modals
+   12. Toasts
+   13. Readiness panel
+   14. Interface states — loading, empty, warning, error
+   15. Motion and reduced-motion
+   16. Screen-specific layout helpers
+   17. Tablet and mobile breakpoints
+   18. Prototype harness (delete in production)
+   ============================================================================ */
+
+/* ============================================================
+   1. TOKENS  (spec §3.2 palette, §3.3 type, §3.4 spacing/grid)
+   ============================================================ */
+:root{
+  --vf-plum:#4B1638;
+  --vf-plum-aged:#33102A;
+  --vf-gold:#C9A227;
+  --vf-gold-light:#E0BE6B;
+  --vf-parchment:#F7F1E4;
+  --vf-ivory:#FBF7EC;
+  --vf-sage:#7C8B5E;
+  --vf-forest:#3F4E36;
+  --vf-walnut:#4A3524;
+  --vf-ink:#2B2420;
+  --vf-fog:#8C8578;
+
+  --radius-btn:6px;
+  --radius-card:12px;
+  --radius-pill:999px;
+
+  --border-card:1px solid rgba(74,53,36,.15);
+  --border-field:1px solid rgba(74,53,36,.25);
+  --border-field-hover:1px solid rgba(74,53,36,.4);
+  --border-hairline:1px solid rgba(224,190,107,.55);
+  --elev-card:0 1px 2px rgba(43,36,32,.12);
+
+  --ease-move:cubic-bezier(.32,.08,.24,1);
+  --ease-settle:cubic-bezier(.16,1,.30,1);
+
+  --t1:240ms;
+  --t1loop:1.4s;
+
+  --font:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --font-ui:"Avenir Next","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+
+  --rail-w:240px;
+  --topbar-h:56px;
+  --content-max:1120px;
+
+  --logo-w:28px;
+}
+
+/* ============================================================
+   2. BASE
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0;padding:0}
+body{
+  background:var(--vf-parchment);
+  color:var(--vf-ink);
+  font-family:var(--font-ui);
+  font-size:15px;line-height:22px;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+/* Parchment grain: 3% opacity, application background only, never over tables (§3.5) */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.03;
+  background-image:radial-gradient(rgba(74,53,36,.9) .5px,transparent .5px);
+  background-size:3px 3px;
+}
+h1,h2,h3{font-family:var(--font-ui);margin:0}
+.font-numerals,.numeral,td,th,.count,.seat-figure,.timer,.results-figure{
+  font-variant-numeric:tabular-nums;
+}
+p{margin:0}
+button{font-family:var(--font-ui)}
+a{color:var(--vf-walnut)}
+.page-title{font-size:28px;line-height:34px;font-weight:500;color:var(--vf-ink)}
+.section-header{font-size:18px;line-height:24px;font-weight:500;letter-spacing:.02em;color:var(--vf-walnut);
+  border-bottom:1px solid rgba(74,53,36,.15);padding-bottom:8px;margin:0 0 12px}
+.card-title{font-size:17px;line-height:22px;font-weight:500;color:var(--vf-ink)}
+.body-text{font-size:15px;line-height:22px;color:var(--vf-ink)}
+.field-label{font-size:13px;line-height:18px;letter-spacing:.04em;text-transform:uppercase;font-weight:500;color:var(--vf-walnut)}
+.helper-text{font-size:13px;line-height:18px;color:var(--vf-fog)}
+.data-figure{font-size:32px;line-height:36px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--vf-ink)}
+.data-figure-key{font-size:40px;line-height:44px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--vf-gold)}
+.muted{color:var(--vf-fog)}
+.stack{display:flex;flex-direction:column}
+.gap-4{gap:4px}.gap-8{gap:8px}.gap-12{gap:12px}.gap-16{gap:16px}.gap-24{gap:24px}.gap-32{gap:32px}
+.row{display:flex;align-items:center}
+.spacer{flex:1}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+:focus-visible{outline:2px solid var(--vf-gold);outline-offset:2px;border-radius:2px}
+
+/* ============================================================
+   3. LAYOUT SHELL  (spec §5.1 persistent frame)
+   ============================================================ */
+#app-frame{position:relative;z-index:1;min-height:100vh}
+
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--topbar-h);z-index:100;
+  background:var(--vf-plum);color:var(--vf-parchment);
+  display:flex;align-items:center;gap:12px;padding:0 16px;
+}
+.topbar .vf-logo{margin:0}
+.topbar-title{font-family:var(--font);font-size:17px;font-weight:600;color:var(--vf-parchment)}
+.account-menu{position:relative;margin-left:auto}
+.account-trigger{
+  background:transparent;border:none;color:var(--vf-parchment);font-size:15px;
+  display:flex;align-items:center;gap:6px;min-height:44px;padding:0 8px;cursor:pointer;border-radius:var(--radius-btn);
+}
+.account-trigger:hover{background:rgba(247,241,228,.08)}
+.account-dropdown{
+  position:absolute;top:48px;right:0;background:var(--vf-ivory);border:var(--border-card);
+  border-radius:var(--radius-card);box-shadow:0 2px 8px rgba(43,36,32,.2);min-width:180px;
+  padding:8px;z-index:150;
+}
+.account-dropdown[hidden]{display:none}
+.account-dropdown a,.account-dropdown button{
+  display:block;width:100%;text-align:left;background:none;border:none;color:var(--vf-ink);
+  padding:10px 12px;font-size:15px;min-height:44px;border-radius:var(--radius-btn);cursor:pointer;text-decoration:none;
+}
+.account-dropdown a:hover,.account-dropdown button:hover{background:rgba(74,53,36,.06)}
+
+.shell{display:flex;padding-top:var(--topbar-h);min-height:100vh}
+
+.left-rail{
+  position:fixed;top:var(--topbar-h);left:0;bottom:0;width:var(--rail-w);
+  background:var(--vf-parchment);border-right:1px solid rgba(74,53,36,.12);
+  padding:24px 16px;overflow-y:auto;z-index:50;
+}
+.rail-group-label{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--vf-walnut);font-weight:500;padding:0 8px 8px}
+.rail-link{
+  display:flex;align-items:center;gap:8px;min-height:44px;padding:0 8px;border-radius:var(--radius-btn);
+  color:var(--vf-ink);text-decoration:none;font-size:15px;
+}
+.rail-link:hover{background:rgba(74,53,36,.06)}
+.rail-link.is-active{background:var(--vf-plum-aged);color:var(--vf-parchment)}
+.rail-count{margin-left:auto;color:var(--vf-fog);font-size:13px;font-variant-numeric:tabular-nums}
+.rail-link.is-active .rail-count{color:rgba(247,241,228,.7)}
+.rail-rule{height:0;border:0;border-top:1px solid rgba(74,53,36,.15);margin:16px 0}
+.rail-live{
+  display:flex;align-items:center;gap:8px;min-height:44px;padding:0 8px;margin-bottom:8px;border-radius:var(--radius-btn);
+  background:var(--vf-plum-aged);color:var(--vf-parchment);text-decoration:none;font-size:14px;font-weight:500;
+}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--vf-gold);flex:0 0 auto}
+.live-dot.pulsing{animation:pulse var(--t1loop) infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+.content-area{margin-left:var(--rail-w);flex:1;min-width:0;padding:32px 24px 64px}
+.content-max{max-width:var(--content-max);margin:0 auto}
+.grid-12{display:grid;grid-template-columns:repeat(12,1fr);gap:24px}
+.col-8{grid-column:span 8}
+.col-4{grid-column:span 4}
+.breadcrumb{font-size:14px;color:var(--vf-walnut);text-decoration:none;display:inline-block;margin-bottom:8px}
+.breadcrumb:hover{text-decoration:underline}
+
+/* Auth screens: no rail, centred card on Parchment */
+.auth-shell{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;z-index:1}
+.auth-card{
+  width:420px;max-width:100%;background:var(--vf-ivory);border:var(--border-card);border-radius:var(--radius-card);
+  box-shadow:0 2px 4px rgba(43,36,32,.14);padding:32px;
+}
+.auth-footer{text-align:center;margin-top:16px;color:var(--vf-fog);font-size:13px}
+
+/* ============================================================
+   4. LOGO PLACEHOLDER  (replace with supplied asset — spec §3.1)
+   ============================================================ */
+.vf-logo{
+  display:block;flex:0 0 auto;position:relative;
+  width:var(--logo-w);height:var(--logo-w);border-radius:50%;
+  background:var(--vf-plum-aged);border:1.5px solid var(--vf-gold);
+  margin:calc(var(--logo-w) * .25);
+}
+.vf-logo::after{
+  content:"VF";position:absolute;inset:0;display:grid;place-items:center;
+  font-family:var(--font);color:var(--vf-gold-light);
+  font-size:calc(var(--logo-w) * .32);letter-spacing:.04em;
+}
+.vf-logo--topbar{--logo-w:28px;margin:0 8px 0 4px}
+.vf-logo--auth{--logo-w:72px;margin:0 auto 8px}
+.vf-logo--qr{--logo-w:48px;margin:0 auto 8px}
+.vf-logo--empty{--logo-w:40px;margin:0 auto 8px;opacity:.5}
+
+/* ============================================================
+   5. BUTTONS  (spec §3.7 — rectangular, 6px radius, no pills)
+   ============================================================ */
+.btn{
+  font-family:var(--font-ui);font-size:15px;font-weight:500;line-height:20px;
+  min-height:44px;min-width:44px;padding:10px 18px;border-radius:var(--radius-btn);
+  border:1px solid rgba(74,53,36,.25);background:var(--vf-ivory);color:var(--vf-ink);
+  cursor:pointer;transition:background var(--t1) var(--ease-move),border-color var(--t1) var(--ease-move);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn:hover{background:rgba(74,53,36,.06)}
+.btn--primary{background:var(--vf-sage);color:var(--vf-ivory);border-color:var(--vf-sage)}
+.btn--primary:hover{background:var(--vf-forest);border-color:var(--vf-forest)}
+.btn--danger{background:var(--vf-plum);color:var(--vf-parchment);border-color:var(--vf-plum)}
+.btn--danger:hover{background:var(--vf-plum-aged);border-color:var(--vf-plum-aged)}
+.btn--outline{background:transparent;color:var(--vf-ink);border-color:rgba(74,53,36,.35)}
+.btn--text{background:transparent;border-color:transparent;color:var(--vf-walnut);text-decoration:underline;padding:10px 4px}
+.btn--gold{background:var(--vf-gold);color:var(--vf-plum-aged);border-color:var(--vf-gold)}
+.btn--gold:hover{background:var(--vf-gold-light)}
+.btn--small{min-height:36px;padding:6px 12px;font-size:13px}
+.btn:disabled{background:rgba(74,53,36,.06);color:var(--vf-fog);border-color:rgba(74,53,36,.14);cursor:not-allowed}
+.btn:disabled:hover{background:rgba(74,53,36,.06)}
+.btn-loop{display:inline-block;width:14px;height:14px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.4);border-top-color:currentColor;
+  animation:spin var(--t1loop) linear infinite;flex:0 0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.destructive-gap{margin-left:24px}
+.action-row{display:flex;justify-content:flex-end;gap:12px;margin-top:24px}
+.action-row.split{justify-content:space-between}
+
+/* ============================================================
+   6. STATUS CHIPS  (spec §3.2, §3.7 — the one pill exception)
+   ============================================================ */
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  min-height:28px;padding:4px 12px;border-radius:var(--radius-pill);
+  font-size:13px;line-height:18px;font-weight:500;white-space:nowrap;
+}
+.chip--ready{background:rgba(63,78,54,.12);color:var(--vf-forest)}
+/* Attention text is Walnut Wood, not Antique Gold: gold fails as small text on
+   a light ground (spec 3.2). The gold stays as the chip tint and the glyph. */
+.chip--attention{background:rgba(201,162,39,.16);color:var(--vf-walnut)}
+.chip--live{background:var(--vf-plum-aged);color:var(--vf-gold)}
+.chip--draft{background:rgba(140,133,120,.16);color:var(--vf-fog)}
+.chip--cancelled{background:rgba(75,22,56,.10);color:var(--vf-plum)}
+.chip--completed{background:rgba(63,78,54,.12);color:var(--vf-forest)}
+.glyph{font-weight:700}
+/* Filter chips are navigation controls, not status badges, so they take the
+   6px button radius. Pill radius is reserved for status chips (spec 3.7). */
+.filter-chip{
+  display:inline-flex;align-items:center;min-height:36px;padding:6px 14px;border-radius:var(--radius-btn);
+  font-size:14px;border:1px solid rgba(74,53,36,.25);background:var(--vf-ivory);color:var(--vf-ink);
+  text-decoration:none;cursor:pointer;
+}
+.filter-chip.is-active{background:var(--vf-plum-aged);color:var(--vf-parchment);border-color:var(--vf-plum-aged)}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ============================================================
+   7. CARDS
+   ============================================================ */
+.card{
+  background:var(--vf-ivory);border:var(--border-card);border-radius:var(--radius-card);
+  box-shadow:var(--elev-card);padding:16px;
+}
+.card:hover{box-shadow:0 2px 4px rgba(43,36,32,.16)}
+
+/* Event card — exactly six lines, one action (spec §12) */
+.event-card{
+  background:var(--vf-ivory);border:var(--border-card);border-radius:var(--radius-card);
+  box-shadow:var(--elev-card);padding:16px;display:flex;flex-direction:column;gap:6px;
+  text-decoration:none;color:inherit;position:relative;
+}
+.event-card:focus-visible{outline:2px solid var(--vf-gold);outline-offset:2px}
+.event-card.is-live{border-left:4px solid var(--vf-plum-aged)}
+.ec-line1{font-size:13px;color:var(--vf-fog)}
+.ec-line2{font-size:17px;font-weight:500;color:var(--vf-ink)}
+.ec-line3{font-size:14px;display:flex;align-items:center;gap:6px;font-weight:500}
+.ec-line3.status-ready{color:var(--vf-forest)}
+.ec-line3.status-attention{color:var(--vf-walnut)}
+.ec-line3.status-live .glyph{color:var(--vf-gold)}
+.ec-line3.status-live{color:var(--vf-plum-aged);font-weight:600}
+.ec-line3.status-draft{color:var(--vf-fog)}
+.ec-line3.status-cancelled{color:var(--vf-plum)}
+.ec-line4{font-size:15px;font-variant-numeric:tabular-nums;color:var(--vf-ink)}
+.ec-line5{font-size:13px;color:var(--vf-fog)}
+.ec-action{margin-top:4px}
+
+.live-banner{
+  background:var(--vf-plum-aged);color:var(--vf-parchment);border-radius:var(--radius-card);
+  padding:16px;display:flex;align-items:center;gap:16px;margin-bottom:24px;
+}
+.live-banner .live-dot{width:10px;height:10px}
+.live-banner-title{font-weight:600;font-size:15px;letter-spacing:.03em;text-transform:uppercase;color:var(--vf-gold)}
+.live-banner-body{font-size:15px}
+
+.needs-attention-item{
+  background:var(--vf-ivory);border:var(--border-card);border-left:3px solid var(--vf-gold);
+  border-radius:var(--radius-card);padding:16px;display:flex;align-items:center;gap:16px;margin-bottom:8px;
+}
+
+/* ============================================================
+   8. FORMS  (spec §14)
+   ============================================================ */
+.field{margin-bottom:20px}
+.field label{display:block;margin-bottom:6px}
+.field input[type=text],.field input[type=email],.field input[type=password],
+.field input[type=number],.field input[type=url],.field input[type=date],
+.field input[type=time],.field select,.field textarea{
+  width:100%;min-height:44px;padding:10px 12px;font-size:15px;font-family:var(--font-ui);
+  color:var(--vf-ink);background:var(--vf-ivory);border:var(--border-field);border-radius:var(--radius-btn);
+}
+.field textarea{min-height:88px;resize:vertical}
+.field input:hover,.field select:hover,.field textarea:hover{border:var(--border-field-hover)}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:2px solid var(--vf-gold);outline-offset:2px;border-color:rgba(74,53,36,.4);
+}
+.field.is-invalid input,.field.is-invalid textarea,.field.is-invalid select{border:2px solid var(--vf-plum)}
+.field-invalid-msg{color:var(--vf-plum);font-size:13px;margin-top:6px;display:flex;gap:6px;align-items:flex-start}
+.field .helper-text{margin-top:6px}
+.field-disabled-reason{color:var(--vf-fog);font-size:13px;margin-top:6px}
+.field input:disabled,.field textarea:disabled,.field select:disabled{
+  background:rgba(74,53,36,.05);color:var(--vf-fog);cursor:not-allowed;
+}
+.readonly-field{
+  background:rgba(74,53,36,.06);border:none;border-radius:var(--radius-btn);padding:10px 12px;
+  color:var(--vf-ink);font-size:15px;min-height:44px;display:flex;align-items:center;
+}
+.char-counter{font-size:12px;color:var(--vf-fog);text-align:right;margin-top:4px}
+.char-counter.is-near-limit{color:var(--vf-gold)}
+.char-counter.is-at-limit{color:var(--vf-plum)}
+.field-row{display:flex;gap:16px}
+.field-row > .field{flex:1}
+.radio-row{display:flex;align-items:center;gap:8px;min-height:44px}
+.check-row{display:flex;align-items:center;gap:8px;min-height:44px}
+.password-field{position:relative}
+.password-field input{padding-right:44px}
+.password-toggle{
+  position:absolute;right:4px;top:4px;bottom:4px;width:36px;background:transparent;border:none;
+  cursor:pointer;color:var(--vf-walnut);
+}
+.requirements-list{list-style:none;margin:8px 0 0;padding:0;font-size:13px}
+.requirements-list li{display:flex;gap:6px;align-items:flex-start;margin-bottom:4px}
+.requirements-list .met{color:var(--vf-forest)}
+.requirements-list .unmet{color:var(--vf-walnut)}
+.saving-indicator{font-size:13px;color:var(--vf-fog);display:inline-flex;align-items:center;gap:6px}
+
+/* ============================================================
+   9. TABLES  (spec §13)
+   ============================================================ */
+.table-wrap{background:var(--vf-ivory);border:var(--border-card);border-radius:var(--radius-card);overflow:hidden}
+table.vf-table{width:100%;border-collapse:collapse;font-size:15px}
+table.vf-table thead th{
+  background:var(--vf-walnut);color:var(--vf-parchment);text-align:left;font-size:13px;
+  letter-spacing:.04em;text-transform:uppercase;font-weight:500;padding:0 12px;height:44px;
+}
+table.vf-table thead th .sort-btn{
+  background:none;border:none;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;
+  cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:4px;min-height:44px;
+}
+table.vf-table tbody td{
+  padding:0 12px;border-top:1px solid rgba(74,53,36,.10);color:var(--vf-ink);font-variant-numeric:tabular-nums;
+}
+table.vf-table tbody tr{height:52px}
+table.vf-table.compact tbody tr{height:44px}
+table.vf-table tbody tr:hover{background:var(--vf-parchment)}
+table.vf-table tbody tr.is-clickable{cursor:pointer}
+.table-toolbar{display:flex;align-items:center;gap:12px;padding:12px 16px;flex-wrap:wrap}
+.table-search{flex:1;min-width:160px;position:relative}
+.table-search input{width:100%;min-height:40px;padding:8px 12px;border:var(--border-field);border-radius:var(--radius-btn);font-size:14px}
+.row-toggle{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--vf-walnut);}
+.row-toggle select{border:var(--border-field);border-radius:var(--radius-btn);min-height:36px;font-size:13px}
+.table-footer{padding:10px 16px;font-size:13px;color:var(--vf-fog);border-top:1px solid rgba(74,53,36,.1)}
+.row-menu-btn{background:none;border:none;color:var(--vf-walnut);font-size:18px;cursor:pointer;min-width:44px;min-height:44px}
+.ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px;display:inline-block;vertical-align:bottom}
+.mobile-row-card{display:none}
+
+/* ============================================================
+   10. EVENT WORKSPACE TAB STRIP  (spec §5.2)
+   ============================================================ */
+.workspace-header{margin-bottom:0}
+.workspace-title-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.workspace-meta{color:var(--vf-fog);font-size:14px;margin-top:4px}
+.tab-strip{
+  display:flex;align-items:center;border-bottom:1px solid rgba(74,53,36,.15);margin:16px 0 24px;gap:4px;
+  overflow-x:auto;
+}
+.tab-btn{
+  background:none;border:none;padding:12px 16px;font-size:15px;color:var(--vf-ink);cursor:pointer;
+  border-bottom:3px solid transparent;min-height:44px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.tab-btn.is-active{border-bottom-color:var(--vf-plum);font-weight:600}
+.tab-btn:disabled{color:var(--vf-fog);cursor:not-allowed}
+.tab-warn-dot{width:8px;height:8px;border-radius:50%;background:var(--vf-gold);display:inline-block}
+.tab-strip-launch{margin-left:auto;padding:8px 0}
+
+/* ============================================================
+   11. DRAWERS AND MODALS  (spec §3.7)
+   ============================================================ */
+.scrim{
+  position:fixed;inset:0;background:rgba(51,16,42,.3);z-index:200;
+  opacity:0;transition:opacity var(--t1) var(--ease-move);
+}
+.scrim.is-open{opacity:1}
+.scrim[hidden]{display:none}
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;width:480px;max-width:92vw;background:var(--vf-ivory);
+  z-index:210;box-shadow:-2px 0 8px rgba(43,36,32,.2);transform:translateX(100%);
+  transition:transform var(--t1) var(--ease-move);overflow-y:auto;padding:24px;
+}
+.drawer.is-open{transform:translateX(0)}
+.drawer-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--vf-walnut);min-width:44px;min-height:44px}
+.drawer-title{font-size:20px;font-weight:600;margin:4px 0}
+.drawer-subtitle{color:var(--vf-fog);font-size:14px;margin-bottom:16px}
+.permanent-panel{
+  background:rgba(74,53,36,.07);border-radius:var(--radius-card);padding:16px;margin-bottom:20px;
+}
+.permanent-panel h3{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--vf-walnut);margin:0 0 8px}
+.permanent-panel p{margin:2px 0;color:var(--vf-ink);font-size:14px}
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(51,16,42,.3);z-index:300;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity var(--t1) var(--ease-move);padding:24px;
+}
+.modal-overlay.is-open{opacity:1}
+.modal-overlay[hidden]{display:none}
+.modal{
+  background:var(--vf-ivory);border-radius:var(--radius-card);max-width:520px;width:100%;padding:24px;
+  box-shadow:0 4px 16px rgba(43,36,32,.25);transform:translateY(8px) scale(.98);
+  transition:transform var(--t1) var(--ease-settle);
+}
+.modal-overlay.is-open .modal{transform:translateY(0) scale(1)}
+.modal h2{font-size:19px;margin:0 0 8px}
+.modal-rule{border:0;border-top:1px solid rgba(74,53,36,.15);margin:12px 0}
+/* Drawer chrome: overlay wrapper (alias of .scrim) + header/body/footer regions */
+.drawer-overlay{
+  position:fixed;inset:0;background:rgba(51,16,42,.3);z-index:210;
+  opacity:0;transition:opacity var(--t1) var(--ease-move);
+}
+.drawer-overlay.is-open{opacity:1}
+.drawer-overlay[hidden]{display:none}
+.drawer-overlay .drawer{padding:0;display:flex;flex-direction:column}
+.drawer-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px;border-bottom:1px solid rgba(74,53,36,.12)}
+.drawer-header h2{font-size:19px;font-weight:600;margin:0}
+.drawer-body{padding:20px 24px;overflow-y:auto;flex:1}
+.drawer-footer{display:flex;justify-content:flex-end;gap:12px;padding:16px 24px;border-top:1px solid rgba(74,53,36,.12)}
+.permanent-record-panel{background:rgba(74,53,36,.07);border-radius:var(--radius-card);padding:16px;margin-bottom:20px}
+.permanent-record-panel h3{margin:0}
+
+/* ============================================================
+   12. TOASTS  (spec §3.7, §25.3)
+   ============================================================ */
+.toast-stack{position:fixed;bottom:24px;left:24px;z-index:400;display:flex;flex-direction:column;gap:8px;max-width:360px}
+.toast{
+  background:var(--vf-plum-aged);color:var(--vf-parchment);border-radius:var(--radius-btn);
+  padding:12px 16px;font-size:14px;box-shadow:0 2px 8px rgba(43,36,32,.25);
+  display:flex;align-items:center;gap:10px;opacity:0;transform:translateY(8px);
+  transition:opacity var(--t1) var(--ease-move),transform var(--t1) var(--ease-move);
+}
+.toast.is-open{opacity:1;transform:translateY(0)}
+.toast.is-persistent{background:var(--vf-ivory);color:var(--vf-ink);border:var(--border-card)}
+.toast-action{background:none;border:none;color:var(--vf-gold-light);text-decoration:underline;cursor:pointer;font-size:14px;min-height:32px}
+.toast.is-persistent .toast-action{color:var(--vf-walnut)}
+
+/* ============================================================
+   13. READINESS PANEL  (spec §15.2, §15.5)
+   ============================================================ */
+.readiness-panel{background:var(--vf-ivory);border:var(--border-card);border-radius:var(--radius-card);padding:16px}
+.readiness-count{font-size:15px;color:var(--vf-fog);font-variant-numeric:tabular-nums}
+.readiness-list{list-style:none;margin:12px 0 0;padding:0}
+.readiness-item{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid rgba(74,53,36,.08)}
+.readiness-item:first-child{border-top:none}
+.readiness-item .glyph{flex:0 0 auto;width:18px}
+.readiness-item.is-met .glyph{color:var(--vf-forest)}
+.readiness-item.is-unmet .glyph{color:var(--vf-gold)}
+.readiness-item-body{flex:1;font-size:14px}
+.readiness-item-names{color:var(--vf-fog);font-size:13px;margin-top:2px}
+.readiness-item-fix{margin-top:6px}
+.readiness-footer{font-size:13px;color:var(--vf-fog);margin-top:12px;border-top:1px solid rgba(74,53,36,.1);padding-top:12px}
+
+/* ============================================================
+   14. INTERFACE STATES  (spec §25)
+   ============================================================ */
+.empty-state{text-align:center;padding:48px 24px;color:var(--vf-ink)}
+.empty-state h3{font-size:18px;margin-bottom:8px}
+.empty-state p{color:var(--vf-fog);margin-bottom:16px;font-size:14px}
+.warning-banner{
+  background:var(--vf-ivory);border-left:2px solid var(--vf-gold);border-radius:var(--radius-btn);
+  padding:12px 16px;display:flex;gap:10px;align-items:flex-start;font-size:14px;
+}
+.warning-banner .glyph{color:var(--vf-gold)}
+.boundary-banner{
+  background:var(--vf-parchment);border-top:1px solid var(--vf-walnut);border-bottom:1px solid var(--vf-walnut);
+  padding:12px 16px;font-size:13px;color:var(--vf-walnut);margin-bottom:16px;
+}
+.locked-banner{
+  background:rgba(74,53,36,.07);border-radius:var(--radius-btn);padding:10px 14px;font-size:14px;color:var(--vf-walnut);margin-bottom:16px;
+}
+.skeleton-row{height:52px;background:linear-gradient(90deg,rgba(74,53,36,.06),rgba(74,53,36,.12),rgba(74,53,36,.06));
+  background-size:200% 100%;animation:shimmer var(--t1loop) infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ============================================================
+   15. MOTION
+   ============================================================ */
+.route-fade{animation:routeFade var(--t1) var(--ease-move)}
+@keyframes routeFade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.12s !important}
+  .live-dot.pulsing{animation:none;opacity:1}
+}
+
+/* ============================================================
+   16. SCREEN LAYOUT HELPERS
+   ============================================================ */
+.screen{display:none}
+.screen.is-active{display:block}
+.two-col{display:grid;grid-template-columns:2fr 1fr;gap:24px;align-items:start}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.flight-card{background:var(--vf-ivory);border:var(--border-card);border-radius:var(--radius-card);padding:16px;margin-bottom:12px}
+.flight-card-head{display:flex;align-items:center;gap:12px}
+.drag-handle{cursor:grab;width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--vf-fog);flex:0 0 auto}
+.flight-position{font-weight:600;width:24px;text-align:center;flex:0 0 auto}
+.flight-name{flex:1;font-weight:600;letter-spacing:.02em}
+.flight-status-glyph{flex:0 0 auto}
+.flight-subtitle{color:var(--vf-fog);font-size:13px;margin:4px 0 8px}
+.flight-chips{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--vf-ink);margin-bottom:8px}
+.flight-chips .warn{color:var(--vf-walnut)}
+.flight-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.removed-item{background:rgba(74,53,36,.05);border-radius:var(--radius-card);padding:12px 16px;display:flex;align-items:center;gap:16px;margin-bottom:8px}
+.qr-box{
+  width:180px;height:180px;margin:0 auto;background:var(--vf-ivory);border:var(--border-card);
+  display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--vf-fog);text-align:center;
+}
+.seat-meter{height:10px;background:rgba(74,53,36,.1);border-radius:6px;overflow:hidden}
+.seat-meter-fill{height:100%;background:var(--vf-forest)}
+.seat-meter-fill.is-full{background:var(--vf-gold)}
+.trivia-layout{display:grid;grid-template-columns:220px 1fr;gap:24px}
+.trivia-list{list-style:none;margin:0;padding:0}
+.trivia-list li{display:flex;justify-content:space-between;padding:8px 4px;border-top:1px solid rgba(74,53,36,.1);font-size:14px;cursor:pointer}
+.trivia-list li:first-child{border-top:none}
+.trivia-list li.is-active{background:var(--vf-plum-aged);color:var(--vf-parchment);border-radius:var(--radius-btn)}
+.answer-row{display:flex;align-items:center;gap:8px;min-height:44px;padding:4px 0}
+.answer-row input[type=text]{flex:1}
+.northstar-card{background:var(--vf-plum-aged);color:var(--vf-parchment);border-radius:var(--radius-card);padding:24px;text-align:center;margin-bottom:24px}
+.northstar-figure{font-size:40px;font-weight:600;color:var(--vf-gold);font-variant-numeric:tabular-nums}
+.stat-card{background:var(--vf-ivory);border:var(--border-card);border-radius:var(--radius-card);padding:16px;text-align:center}
+.lease-status{display:flex;align-items:center;gap:8px;font-size:14px}
+.lease-status.healthy{color:var(--vf-forest)}
+.lease-status.unhealthy{color:var(--vf-walnut)}
+.lease-status.expired{color:var(--vf-plum)}
+.phase-list{list-style:none;margin:0;padding:0;font-size:14px}
+.phase-list li{padding:4px 0;color:var(--vf-fog)}
+.phase-list li.is-current{color:var(--vf-ink);font-weight:600}
+.recap-status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+.harness-jump-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+
+/* ============================================================
+   17. TABLET / MOBILE  (spec §10, §11)
+   ============================================================ */
+@media (max-width: 1024px){
+  .left-rail{width:64px;padding:16px 8px}
+  .rail-group-label,.rail-link span.label-text,.rail-count{display:none}
+  .rail-link{justify-content:center}
+  .content-area{margin-left:64px}
+  .two-col{grid-template-columns:1fr}
+  .trivia-layout{grid-template-columns:1fr}
+}
+@media (max-width: 900px){
+  .three-col,.four-col{grid-template-columns:repeat(2,1fr)}
+  .recap-status-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width: 640px){
+  .left-rail{display:none}
+  .content-area{margin-left:0;padding:20px 16px 48px}
+  .topbar{padding:0 12px}
+  .topbar-title{display:none}
+  .three-col,.four-col{grid-template-columns:1fr}
+  table.vf-table thead{display:none}
+  table.vf-table, table.vf-table tbody, table.vf-table tr, table.vf-table td{display:block;width:100%}
+  table.vf-table tbody tr{height:auto;padding:10px 12px;border-top:1px solid rgba(74,53,36,.1)}
+  table.vf-table tbody td{padding:2px 0;border-top:none}
+  .action-row{flex-direction:column;align-items:stretch}
+  .destructive-gap{margin-left:0;margin-top:24px}
+  .drawer{width:100%}
+  .auth-card{padding:24px}
+}
+
+/* ============================================================
+   18. PROTOTYPE HARNESS — delete in production
+   ============================================================ */
+#harness{
+  position:relative;z-index:1;margin:48px 24px 24px;max-width:var(--content-max);margin-left:auto;margin-right:auto;
+  background:var(--vf-ivory);border:2px dashed var(--vf-gold);border-radius:var(--radius-card);padding:16px;
+}
+#harness summary{cursor:pointer;font-weight:600;color:var(--vf-walnut);padding:8px 0}
+#harness .harness-body{display:flex;flex-direction:column;gap:16px;margin-top:12px}
+#harness .harness-group{border-top:1px solid rgba(74,53,36,.1);padding-top:12px}
+#harness .harness-group:first-child{border-top:none;padding-top:0}
+#harness .harness-group h4{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--vf-walnut);margin:0 0 8px}
+#harness .harness-btns{display:flex;flex-wrap:wrap;gap:6px}
+#harness button{margin:2px}
+
+/* Route progress bar (top of viewport, §25.1) */
+.route-progress{
+  position:fixed;top:0;left:0;height:3px;width:0;background:var(--vf-gold);z-index:500;
+  transition:width var(--t1) var(--ease-move),opacity var(--t1) var(--ease-move);opacity:0;
+}
+.route-progress.is-active{opacity:1;width:70%}
+
+/* Keyboard-shortcut reference list (A30) */
+.shortcut-list{margin:0}
+.shortcut-list > div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid rgba(74,53,36,.1);font-size:14px}
+.shortcut-list > div:first-child{border-top:none}
+.shortcut-list dt{color:var(--vf-ink)}
+.shortcut-list dd{margin:0;color:var(--vf-fog)}
+kbd{
+  display:inline-block;min-width:20px;text-align:center;padding:2px 6px;border-radius:4px;
+  background:rgba(74,53,36,.08);border:1px solid rgba(74,53,36,.25);font-family:var(--font-ui);font-size:13px;
+}
+
+</style>
+</head>
+<body>
+
+<!-- Top loading bar (§25.1 route change indicator) -->
+<div class="route-progress" id="routeProgress" aria-hidden="true"></div>
+
+<!-- Toasts — bottom-left, never more than two stacked (§3.7, §25.3) -->
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<!-- ==================================================================
+     AUTHENTICATION SCREENS — A01–A05. No persistent chrome.
+     ================================================================== -->
+
+<!-- A01 — Sign in -->
+<section class="screen is-active" id="A01" aria-label="Sign in">
+  <div class="auth-shell">
+    <main class="auth-card">
+      <div class="vf-logo vf-logo--auth" role="img" aria-label="Vintage Fork"></div>
+      <h1 class="page-title" style="text-align:center;font-size:22px">Vintage Fork</h1>
+      <p class="muted" style="text-align:center;margin-bottom:16px">Tasting Administration</p>
+      <hr class="modal-rule" style="border-top:1px solid rgba(224,190,107,.6)" />
+      <div id="a01Error" class="field-invalid-msg" role="alert" aria-live="assertive" hidden></div>
+      <form id="signInForm" novalidate>
+        <div class="field">
+          <label class="field-label" for="a01Email">Email</label>
+          <input type="email" id="a01Email" autocomplete="username" value="mei@vintagefork.ca" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="a01Password">Password</label>
+          <div class="password-field">
+            <input type="password" id="a01Password" autocomplete="current-password" value="tastingroom" />
+            <button type="button" class="password-toggle" id="a01ToggleFn" aria-pressed="false" aria-label="Show password">◉</button>
+          </div>
+        </div>
+        <div class="check-row" style="margin-bottom:16px">
+          <input type="checkbox" id="a01Keep" />
+          <label for="a01Keep" style="font-weight:400;text-transform:none;font-size:14px;letter-spacing:normal;color:var(--vf-ink)">Keep me signed in</label>
+        </div>
+        <p class="helper-text" style="margin:-10px 0 16px">Only on a device that's yours.</p>
+        <button type="submit" class="btn btn--primary" id="a01Submit" style="width:100%">Sign in</button>
+      </form>
+      <p style="text-align:center;margin-top:16px"><a href="#" class="btn--text" id="a01ForgotLink" style="font-size:14px">Forgotten your password?</a></p>
+      <div class="vf-logo vf-logo--empty" role="img" aria-label="" style="margin-top:8px"></div>
+    </main>
+  </div>
+  <p class="auth-footer">Vintage Fork · Edmonton</p>
+</section>
+
+<!-- A02 — Forgot password (request + sent state) -->
+<section class="screen" id="A02" aria-label="Forgot password">
+  <div class="auth-shell">
+    <main class="auth-card" id="a02Request">
+      <div class="vf-logo vf-logo--auth" role="img" aria-label="Vintage Fork"></div>
+      <h1 class="page-title" style="text-align:center;font-size:20px">Reset your password</h1>
+      <p class="body-text" style="text-align:center;color:var(--vf-fog);margin:12px 0 20px">
+        Tell us the email on your Vintage Fork staff account and we'll send a link to set a new password. The link works once and expires in 60 minutes.
+      </p>
+      <form id="a02Form" novalidate>
+        <div class="field">
+          <label class="field-label" for="a02Email">Email</label>
+          <input type="email" id="a02Email" autocomplete="username" />
+        </div>
+        <button type="submit" class="btn btn--primary" style="width:100%">Send the reset link</button>
+      </form>
+      <p style="text-align:center;margin-top:16px"><a href="#" class="btn--text" id="a02BackLink" style="font-size:14px">← Back to sign in</a></p>
+    </main>
+    <main class="auth-card" id="a02Sent" hidden>
+      <div class="vf-logo vf-logo--auth" role="img" aria-label="Vintage Fork"></div>
+      <h1 class="page-title" style="text-align:center;font-size:20px">✓ Check your email</h1>
+      <p class="body-text" style="text-align:center;color:var(--vf-fog);margin:12px 0 8px" id="a02SentBody">
+        If mei@vintagefork.ca is a Vintage Fork staff account, a reset link is on its way. It expires in 60 minutes.
+      </p>
+      <p class="helper-text" style="text-align:center;margin-bottom:20px">Nothing arrived? Check the spam folder, then try again in a few minutes.</p>
+      <button type="button" class="btn btn--primary" id="a02BackBtn" style="width:100%">Back to sign in</button>
+    </main>
+  </div>
+</section>
+
+<!-- A03 — Reset password (+ expired state) -->
+<section class="screen" id="A03" aria-label="Reset password">
+  <div class="auth-shell">
+    <main class="auth-card" id="a03Form" style="display:none">
+      <div class="vf-logo vf-logo--auth" role="img" aria-label="Vintage Fork"></div>
+      <h1 class="page-title" style="text-align:center;font-size:20px">Set a new password</h1>
+      <form id="resetForm" novalidate style="margin-top:20px">
+        <div class="field">
+          <label class="field-label" for="a03Pw1">New password</label>
+          <div class="password-field">
+            <input type="password" id="a03Pw1" autocomplete="new-password" />
+          </div>
+          <ul class="requirements-list" id="a03Reqs" aria-live="polite">
+            <li class="unmet"><span class="glyph">⚠</span> At least 12 characters</li>
+            <li class="unmet"><span class="glyph">⚠</span> Not a password you've used here before</li>
+            <li class="unmet"><span class="glyph">⚠</span> Add one number or symbol</li>
+          </ul>
+        </div>
+        <div class="field">
+          <label class="field-label" for="a03Pw2">Confirm new password</label>
+          <input type="password" id="a03Pw2" autocomplete="new-password" />
+        </div>
+        <button type="submit" class="btn btn--primary" style="width:100%">Save and sign in</button>
+      </form>
+    </main>
+    <main class="auth-card" id="a03Expired" style="display:none">
+      <div class="vf-logo vf-logo--auth" role="img" aria-label="Vintage Fork"></div>
+      <h1 class="page-title" style="text-align:center;font-size:19px">This reset link has expired or has already been used.</h1>
+      <p class="body-text" style="text-align:center;color:var(--vf-fog);margin:12px 0 20px">Ask for a new one and we'll send a fresh link.</p>
+      <button type="button" class="btn btn--primary" id="a03RequestNewBtn" style="width:100%">Request a new link</button>
+    </main>
+  </div>
+</section>
+
+<!-- A04 — Unauthorized (persistent chrome stays; staff is signed in) -->
+<section class="screen" id="A04" aria-label="Unauthorized">
+  <div id="a04Frame"></div>
+</section>
+
+<!-- A05 — Session expired: modal over current screen -->
+<div class="modal-overlay" id="a05Overlay" hidden>
+  <div class="modal" role="alertdialog" aria-labelledby="a05Title">
+    <h2 id="a05Title">Your session has ended</h2>
+    <hr class="modal-rule" />
+    <p class="body-text">For safety we signed you out after a spell of inactivity. Sign in again and you'll come straight back to this page.</p>
+    <p class="body-text" style="margin-top:12px;color:var(--vf-fog);font-size:14px">Anything you'd typed but not saved is kept on this device until you're back.</p>
+    <div class="action-row">
+      <button type="button" class="btn btn--primary" id="a05SignInBtn">Sign in again</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================================================================
+     PERSISTENT APP FRAME — top bar + left rail (spec §5.1)
+     Present for every authenticated screen (A04, A06–A30).
+     ================================================================== -->
+<div id="app-frame" hidden>
+
+  <header class="topbar">
+    <a href="#" class="vf-logo vf-logo--topbar" id="logoHome" role="img" aria-label="Vintage Fork — go to dashboard"></a>
+    <span class="topbar-title">Vintage Fork</span>
+    <div class="account-menu">
+      <button type="button" class="account-trigger" id="accountTrigger" aria-haspopup="true" aria-expanded="false">
+        <span id="accountName">Mei Tan</span> ▾
+      </button>
+      <div class="account-dropdown" id="accountDropdown" hidden role="menu">
+        <a href="#" id="navAccount" role="menuitem">Your account</a>
+        <button type="button" id="navSignOut" role="menuitem">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <nav class="left-rail" aria-label="Primary">
+      <a href="#" class="rail-live" id="railLive" hidden>
+        <span class="live-dot pulsing" aria-hidden="true"></span>
+        <span>1 live now</span>
+      </a>
+      <div class="rail-group-label">Events</div>
+      <a href="#" class="rail-link" data-filter="today"><span class="label-text">Today</span><span class="rail-count" id="countToday">2</span></a>
+      <a href="#" class="rail-link" data-filter="upcoming"><span class="label-text">Upcoming</span><span class="rail-count" id="countUpcoming">2</span></a>
+      <a href="#" class="rail-link" data-filter="drafts"><span class="label-text">Drafts</span><span class="rail-count" id="countDrafts">1</span></a>
+      <a href="#" class="rail-link" data-filter="completed"><span class="label-text">Completed</span><span class="rail-count" id="countCompleted">3</span></a>
+      <a href="#" class="rail-link" data-filter="cancelled"><span class="label-text">Cancelled</span><span class="rail-count" id="countCancelled">0</span></a>
+      <hr class="rail-rule" />
+      <div class="rail-group-label">Teas</div>
+      <a href="#" class="rail-link" id="navTeas"><span class="label-text">Teas</span></a>
+    </nav>
+
+    <main class="content-area" id="contentArea">
+      <div class="content-max" id="contentMax">
+        <!-- Screens A06+ are injected here -->
+<!-- A06 / A07 — Dashboard home (A07 is A06 filtered via ?status=) -->
+<section class="screen" id="A06" aria-label="Dashboard home">
+  <div class="live-banner" id="dashLiveBanner" hidden>
+    <span class="live-dot pulsing" aria-hidden="true"></span>
+    <div class="stack gap-4">
+      <div class="live-banner-title">Live now</div>
+      <div class="live-banner-body">Autumn Oolong Flight</div>
+      <div class="live-banner-body">9 guests · Tasting · Tea 2 of 4 · Host: Mei Tan</div>
+    </div>
+    <span class="spacer"></span>
+    <button type="button" class="btn btn--gold" data-goto="A17">View live status ▸</button>
+  </div>
+
+  <div id="dashFilteredHeader" hidden>
+    <h1 class="page-title" id="dashFilteredTitle">Upcoming events</h1>
+    <div class="filter-row" style="margin:12px 0 20px">
+      <a href="#" class="filter-chip" data-filter="upcoming">Upcoming</a>
+      <a href="#" class="filter-chip" data-filter="drafts">Drafts</a>
+      <a href="#" class="filter-chip" data-filter="live">Live</a>
+      <a href="#" class="filter-chip" data-filter="completed">Completed</a>
+      <a href="#" class="filter-chip" data-filter="cancelled">Cancelled</a>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--primary btn--small" data-goto="A08">+ New event</button>
+    </div>
+  </div>
+
+  <div id="dashTodaySection">
+    <div class="row" style="margin-bottom:12px">
+      <h2 class="section-header" style="border-bottom:none;margin:0">TODAY — Friday 31 July</h2>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--primary btn--small" data-goto="A08">+ New event</button>
+    </div>
+    <div class="three-col" id="todayCards">
+      <a href="#" class="event-card is-live" data-goto="A17">
+        <span class="ec-line1">7:00pm · Remote</span>
+        <span class="ec-line2">Autumn Oolong Flight</span>
+        <span class="ec-line3 status-live"><span class="glyph">⬤</span> Live now</span>
+        <span class="ec-line4">9 of 12 joined</span>
+        <span class="ec-line5">4 teas · trivia ready</span>
+        <span class="ec-action"><button type="button" class="btn btn--gold btn--small">View live status</button></span>
+      </a>
+      <a href="#" class="event-card" data-goto="A09" data-event="late-puer">
+        <span class="ec-line1">9:00pm · In person</span>
+        <span class="ec-line2">Late Pu'er Sitting</span>
+        <span class="ec-line3 status-ready"><span class="glyph">✓</span> Ready to launch</span>
+        <span class="ec-line4">6 of 8 seats claimed</span>
+        <span class="ec-line5">3 teas · trivia ready</span>
+        <span class="ec-action"><button type="button" class="btn btn--primary btn--small" data-goto="A16">Launch Live Console</button></span>
+      </a>
+    </div>
+  </div>
+
+  <div id="dashAttentionSection" style="margin-top:32px">
+    <h2 class="section-header">NEEDS ATTENTION</h2>
+    <a href="#" class="needs-attention-item" data-goto="A09" data-event="autumn-oolong" style="text-decoration:none;color:inherit">
+      <span class="glyph" style="color:var(--vf-gold)">⚠</span>
+      <span class="stack gap-4" style="flex:1">
+        <strong>Sat 8 Aug · Autumn Oolong Flight</strong>
+        <span class="helper-text">4 things to finish: no backup host, 2 teas have no steep time, 1 tea has no trivia question</span>
+      </span>
+      <button type="button" class="btn btn--outline btn--small">Finish setup ▸</button>
+    </a>
+    <a href="#" class="needs-attention-item" data-goto="A09" data-event="jasmine-evening" style="text-decoration:none;color:inherit">
+      <span class="glyph" style="color:var(--vf-gold)">⚠</span>
+      <span class="stack gap-4" style="flex:1">
+        <strong>Thu 13 Aug · Jasmine Evening</strong>
+        <span class="helper-text">1 thing to finish: no teas in the flight yet</span>
+      </span>
+      <button type="button" class="btn btn--outline btn--small">Finish setup ▸</button>
+    </a>
+  </div>
+
+  <div style="margin-top:32px">
+    <h2 class="section-header">ALL EVENTS</h2>
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <div class="filter-row">
+          <a href="#" class="filter-chip is-active" data-filter="upcoming">Upcoming</a>
+          <a href="#" class="filter-chip" data-filter="drafts">Drafts</a>
+          <a href="#" class="filter-chip" data-filter="live">Live</a>
+          <a href="#" class="filter-chip" data-filter="completed">Completed</a>
+          <a href="#" class="filter-chip" data-filter="cancelled">Cancelled</a>
+        </div>
+        <div class="table-search">
+          <input type="text" id="eventsSearch" placeholder="Search title…" aria-label="Search title" />
+        </div>
+        <div class="row-toggle">
+          <label for="rowHeightToggle">⋮ rows</label>
+          <select id="rowHeightToggle">
+            <option value="comfortable">Comfortable</option>
+            <option value="compact">Compact</option>
+          </select>
+        </div>
+      </div>
+      <table class="vf-table" id="eventsTable">
+        <thead>
+          <tr>
+            <th scope="col"><button class="sort-btn" data-sort="date">Date ▲</button></th>
+            <th scope="col"><button class="sort-btn" data-sort="event">Event</button></th>
+            <th scope="col"><button class="sort-btn" data-sort="type">Type</button></th>
+            <th scope="col"><button class="sort-btn" data-sort="seats">Seats</button></th>
+            <th scope="col"><button class="sort-btn" data-sort="status">Status</button></th>
+            <th scope="col"><span class="sr-only">Row actions</span></th>
+          </tr>
+        </thead>
+        <tbody id="eventsTableBody">
+          <tr class="is-clickable" data-goto="A17">
+            <td>Fri 31 Jul</td><td><span class="ellipsis" title="Autumn Oolong Flight">Autumn Oolong Flight</span></td><td>Remote</td><td>9/12</td>
+            <td><span class="chip chip--live"><span class="glyph">⬤</span> Live</span></td>
+            <td><button type="button" class="row-menu-btn" aria-label="Row actions">⋮</button></td>
+          </tr>
+          <tr class="is-clickable" data-goto="A09" data-event="late-puer">
+            <td>Fri 31 Jul</td><td><span class="ellipsis" title="Late Pu'er Sitting">Late Pu'er Sitting</span></td><td>In person</td><td>6/8</td>
+            <td><span class="chip chip--ready"><span class="glyph">✓</span> Ready</span></td>
+            <td><button type="button" class="row-menu-btn" aria-label="Row actions">⋮</button></td>
+          </tr>
+          <tr class="is-clickable" data-goto="A09" data-event="autumn-oolong">
+            <td>Sat 8 Aug</td><td><span class="ellipsis" title="Autumn Oolong Flight">Autumn Oolong Flight</span></td><td>Remote</td><td>0/12</td>
+            <td><span class="chip chip--attention"><span class="glyph">⚠</span> Setup</span></td>
+            <td><button type="button" class="row-menu-btn" aria-label="Row actions">⋮</button></td>
+          </tr>
+          <tr class="is-clickable" data-goto="A09" data-event="jasmine-evening">
+            <td>Thu 13 Aug</td><td><span class="ellipsis" title="Jasmine Evening">Jasmine Evening</span></td><td>In person</td><td>0/10</td>
+            <td><span class="chip chip--attention"><span class="glyph">⚠</span> Setup</span></td>
+            <td><button type="button" class="row-menu-btn" aria-label="Row actions">⋮</button></td>
+          </tr>
+          <tr class="is-clickable" data-goto="A08" data-event="untitled-draft">
+            <td>Sat 22 Aug</td><td><span class="ellipsis" title="(untitled draft)">(untitled draft)</span></td><td>—</td><td>—</td>
+            <td><span class="chip chip--draft"><span class="glyph">○</span> Draft</span></td>
+            <td><button type="button" class="row-menu-btn" aria-label="Row actions">⋮</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="table-footer">1–5 of 5</div>
+    </div>
+    <p class="helper-text" style="margin-top:16px">Guest data from anonymous participants is removed 90 days after each tasting. <a href="#" data-goto="A21">How retention works →</a></p>
+  </div>
+</section>
+
+<!-- A08 — Create / edit event -->
+<section class="screen" id="A08" aria-label="Create or edit event">
+  <a href="#" class="breadcrumb" data-goto="A06">← All events</a>
+  <h1 class="page-title" id="a08Title">New tasting</h1>
+  <div class="two-col" style="margin-top:20px">
+    <form id="a08Form" novalidate>
+      <div class="card">
+        <h2 class="section-header">The basics <span class="saving-indicator" id="a08SavingIndicator" hidden></span></h2>
+        <p class="helper-text" style="margin:-4px 0 16px">Fields marked * are needed before you can launch.</p>
+        <div class="field">
+          <label class="field-label" for="a08EventTitle">Event title *</label>
+          <input type="text" id="a08EventTitle" maxlength="80" value="Autumn Oolong Flight" />
+          <p class="helper-text">Guests see this name.</p>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="a08Date">Date *</label>
+            <input type="text" id="a08Date" value="Sat 8 Aug 2026" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="a08Time">Start time *</label>
+            <input type="text" id="a08Time" value="7:00 pm" />
+          </div>
+        </div>
+        <p class="helper-text" style="margin-top:-8px">Mountain Time (Edmonton)</p>
+
+        <div class="field" style="margin-top:20px">
+          <span class="field-label">How is it run? *</span>
+          <div class="radio-row">
+            <input type="radio" name="a08Mode" id="a08ModePerson" value="in_person" />
+            <label for="a08ModePerson" style="font-weight:400;text-transform:none;letter-spacing:normal">In person — everyone's in the shop</label>
+          </div>
+          <div class="radio-row">
+            <input type="radio" name="a08Mode" id="a08ModeRemote" value="remote" checked />
+            <label for="a08ModeRemote" style="font-weight:400;text-transform:none;letter-spacing:normal">Remote — everyone joins a video call</label>
+          </div>
+        </div>
+
+        <div id="a08PersonFields" hidden>
+          <div class="field">
+            <label class="field-label" for="a08VenueName">Venue name *</label>
+            <input type="text" id="a08VenueName" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="a08VenueAddress">Venue address *</label>
+            <input type="text" id="a08VenueAddress" />
+            <p class="helper-text">Guests see both of these on the invite, in the waiting room, and in their recap.</p>
+          </div>
+        </div>
+
+        <div id="a08RemoteFields">
+          <div class="field">
+            <label class="field-label" for="a08VideoLink">Video-call link *</label>
+            <input type="url" id="a08VideoLink" value="https://meet.google.com/abc-defg-hij" />
+            <p class="helper-text">Paste the Zoom or Meet link. Guests see it when they join. Turn captions on in that call before you open the host console. Vintage Fork doesn't carry the audio or video itself — your call does.</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="a08Capacity">Guest capacity *</label>
+          <input type="number" id="a08Capacity" min="1" max="24" value="12" style="width:120px" />
+          <p class="helper-text">Up to 24 guests for the pilot. Once this many have joined, the invite stops admitting more. Your own console and monitoring screens don't count.</p>
+        </div>
+
+        <hr class="modal-rule" />
+        <h3 class="card-title" style="margin-bottom:12px">Who's running it</h3>
+        <div class="field">
+          <label class="field-label" for="a08Host">Host *</label>
+          <select id="a08Host">
+            <option>Mei Tan</option>
+            <option>Amara Osei</option>
+            <option>Julian Reed</option>
+          </select>
+          <p class="helper-text">Runs the tasting and holds control.</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="a08Backup">Backup host *</label>
+          <select id="a08Backup">
+            <option value="">— not set —</option>
+            <option>Julian Reed</option>
+            <option>Amara Osei</option>
+          </select>
+          <p class="helper-text">Must be someone other than the host. Only this person can force takeover from 15 to 45 seconds if the host's device fails. Authorised now, before the evening — it can't be arranged mid-tasting. You can save a draft without one. You can't launch without one. Your backup host can see and edit everything about this tasting.</p>
+        </div>
+      </div>
+
+      <div class="action-row split">
+        <button type="button" class="btn btn--outline" data-goto="A06">Cancel</button>
+        <button type="submit" class="btn btn--primary" id="a08SaveBtn">Save draft</button>
+      </div>
+    </form>
+
+    <aside class="card">
+      <h2 class="section-header">What happens next</h2>
+      <p class="body-text">Saving creates a draft. Nothing is shared with guests until you generate an invite.</p>
+      <p class="body-text" style="margin-top:12px">Then you'll:</p>
+      <ol style="margin:8px 0 0;padding-left:20px;font-size:14px;color:var(--vf-ink)">
+        <li>Build the flight</li>
+        <li>Add trivia for every tea</li>
+        <li>Generate the invite</li>
+        <li>Launch on the night</li>
+      </ol>
+    </aside>
+  </div>
+</section>
+
+<!-- =====================================================================
+     EVENT WORKSPACE — shared tab strip header, used by A09/A17, A10, A12,
+     A15, A18. Rendered once; body content swaps beneath it via admin.js.
+     ===================================================================== -->
+<section class="screen" id="EVENT_WORKSPACE" aria-label="Event workspace">
+  <a href="#" class="breadcrumb" data-goto="A06">← All events</a>
+  <div class="workspace-header">
+    <div class="workspace-title-row">
+      <div>
+        <h1 class="page-title" id="wsTitle">Autumn Oolong Flight</h1>
+        <p class="workspace-meta" id="wsMeta">Saturday 8 August · 7:00pm · Remote · 12 seats · Host Mei Tan</p>
+      </div>
+      <span class="chip" id="wsStatusChip">⚠ 4 things to finish</span>
+    </div>
+    <nav class="tab-strip" role="tablist" aria-label="Event sections">
+      <button class="tab-btn is-active" role="tab" data-tab="overview">Overview</button>
+      <button class="tab-btn" role="tab" data-tab="flight">Flight <span class="tab-warn-dot" id="dotFlight" hidden></span></button>
+      <button class="tab-btn" role="tab" data-tab="trivia">Trivia <span class="tab-warn-dot" id="dotTrivia" hidden></span></button>
+      <button class="tab-btn" role="tab" data-tab="invite">Invite <span class="tab-warn-dot" id="dotInvite" hidden></span></button>
+      <button class="tab-btn" role="tab" data-tab="results" id="resultsTabBtn" title="Available after the tasting.">Results</button>
+      <span class="spacer"></span>
+      <span class="tab-strip-launch">
+        <button type="button" class="btn btn--primary" id="launchBtn" data-goto="A16">Launch ▸</button>
+      </span>
+    </nav>
+  </div>
+
+  <!-- ============== OVERVIEW TAB (A09 / A17 live variant) ============== -->
+  <div class="tab-panel" id="tabOverview">
+    <div class="locked-banner" id="a09LiveLock" hidden>This tasting is running. Details are locked until it ends.</div>
+    <div class="live-banner" id="a17WatchBanner" hidden>
+      <span>You're watching this tasting. Only <strong id="a17HolderName">Mei Tan</strong> can control it.</span>
+    </div>
+
+    <div class="two-col" id="a09Overview">
+      <div class="readiness-panel">
+        <div class="row"><h2 class="card-title" style="margin:0">Before you can launch</h2><span class="spacer"></span><span class="readiness-count" id="readinessCount">8 of 12</span></div>
+        <ol class="readiness-list" id="readinessList" aria-live="polite"></ol>
+        <p class="readiness-footer">Launch becomes available once all twelve are met and it's the day of the tasting.</p>
+      </div>
+
+      <div class="stack gap-16">
+        <div class="card">
+          <h2 class="section-header">The evening</h2>
+          <p class="body-text">Sat 8 Aug 2026</p>
+          <p class="body-text">7:00 pm Mountain Time</p>
+          <p class="body-text" id="a09LocationLine">Remote</p>
+          <p class="body-text" id="a09LocationDetail" style="word-break:break-word">meet.google.com/abc-defg-hij ⧉</p>
+          <p class="body-text" style="margin-top:8px" id="a09SeatsLine">12 of 24 seats</p>
+          <hr class="modal-rule" />
+          <p class="body-text"><strong>Host</strong> &nbsp; Mei Tan</p>
+          <p class="body-text" id="a09BackupLine"><strong>Backup</strong> &nbsp; — not set <span style="color:var(--vf-gold)">⚠</span></p>
+          <p class="body-text"><strong>Owner</strong> &nbsp; Amara Osei</p>
+          <p class="helper-text" style="margin-top:8px">Only these three people can open this tasting.</p>
+          <button type="button" class="btn btn--outline btn--small" style="margin-top:12px" id="a09EditDetailsBtn">Edit these details</button>
+        </div>
+
+        <div class="card">
+          <h2 class="section-header">The flight</h2>
+          <ol style="list-style:none;margin:0 0 12px;padding:0;font-size:14px" id="a09FlightMini">
+            <li class="row" style="justify-content:space-between;padding:4px 0">1&nbsp;&nbsp;Bai Hao Yin Zhen <span>2:30</span></li>
+            <li class="row" style="justify-content:space-between;padding:4px 0">2&nbsp;&nbsp;Ruby 18 <span style="color:var(--vf-gold)">— ⚠</span></li>
+            <li class="row" style="justify-content:space-between;padding:4px 0">3&nbsp;&nbsp;Dong Ding <span style="color:var(--vf-gold)">— ⚠</span></li>
+            <li class="row" style="justify-content:space-between;padding:4px 0">4&nbsp;&nbsp;Shou Mei <span>3:00</span></li>
+          </ol>
+          <button type="button" class="btn btn--outline btn--small" data-tab-goto="flight">Open the flight ▸</button>
+        </div>
+
+        <div class="card" id="a09ManageCard">
+          <h2 class="section-header">Manage</h2>
+          <div class="stack gap-8" id="a09ManageActions">
+            <button type="button" class="btn btn--text" style="text-align:left;padding:8px 0;color:var(--vf-plum)" id="a09CancelBtn">Cancel this tasting</button>
+            <button type="button" class="btn btn--text" style="text-align:left;padding:8px 0;color:var(--vf-plum)" id="a09DeleteBtn">Delete this draft</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== FLIGHT TAB (A10) ============== -->
+  <div class="tab-panel" id="tabFlight" hidden>
+    <div class="boundary-banner">
+      Everything on this page applies to this tasting only. Steep times, brewing notes and reveal text you set here are not saved to the tea's permanent record, and won't change any past tasting that poured it.
+      <a href="#" id="flightLibraryLink" style="display:block;margin-top:4px">Manage teas in the library →</a>
+    </div>
+    <div class="locked-banner" id="flightLiveLock" hidden>This tasting is running. The flight is locked until it ends.</div>
+    <div class="row" style="margin-bottom:12px">
+      <h2 class="section-header" style="border-bottom:none;margin:0">Tonight's flight — <span id="flightCount">4</span> teas</h2>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--outline btn--small" id="reorderModeBtn">Reorder ▾</button>
+      <button type="button" class="btn btn--primary btn--small" id="addTeaBtn">+ Add tea</button>
+    </div>
+    <div id="flightItemsList"></div>
+    <p class="helper-text" id="flightAdvisory" hidden>Six teas is a long evening — most Vintage Fork flights are three to five.</p>
+
+    <div style="margin-top:24px">
+      <button type="button" class="btn btn--outline btn--small" id="toggleRemovedBtn">Removed from tonight — <span id="removedCount">1</span> <span aria-hidden="true">▾</span></button>
+      <div id="removedItemsList" style="margin-top:12px" hidden></div>
+    </div>
+    <p class="helper-text" style="margin-top:16px" id="flightOrderSaved" hidden>Order saved. Positions renumber automatically.</p>
+    <div aria-live="polite" class="sr-only" id="flightAnnouncer"></div>
+  </div>
+
+  <!-- ============== TRIVIA TAB (A12) ============== -->
+  <div class="tab-panel" id="tabTrivia" hidden>
+    <p class="body-text" style="margin-bottom:16px">Every tea in tonight's flight needs one question, asked after that tea's reveal. You can't launch until all four are written. Questions belong to this tasting — they are never saved to the tea's permanent record.</p>
+    <div class="locked-banner" id="triviaLiveLock" hidden>This tasting is running. Questions are locked until it ends.</div>
+    <div class="trivia-layout">
+      <div class="card">
+        <h3 class="card-title" style="margin-bottom:12px">Tonight's teas</h3>
+        <ul class="trivia-list" id="triviaTeaList"></ul>
+        <p class="helper-text" style="margin-top:12px" id="triviaProgress">3 of 4 written</p>
+      </div>
+      <div class="card" id="triviaEditorCard">
+        <h3 class="card-title" id="triviaEditorHeading" style="margin-bottom:16px">Tea 2 of 4 — Ruby 18</h3>
+        <form id="triviaForm" novalidate>
+          <div class="field">
+            <label class="field-label" for="triviaQuestion">The question *</label>
+            <textarea id="triviaQuestion" maxlength="140" rows="2">Ruby 18's menthol note comes from…</textarea>
+            <div class="char-counter"><span id="triviaQCount">38</span> / 140</div>
+            <p class="helper-text">Keep it short enough to read aloud.</p>
+          </div>
+          <div class="field">
+            <span class="field-label">The answers * — mark the correct one</span>
+            <div id="triviaAnswers">
+              <div class="answer-row"><input type="radio" name="triviaCorrect" value="0" /><input type="text" value="Added mint oil" /></div>
+              <div class="answer-row"><input type="radio" name="triviaCorrect" value="1" checked /><input type="text" value="The leaf itself" /><span class="chip chip--ready" style="margin-left:4px">✓ correct</span></div>
+              <div class="answer-row"><input type="radio" name="triviaCorrect" value="2" /><input type="text" value="The roasting method" /></div>
+              <div class="answer-row"><input type="radio" name="triviaCorrect" value="3" /><input type="text" value="The water temperature" /><button type="button" class="btn btn--text btn--small" style="margin-left:4px">remove</button></div>
+            </div>
+            <button type="button" class="btn btn--outline btn--small" id="addAnswerBtn" style="margin-top:8px">+ Add an answer</button>
+            <span class="helper-text" style="margin-left:8px">at least 2, at most 4</span>
+          </div>
+          <div class="field">
+            <label class="field-label" for="triviaWindow">How long do guests have? *</label>
+            <input type="number" id="triviaWindow" min="10" max="60" value="20" style="width:100px" />
+            <span class="helper-text" style="margin-left:8px">Between 10 and 60. 20 works well.</span>
+          </div>
+          <hr class="modal-rule" />
+          <h4 class="field-label" style="margin-bottom:8px">How guests will see it</h4>
+          <div class="card" style="background:var(--vf-parchment)">
+            <p class="body-text" style="font-weight:600;margin-bottom:8px" id="triviaPreviewQ">Ruby 18's menthol note comes from…</p>
+            <div id="triviaPreviewAnswers" style="border:var(--border-card);border-radius:var(--radius-btn);overflow:hidden">
+              <div style="padding:8px 12px;border-bottom:1px solid rgba(74,53,36,.1)">Added mint oil</div>
+              <div style="padding:8px 12px;border-bottom:1px solid rgba(74,53,36,.1)">The leaf itself</div>
+              <div style="padding:8px 12px;border-bottom:1px solid rgba(74,53,36,.1)">The roasting method</div>
+              <div style="padding:8px 12px">The water temperature</div>
+            </div>
+            <p class="helper-text" style="margin-top:8px">Answers appear in this order for everyone.</p>
+          </div>
+          <div class="action-row split">
+            <button type="button" class="btn btn--text" style="color:var(--vf-plum)" id="triviaRemoveBtn">Remove this question</button>
+            <button type="submit" class="btn btn--primary" id="triviaSaveBtn">Save question</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="row" style="justify-content:space-between;margin-top:16px">
+      <button type="button" class="btn btn--outline btn--small" id="triviaPrevBtn">‹ Previous tea</button>
+      <button type="button" class="btn btn--outline btn--small" id="triviaNextBtn">Next tea ›</button>
+    </div>
+  </div>
+
+  <!-- ============== INVITE TAB (A15) ============== -->
+  <div class="tab-panel" id="tabInvite" hidden>
+    <div class="locked-banner" id="inviteLiveLock" hidden>This tasting is running. The code can't be regenerated until it ends.</div>
+    <div id="inviteEmptyState" class="card empty-state" hidden>
+      <div class="vf-logo vf-logo--empty" role="img" aria-label=""></div>
+      <h3>No invite yet</h3>
+      <p>Guests can't join until you make one. Nothing is shared until you do.</p>
+      <button type="button" class="btn btn--primary" id="generateInviteBtn">Generate the invite</button>
+    </div>
+    <div class="two-col" id="inviteContent">
+      <div class="card">
+        <h2 class="section-header">One invite for the whole tasting</h2>
+        <p class="body-text">Share this with everyone coming. Anyone with the link or the code can join, up to the 12 seats you've set, until the tasting ends.</p>
+        <div class="field" style="margin-top:16px">
+          <label class="field-label" for="inviteLink">Link</label>
+          <input type="text" id="inviteLink" readonly value="tasting.vintagefork.ca/event/k7m2-qp9x-4bde" />
+          <button type="button" class="btn btn--outline btn--small" style="margin-top:8px" id="copyInviteBtn">⧉ Copy the link</button>
+        </div>
+        <div class="field">
+          <span class="field-label">Seats</span>
+          <div class="seat-meter"><div class="seat-meter-fill" id="seatMeterFill" style="width:75%"></div></div>
+          <p class="helper-text" id="seatMeterText">3 seats left. When they're gone the link stops admitting guests.</p>
+        </div>
+        <div class="field">
+          <span class="field-label">When it stops working</span>
+          <p class="body-text" style="font-size:14px"><span style="color:var(--vf-forest)">✓</span> Works from now until the tasting ends, Sat 8 Aug, about 9:00pm</p>
+          <p class="body-text" style="font-size:14px"><span style="color:var(--vf-forest)">✓</span> Only opens this tasting — it can't reach any other event</p>
+        </div>
+        <hr class="modal-rule" />
+        <p class="helper-text">If the link has gone somewhere it shouldn't, generate a new code. The old one stops working straight away and anyone already in stays in.</p>
+        <button type="button" class="btn btn--outline btn--small" id="regenInviteBtn">Generate a new code</button>
+      </div>
+
+      <div class="stack gap-16">
+        <div class="card" style="text-align:center">
+          <div class="qr-box">QR placeholder<br />(encodes invite URL)</div>
+          <div class="vf-logo vf-logo--qr" role="img" aria-label="Vintage Fork" style="margin-top:12px"></div>
+          <p class="body-text" style="font-weight:600">Autumn Oolong Flight</p>
+          <p class="helper-text">Sat 8 Aug · 7:00pm</p>
+          <div class="row gap-8" style="justify-content:center;margin-top:8px">
+            <button type="button" class="btn btn--outline btn--small" id="downloadQrBtn">⤓ Download</button>
+            <button type="button" class="btn btn--outline btn--small" id="printQrBtn">Print</button>
+          </div>
+          <p class="helper-text" style="margin-top:4px">PNG · SVG</p>
+        </div>
+        <div class="card">
+          <h2 class="section-header">What to tell guests</h2>
+          <p class="body-text" style="font-weight:600">Autumn Oolong Flight</p>
+          <p class="body-text">Sat 8 Aug, 7:00pm</p>
+          <p class="body-text" style="margin-top:8px">Join the video call: meet.google.com/abc-… on a computer or tablet if you can, and open the tasting link on your phone.</p>
+          <p class="body-text" style="margin-top:8px">Bring a phone, charged. You'll join with just your first name. Nothing to install. Have your teas and hot water ready at 7:00pm.</p>
+          <button type="button" class="btn btn--outline btn--small" style="margin-top:12px" id="copyGuidanceBtn">⧉ Copy this text</button>
+        </div>
+      </div>
+    </div>
+    <div class="warning-banner" style="margin-top:16px">
+      <span class="glyph">ⓘ</span>
+      <span>This is one code for the whole tasting, so Vintage Fork can't tell who a shared link or photographed QR code reaches. It's limited by the seat count and by the tasting's own schedule — not by a guest list. Per-guest invitations are planned for a later release.</span>
+    </div>
+  </div>
+
+  <!-- ============== RESULTS TAB (A18 + A19/A21/A22 panels) ============== -->
+  <div class="tab-panel" id="tabResults" hidden>
+    <div id="resultsNotYet" class="card empty-state" hidden>
+      <h3>Available after the tasting.</h3>
+    </div>
+    <div id="resultsContent">
+      <p class="workspace-meta" style="margin-bottom:16px">Autumn Oolong Flight · Sat 8 Aug 2026 · 7:02pm–8:54pm · Host Mei Tan<br />Vintage Fork · 10442 Whyte Ave, Edmonton AB</p>
+      <div class="northstar-card">
+        <div class="northstar-figure">7 of 10</div>
+        <p class="body-text" style="color:var(--vf-parchment)">guests finished the tasting and saved at least one tea — 70%</p>
+        <p class="helper-text" style="color:rgba(247,241,228,.7);margin-top:8px">This is the one number the pilot is measured against.</p>
+      </div>
+      <div class="four-col">
+        <div class="stat-card"><div class="data-figure">10</div><p class="helper-text">of 12 seats · 1 left early</p></div>
+        <div class="stat-card"><div class="data-figure">9</div><p class="helper-text">90% reached the recap</p></div>
+        <div class="stat-card"><div class="data-figure">19</div><p class="helper-text">saved by 8 guests</p></div>
+        <div class="stat-card"><div class="data-figure">74%</div><p class="helper-text">answered right · 29 of 39</p></div>
+      </div>
+
+      <h2 class="section-header" style="margin-top:24px">Tea by tea</h2>
+      <div class="table-wrap">
+        <table class="vf-table">
+          <thead><tr><th scope="col">#</th><th scope="col">Tea</th><th scope="col">Rated</th><th scope="col">Average</th><th scope="col">Saved</th><th scope="col">Trivia right</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Bai Hao Yin Zhen</td><td>10</td><td>★★★★☆ 4.2</td><td>6</td><td>9 of 10 · 90%</td></tr>
+            <tr><td>2</td><td>Ruby 18</td><td>10</td><td>★★★★★ 4.8</td><td>8</td><td>6 of 10 · 60%</td></tr>
+            <tr><td>3</td><td>Dong Ding</td><td>9</td><td>★★★★☆ 3.9</td><td>3</td><td>8 of 10 · 80%</td></tr>
+            <tr><td>4</td><td>Shou Mei</td><td>9</td><td>★★★☆☆ 3.4</td><td>2</td><td>6 of 9 · 67%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="helper-text" style="margin-top:8px">Ruby 18 was the room's tea. Sorted by flight order — click a column to sort.</p>
+
+      <a href="#" class="card" style="display:flex;align-items:center;gap:16px;margin-top:16px;text-decoration:none;color:inherit" data-goto="A19">
+        <div class="stack gap-4" style="flex:1">
+          <div class="row"><h3 class="card-title" style="margin:0">Recap emails</h3><span class="spacer"></span><span class="chip chip--attention">⚠ 1 didn't send</span></div>
+          <p class="helper-text">7 delivered · 1 failed · 2 guests gave no email</p>
+        </div>
+        <button type="button" class="btn btn--outline btn--small">Open the details ▸</button>
+      </a>
+
+      <div style="margin-top:24px">
+        <button type="button" class="btn btn--outline btn--small" id="toggleRosterBtn">Who was here <span aria-hidden="true">▾</span></button>
+        <div class="table-wrap" style="margin-top:12px" id="rosterTableWrap" hidden>
+          <table class="vf-table">
+            <thead><tr><th scope="col">Name</th><th scope="col">Joined</th><th scope="col">Left</th><th scope="col">Finished</th><th scope="col">Teas saved</th><th scope="col">Recap</th></tr></thead>
+            <tbody>
+              <tr><td>Priya</td><td>7:04pm</td><td>8:54pm</td><td>✓</td><td>3</td><td>✓ delivered</td></tr>
+              <tr><td>Daniel</td><td>7:06pm</td><td>8:54pm</td><td>✓</td><td>2</td><td>⚠ failed <button type="button" class="btn btn--text btn--small">Resend</button></td></tr>
+              <tr><td>Sam</td><td>7:05pm</td><td>7:41pm</td><td>—</td><td>0</td><td>no email given</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="helper-text" style="margin-top:16px">What guests wrote in their tasting notes is private to them and is never shown here.</p>
+
+      <a href="#" class="card" style="display:block;margin-top:24px;text-decoration:none;color:inherit" data-goto="A21">
+        <h3 class="card-title">Retention and control history</h3>
+        <p class="helper-text">Guest records, deletion schedule, and who held the console tonight →</p>
+      </a>
+    </div>
+  </div>
+
+  <!-- ============== LIVE MONITOR PANEL (A17), shown instead of overview content when live & not lease holder ============== -->
+  <div class="tab-panel" id="tabLiveMonitor" hidden>
+    <div class="three-col">
+      <div class="card">
+        <h3 class="card-title" style="margin-bottom:12px">Guests</h3>
+        <div class="data-figure">9</div>
+        <p class="helper-text">in the room</p>
+        <p class="body-text" style="margin-top:8px;font-size:14px">10 joined<br />1 left<br />3 seats free</p>
+        <button type="button" class="btn btn--outline btn--small" style="margin-top:8px" id="seeWhoBtn">See who ▾</button>
+      </div>
+      <div class="card">
+        <h3 class="card-title" style="margin-bottom:12px">Where they are</h3>
+        <p class="body-text" style="font-weight:600">Tasting</p>
+        <p class="helper-text">Tea 2 of 4 · Ruby 18</p>
+        <ul class="phase-list" style="margin-top:8px">
+          <li>○ Lobby</li><li>● Welcome</li><li>● Reveal</li><li class="is-current">◉ Brewing</li>
+          <li class="is-current">◉ Tasting ◀</li><li>○ Trivia</li><li>○ Recap</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 class="card-title" style="margin-bottom:12px">Control</h3>
+        <p class="body-text" style="font-weight:600" id="leaseHolderName">Mei Tan</p>
+        <p class="lease-status healthy" id="leaseStatusLine"><span class="glyph">✓</span> Connected · healthy · last seen 2 seconds ago</p>
+        <p class="body-text" style="margin-top:12px;font-size:14px" id="backupStatusLine"><span style="color:var(--vf-forest)">✓</span> Julian Reed is the backup</p>
+        <button type="button" class="btn btn--gold btn--small" id="claimControlBtn" style="margin-top:12px" hidden>Claim host control</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3 class="card-title" style="margin-bottom:12px">This tasting so far</h3>
+      <p class="body-text" style="font-size:14px">Tea 1 · Bai Hao Yin Zhen &nbsp; 9 rated &nbsp; 8 answered trivia &nbsp; 6 saved</p>
+      <p class="body-text" style="font-size:14px">Tea 2 · Ruby 18 &nbsp; in progress</p>
+      <p class="body-text" style="font-size:14px">Tea 3 · Dong Ding &nbsp; —</p>
+      <p class="body-text" style="font-size:14px">Tea 4 · Shou Mei &nbsp; —</p>
+      <p class="helper-text" style="margin-top:8px">Guests' own tasting notes stay private to them and are never shown here.</p>
+    </div>
+  </div>
+</section>
+
+<!-- A11 — Flight item editor drawer (right, 480px) -->
+<div class="drawer-overlay" id="a11Overlay" hidden>
+  <aside class="drawer" role="dialog" aria-labelledby="a11Title">
+    <div class="drawer-header">
+      <h2 id="a11Title">Ruby 18 — tonight's settings</h2>
+      <button type="button" class="drawer-close" id="a11CloseBtn" aria-label="Close">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="permanent-record-panel">
+        <div class="row"><h3 style="margin:0;font-size:15px;font-weight:600">The tea's permanent record</h3><span class="spacer"></span><a href="#" id="a11OpenTeaLink">Open the tea ↗</a></div>
+        <p class="body-text" style="font-size:14px;margin-top:8px">Ruby 18 · Sun Moon Lake, Taiwan · Black</p>
+        <p class="helper-text">Default steep 3:00 · Default brewing guidance: "Steep hot, drink warm — the menthol note fades as it cools."</p>
+        <p class="helper-text" style="margin-top:4px">Changes to the tea itself never touch tonight's settings below, and vice versa.</p>
+      </div>
+
+      <form id="a11Form" novalidate>
+        <div class="field">
+          <label class="field-label" for="a11Position">Position</label>
+          <select id="a11Position">
+            <option>1st of 4</option><option selected>2nd of 4</option><option>3rd of 4</option><option>4th of 4</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="a11Steep">Steep time *</label>
+          <div class="row gap-8">
+            <input type="text" id="a11Steep" value="2:45" style="width:120px" />
+            <button type="button" class="btn btn--outline btn--small" id="a11SteepPrefill">Use 3:00</button>
+          </div>
+          <p class="helper-text">Accepts 2:40, 2m40s, or 160s.</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="a11Brewing">Brewing instructions for tonight</label>
+          <textarea id="a11Brewing" rows="3" maxlength="280"></textarea>
+          <div class="char-counter"><span id="a11BrewingCount">0</span> / 280</div>
+          <p class="helper-text">Effective tonight: the tea's default, shown above, since nothing's set here.</p>
+          <div class="row gap-8" style="margin-top:4px">
+            <button type="button" class="btn btn--outline btn--small" id="a11BrewingPrefill">Copy the default in to edit</button>
+            <button type="button" class="btn btn--text btn--small" id="a11BrewingClear">Clear</button>
+          </div>
+          <p class="helper-text">Later changes to the tea's own default won't reach this tasting once you save something here.</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="a11Reveal">Reveal description for tonight *</label>
+          <textarea id="a11Reveal" rows="3" maxlength="280">Sun Moon Lake black tea, hand-rolled — expect a bright menthol note as it cools.</textarea>
+          <div class="char-counter"><span id="a11RevealCount">78</span> / 280</div>
+          <p class="helper-text">Read aloud to guests right before this tea is poured.</p>
+          <button type="button" class="btn btn--outline btn--small" style="margin-top:4px" id="a11RevealPrefill">Prefill from tea character</button>
+        </div>
+        <div class="field">
+          <span class="field-label">Trivia question *</span>
+          <p class="body-text" style="font-size:14px"><span style="color:var(--vf-forest)">✓</span> Written — "Ruby 18's menthol note comes from…"</p>
+          <a href="#" id="a11EditTriviaLink">Edit the question →</a>
+        </div>
+      </form>
+    </div>
+    <div class="drawer-footer">
+      <button type="button" class="btn btn--outline" id="a11CancelBtn">Cancel</button>
+      <button type="button" class="btn btn--primary" id="a11SaveBtn">Save for tonight</button>
+    </div>
+  </aside>
+</div>
+
+<!-- A23 — Tea library -->
+<section class="screen" id="A23" aria-label="Tea library">
+  <div class="row">
+    <h1 class="page-title">Tea library</h1>
+    <span class="spacer"></span>
+    <button type="button" class="btn btn--primary" data-goto="A24">+ Add a tea</button>
+  </div>
+  <div class="boundary-banner" style="margin-top:16px">
+    This is the permanent record for every tea Vintage Fork pours. Changes here become each tea's new default for future tastings, but never reach a tasting that's already been set up or already run. To change how a tea behaves at a specific tasting, open that tasting's flight instead.
+  </div>
+  <div class="table-wrap" style="margin-top:16px">
+    <div class="table-toolbar">
+      <div class="table-search"><input type="text" placeholder="Search name, producer, origin…" aria-label="Search teas" /></div>
+      <div class="filter-row">
+        <a href="#" class="filter-chip is-active">All</a>
+        <a href="#" class="filter-chip">Black</a>
+        <a href="#" class="filter-chip">Oolong</a>
+        <a href="#" class="filter-chip">White</a>
+        <a href="#" class="filter-chip">Pu'er</a>
+      </div>
+    </div>
+    <table class="vf-table">
+      <thead><tr><th scope="col"><button class="sort-btn">Tea ▲</button></th><th scope="col">Producer</th><th scope="col">Origin</th><th scope="col">Used in</th><th scope="col"><span class="sr-only">Row actions</span></th></tr></thead>
+      <tbody>
+        <tr class="is-clickable" data-goto="A24"><td>Ruby 18</td><td>Sun Moon Lake Estate</td><td>Nantou, Taiwan</td><td>7 tastings</td><td><button type="button" class="row-menu-btn" aria-label="Row actions">⋮</button></td></tr>
+        <tr class="is-clickable" data-goto="A24"><td>Bai Hao Yin Zhen</td><td>Fuding Gardens</td><td>Fujian, China</td><td>5 tastings</td><td><button type="button" class="row-menu-btn" aria-label="Row actions">⋮</button></td></tr>
+        <tr class="is-clickable" data-goto="A24"><td>Dong Ding</td><td>Lugu Cooperative</td><td>Nantou, Taiwan</td><td>9 tastings</td><td><button type="button" class="row-menu-btn" aria-label="Row actions">⋮</button></td></tr>
+        <tr class="is-clickable" data-goto="A24"><td>Shou Mei</td><td>Fuding Gardens</td><td>Fujian, China</td><td>3 tastings</td><td><button type="button" class="row-menu-btn" aria-label="Row actions">⋮</button></td></tr>
+        <tr class="is-clickable" data-goto="A24"><td>Jasmine Silver Needle</td><td>West Lake Growers</td><td>Zhejiang, China</td><td>Never used</td><td><button type="button" class="row-menu-btn" aria-label="Row actions">⋮</button></td></tr>
+      </tbody>
+    </table>
+    <div class="table-footer">1–5 of 5</div>
+  </div>
+</section>
+
+<!-- A24 — Create / edit tea -->
+<section class="screen" id="A24" aria-label="Create or edit tea">
+  <a href="#" class="breadcrumb" data-goto="A23">← Tea library</a>
+  <h1 class="page-title" id="a24Title">Ruby 18</h1>
+  <div class="two-col" style="margin-top:20px">
+    <form id="a24Form" novalidate>
+      <div class="card">
+        <div class="field">
+          <label class="field-label" for="a24Name">Tea name *</label>
+          <input type="text" id="a24Name" value="Ruby 18" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="a24Producer">Producer</label>
+            <input type="text" id="a24Producer" value="Sun Moon Lake Estate" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="a24Origin">Origin</label>
+            <input type="text" id="a24Origin" value="Nantou, Taiwan" />
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="a24Type">Type</label>
+          <select id="a24Type">
+            <option>Black</option><option>Oolong</option><option>White</option><option>Green</option><option>Pu'er</option><option>Herbal</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="a24Character">Default character</label>
+          <textarea id="a24Character" rows="2" maxlength="280">Sun Moon Lake black tea, hand-rolled — a bright menthol note that grows as it cools.</textarea>
+          <div class="char-counter">86 / 280</div>
+          <p class="helper-text">Used to prefill a tasting's reveal description. Editing this never changes a tasting already set up.</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="a24Brewing">Default brewing guidance</label>
+          <textarea id="a24Brewing" rows="2" maxlength="280">Steep hot, drink warm — the menthol note fades as it cools.</textarea>
+          <div class="char-counter">61 / 280</div>
+          <p class="helper-text">This is what shows at a tasting unless that tasting overrides it — it's inherited live, not just copied once.</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="a24Steep">Default steep time</label>
+          <input type="text" id="a24Steep" value="3:00" style="width:120px" />
+          <p class="helper-text">Prefills new flight items only. Never inherited — each tasting keeps its own steep time even if you change this later.</p>
+        </div>
+      </div>
+      <div class="action-row split">
+        <button type="button" class="btn btn--text" style="color:var(--vf-plum)" id="a24RetireBtn">Retire this tea</button>
+        <button type="submit" class="btn btn--primary">Save permanent record</button>
+      </div>
+    </form>
+    <aside class="card">
+      <h2 class="section-header">This is permanent</h2>
+      <p class="body-text">Everything on this page becomes each tea's new default for tastings set up after you save. It never edits a tasting that's already been configured.</p>
+      <h3 class="card-title" style="margin-top:16px;font-size:15px">Used in</h3>
+      <p class="body-text" style="font-size:14px">7 tastings, most recently Fri 31 Jul 2026.</p>
+      <p class="helper-text" style="margin-top:8px">Retiring hides it from new flights but keeps it visible in past results.</p>
+    </aside>
+  </div>
+</section>
+
+<!-- A30 — Your account -->
+<section class="screen" id="A30" aria-label="Your account">
+  <a href="#" class="breadcrumb" data-goto="A06">← Dashboard</a>
+  <h1 class="page-title">Your account</h1>
+  <div class="two-col" style="margin-top:20px">
+    <div class="card">
+      <div class="field">
+        <label class="field-label" for="a30Name">Name</label>
+        <input type="text" id="a30Name" value="Mei Tan" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="a30Email">Email</label>
+        <input type="email" id="a30Email" value="mei@vintagefork.ca" readonly disabled />
+        <p class="helper-text">Ask an admin to change this.</p>
+      </div>
+      <hr class="modal-rule" />
+      <h3 class="card-title" style="margin-bottom:8px;font-size:15px">You can</h3>
+      <ul style="margin:0 0 16px;padding-left:20px;font-size:14px;color:var(--vf-ink)">
+        <li>Host tastings you're assigned to</li>
+        <li>Back up any tasting you're assigned to as backup host</li>
+        <li>See and edit tastings you own, host, or back up</li>
+        <li>Manage the tea library</li>
+      </ul>
+      <div class="action-row">
+        <button type="button" class="btn btn--outline" id="a30ChangePwBtn">Change your password</button>
+        <button type="button" class="btn btn--outline" id="a30SignOutBtn">Sign out</button>
+      </div>
+    </div>
+    <aside class="card">
+      <h2 class="section-header">Keyboard shortcuts</h2>
+      <dl class="shortcut-list">
+        <div><dt><kbd>g</kbd> then <kbd>e</kbd></dt><dd>Go to Events</dd></div>
+        <div><dt><kbd>g</kbd> then <kbd>t</kbd></dt><dd>Go to Teas</dd></div>
+        <div><dt><kbd>/</kbd></dt><dd>Focus the table filter</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>Close a drawer or modal</dd></div>
+      </dl>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- A16 — Launch confirm -->
+<div class="modal-overlay" id="a16Overlay" hidden>
+  <div class="modal" role="alertdialog" aria-labelledby="a16Title">
+    <h2 id="a16Title">Start running this tasting?</h2>
+    <hr class="modal-rule" />
+    <p class="body-text">Autumn Oolong Flight · Sat 8 Aug 2026 · 7:00pm · Remote · 12 seats</p>
+    <ul class="requirements-list" style="margin-top:12px">
+      <li class="met"><span class="glyph">✓</span> All 12 readiness points are met</li>
+      <li class="met"><span class="glyph">✓</span> It's today</li>
+      <li class="met"><span class="glyph">✓</span> Host and backup host are both assigned</li>
+      <li class="met"><span class="glyph">✓</span> Invite code is active</li>
+    </ul>
+    <p class="body-text" style="margin-top:12px;color:var(--vf-fog)">Once you launch, the schedule, flight, and trivia lock for everyone. You can still raise capacity, invalidate the invite, or end the tasting from the live console.</p>
+    <h3 class="field-label" style="margin-top:16px">Before you continue</h3>
+    <ul style="margin:8px 0 0;padding-left:20px;font-size:14px;color:var(--vf-ink)">
+      <li>Your teas are steeped and ready to pour</li>
+      <li>Your video call is open, if remote</li>
+      <li>Captions are on, if remote</li>
+      <li>You're somewhere you can stay for the whole tasting</li>
+      <li>Your backup host knows tonight is the night</li>
+    </ul>
+    <p class="helper-text" style="margin-top:12px">Guests haven't been told anything yet — this only starts things on your side.</p>
+    <div class="action-row">
+      <button type="button" class="btn btn--outline" id="a16NotYetBtn">Not yet</button>
+      <button type="button" class="btn btn--primary" id="a16OpenConsoleBtn">Open the console ▸</button>
+    </div>
+  </div>
+</div>
+
+<!-- A26 — Cancel tasting -->
+<div class="modal-overlay" id="a26Overlay" hidden>
+  <div class="modal" role="alertdialog" aria-labelledby="a26Title">
+    <h2 id="a26Title">Cancel this tasting?</h2>
+    <hr class="modal-rule" />
+    <p class="body-text">Autumn Oolong Flight · Sat 8 Aug 2026 · 7:00pm</p>
+    <p class="body-text" style="margin-top:8px">3 guests have already joined using the invite.</p>
+    <p class="body-text" style="margin-top:8px">The invite link stops working the moment you cancel.</p>
+    <p class="warning-banner" style="margin-top:12px"><span class="glyph">ⓘ</span><span>Vintage Fork does not email your guests. If people need to be told, that's on you, by whatever means you already used to invite them.</span></p>
+    <div class="field" style="margin-top:12px">
+      <label class="field-label" for="a26Why">Why? (staff-only note)</label>
+      <textarea id="a26Why" rows="2"></textarea>
+    </div>
+    <div class="action-row">
+      <button type="button" class="btn btn--outline" id="a26KeepBtn">Keep the tasting</button>
+      <button type="button" class="btn btn--danger destructive-gap" id="a26CancelBtn">Cancel the tasting</button>
+    </div>
+  </div>
+</div>
+
+<!-- A28 — Delete draft (type-name-to-confirm) -->
+<div class="modal-overlay" id="a28Overlay" hidden>
+  <div class="modal" role="alertdialog" aria-labelledby="a28Title">
+    <h2 id="a28Title">Delete this draft?</h2>
+    <hr class="modal-rule" />
+    <p class="body-text">"<strong id="a28EventName">Jasmine Evening</strong>" will be gone for good, along with its 2 flight teas and 0 trivia questions you'd already set up.</p>
+    <p class="body-text" style="margin-top:8px;color:var(--vf-fog)">Your tea library isn't touched — only this draft.</p>
+    <div class="field" style="margin-top:16px">
+      <label class="field-label" for="a28Confirm">Type the tasting's name to confirm</label>
+      <input type="text" id="a28Confirm" autocomplete="off" placeholder="Jasmine Evening" />
+    </div>
+    <div class="action-row">
+      <button type="button" class="btn btn--outline" id="a28KeepBtn">Keep it</button>
+      <button type="button" class="btn btn--danger destructive-gap" id="a28DeleteBtn" disabled>Delete for good</button>
+    </div>
+  </div>
+</div>
+
+<!-- A29 — Unsaved changes guard -->
+<div class="modal-overlay" id="a29Overlay" hidden>
+  <div class="modal" role="alertdialog" aria-labelledby="a29Title">
+    <h2 id="a29Title">Save your changes first?</h2>
+    <hr class="modal-rule" />
+    <p class="body-text" id="a29ChangesList">You've changed the guest capacity and the backup host. Leaving now loses those changes.</p>
+    <div class="action-row">
+      <button type="button" class="btn btn--text" style="color:var(--vf-plum)" id="a29DiscardBtn">Discard them</button>
+      <button type="button" class="btn btn--outline" id="a29StayBtn">Stay here</button>
+      <button type="button" class="btn btn--primary" id="a29SaveContinueBtn">Save and continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================================================================
+     PROTOTYPE HARNESS — delete before shipping. Not part of the product;
+     lets reviewers jump to any screen/state without wiring a backend.
+     ================================================================== -->
+<details id="harness" class="harness">
+  <summary>Prototype controls</summary>
+  <div class="harness-body">
+    <div class="harness-group">
+      <h4>Jump to screen</h4>
+      <div class="harness-btns" id="harnessScreenBtns"></div>
+    </div>
+    <div class="harness-group">
+      <h4>Readiness</h4>
+      <button type="button" class="btn btn--outline btn--small" id="harnessReadyAll">All 12 met</button>
+      <button type="button" class="btn btn--outline btn--small" id="harnessReadyPartial">8 of 12 met</button>
+    </div>
+    <div class="harness-group">
+      <h4>Live state</h4>
+      <button type="button" class="btn btn--outline btn--small" id="harnessLiveOn">Set event live</button>
+      <button type="button" class="btn btn--outline btn--small" id="harnessLiveOff">Set event not live</button>
+      <button type="button" class="btn btn--outline btn--small" id="harnessHasRun">Mark tasting completed (unlock Results)</button>
+    </div>
+    <div class="harness-group">
+      <h4>Lease health</h4>
+      <button type="button" class="btn btn--outline btn--small" id="harnessLeaseHealthy">Healthy</button>
+      <button type="button" class="btn btn--outline btn--small" id="harnessLeaseUnhealthy">Unhealthy</button>
+      <button type="button" class="btn btn--outline btn--small" id="harnessLeaseExpired">Expired</button>
+    </div>
+    <div class="harness-group">
+      <h4>Role (for A17 takeover logic)</h4>
+      <button type="button" class="btn btn--outline btn--small" id="harnessRoleHolder">I hold the lease</button>
+      <button type="button" class="btn btn--outline btn--small" id="harnessRoleBackup">I'm the backup host</button>
+      <button type="button" class="btn btn--outline btn--small" id="harnessRoleOwner">I'm owner only</button>
+    </div>
+    <div class="harness-group">
+      <h4>Toasts &amp; feedback</h4>
+      <button type="button" class="btn btn--outline btn--small" id="harnessToastSuccess">Fire success toast</button>
+      <button type="button" class="btn btn--outline btn--small" id="harnessToastPersistent">Fire persistent toast</button>
+      <button type="button" class="btn btn--outline btn--small" id="harnessAutosave">Simulate autosave</button>
+    </div>
+    <div class="harness-group">
+      <h4>Modals</h4>
+      <button type="button" class="btn btn--outline btn--small" data-open-modal="a16Overlay">A16 Launch confirm</button>
+      <button type="button" class="btn btn--outline btn--small" data-open-modal="a26Overlay">A26 Cancel</button>
+      <button type="button" class="btn btn--outline btn--small" data-open-modal="a28Overlay">A28 Delete draft</button>
+      <button type="button" class="btn btn--outline btn--small" data-open-modal="a29Overlay">A29 Unsaved guard</button>
+      <button type="button" class="btn btn--outline btn--small" data-open-modal="a05Overlay">A05 Session expired</button>
+      <button type="button" class="btn btn--outline btn--small" id="harnessOpenDrawer">A11 Flight drawer</button>
+    </div>
+    <div class="harness-group">
+      <h4>Motion</h4>
+      <button type="button" class="btn btn--outline btn--small" id="harnessReducedMotion">Toggle reduced motion</button>
+    </div>
+  </div>
+</details>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   Vintage Fork — Admin Dashboard prototype
+   admin.js
+   Derived from: Vintage_Fork_Admin_Dashboard_UX_Spec_v1.2_Master_Integrated.md
+   Section numbers in comments refer to that document.
+
+   Route driven: /admin/*  — staff-authenticated operational surface.
+   Companion files: admin.html (screens as panels), admin.css (styling).
+
+   INVARIANTS ENCODED HERE
+   - readinessFor() is the ONE validator. The twelve-point contract (§15.2) is
+     computed once and rendered identically by: the A09 readiness panel, the
+     tab-strip warning dots, the event-card line 5, the dashboard Needs
+     Attention list, and the Launch guard. No second copy of this list exists
+     anywhere in this file (§15.5).
+   - show(screenId) is the ONE screen-switch function. Chrome (rail active
+     state, live banner, "1 live now" row, account menu) is DERIVED from
+     state in renderChrome(), never set per-screen by hand.
+   - Removed flight items are excluded from readinessFor() entirely — putting
+     one back re-applies every requirement that names it immediately (§15).
+   - Autosave (2s debounce) only ever runs against EXISTING records. New
+     records (A08 create, A24 create) require an explicit Save click.
+   - Frozen-at-launch fields (§15.3) are locked via applyFreeze() the moment
+     state.event.isLive flips true, and unlocked the moment it flips false.
+   - Nothing here reads or writes real Vintage Fork data. All "records" are
+     in the in-memory `state` object below.
+
+   MOCK BOUNDARY
+   In this prototype, navigation, autosave, drag-reorder, the live pulse and
+   the readiness contract are simulated with setTimeout/localStorage and the
+   Prototype Controls harness. In the real build:
+   - Replace readinessFor() with a server call (client never gates Launch
+     alone — server always wins on disagreement, §15.5).
+   - Replace the harness's live/lease toggles with the real-time channel from
+     §2.5 / §21.3.
+   - Replace autosave's setTimeout with the actual PATCH request described in
+     §14; keep the 2s debounce and the "never steals focus" guarantee.
+
+   CONTENTS
+    1. State
+    2. Utilities (announce, toast, focus-trap helpers)
+    3. Screen switching and derived chrome
+    4. Readiness validator — THE ONE TWELVE-POINT CONTRACT (§15.2)
+    5. Dashboard rendering (Live banner, Today, Needs Attention, table)
+    6. Event workspace — tab strip, Overview, freeze-on-live
+    7. Flight builder (A10) + reorder (A11.1) + drawer (A11)
+    8. Trivia editor (A12)
+    9. Invite + QR (A15)
+   10. Launch (A16) and live monitor (A17)
+   11. Results / recap / retention (A18/A19/A21)
+   12. Tea library (A23/A24)
+   13. Forms — autosave, char counters, unsaved-changes guard (A29)
+   14. Modals — cancel (A26), delete draft (A28), session-expired (A05)
+   15. Table sort/filter/search/row-height
+   16. Prototype harness (delete in production)
+   17. Boot
+   ============================================================================ */
+
+'use strict';
+
+/* ============================================================
+   1. STATE
+   ============================================================ */
+var state = {
+  screen: 'A01',
+  reducedMotionOverride: false,
+
+  account: { name: 'Mei Tan', email: 'mei@vintagefork.ca' },
+
+  // Role of the signed-in staff member with respect to the open event, used
+  // by the A17 takeover-button logic. holder | backup | owner
+  myRole: 'holder',
+
+  event: {
+    id: 'autumn-oolong',
+    title: 'Autumn Oolong Flight',
+    date: 'Sat 8 Aug 2026',
+    time: '7:00pm',
+    mode: 'remote',
+    venueName: '', venueAddress: '', videoLink: 'https://meet.google.com/abc-defg-hij',
+    capacity: 12,
+    joined: 9,
+    host: 'Mei Tan',
+    backupHost: '',
+    owner: 'Amara Osei',
+    isLive: false,
+    // The dashboard mock (A06) carries its own live event tonight, separate from the
+    // single interactive event the workspace edits. dashLive drives P1 and the rail row.
+    dashLive: true,
+    hasRun: false,
+    isCancelled: false,
+    isDraft: false,
+    readinessOverride: null // null = compute naturally; true/false = harness force
+  },
+
+  leaseHealth: 'healthy', // healthy | unhealthy | expired
+
+  flight: [
+    { id:'t1', pos:1, name:'Bai Hao Yin Zhen', producer:'Fuding Gardens', origin:'Fujian, China', steep:'2:30', brewing:'', reveal:'White tea, downy buds — light, sweet, a little hay-like.', trivia:true, removed:false },
+    { id:'t2', pos:2, name:'Ruby 18', producer:'Sun Moon Lake Estate', origin:'Nantou, Taiwan', steep:'2:45', brewing:'', reveal:'Sun Moon Lake black tea, hand-rolled — expect a bright menthol note as it cools.', trivia:true, removed:false },
+    { id:'t3', pos:3, name:'Dong Ding', producer:'Lugu Cooperative', origin:'Nantou, Taiwan', steep:'', brewing:'', reveal:'', trivia:false, removed:false },
+    { id:'t4', pos:4, name:'Shou Mei', producer:'Fuding Gardens', origin:'Fujian, China', steep:'3:00', brewing:'', reveal:'Aged white tea — woody, faintly sweet, low caffeine.', trivia:true, removed:false },
+    { id:'t5', pos:5, name:'Jasmine Silver Needle', producer:'West Lake Growers', origin:'Zhejiang, China', steep:'2:00', brewing:'', reveal:'Jasmine-scented white tea.', trivia:true, removed:true }
+  ],
+
+  inviteGenerated: true,
+  formDirty: false,
+  pendingNav: null,
+
+  activeTab: 'overview',
+  activeTriviaTeaId: 't2'
+};
+
+var DEBOUNCE_MS = 2000;
+var TOAST_MS = 4000;
+var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ============================================================
+   2. UTILITIES
+   ============================================================ */
+function $(sel, root){ return (root||document).querySelector(sel); }
+function $all(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+
+function announce(msg){
+  var region = $('#flightAnnouncer');
+  if(!region) return;
+  region.textContent = '';
+  window.setTimeout(function(){ region.textContent = msg; }, 30);
+}
+
+var toastQueue = [];
+function toast(message, opts){
+  opts = opts || {};
+  var stack = $('#toastStack');
+  if(!stack) return;
+  // never more than two stacked (§3.7)
+  while(stack.children.length >= 2){ stack.removeChild(stack.firstChild); }
+  var el = document.createElement('div');
+  el.className = 'toast' + (opts.persistent ? ' is-persistent' : '');
+  el.setAttribute('role', opts.persistent ? 'alertdialog' : 'status');
+  var msgSpan = document.createElement('span');
+  msgSpan.textContent = message;
+  el.appendChild(msgSpan);
+  if(opts.actionLabel){
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'toast-action'; btn.textContent = opts.actionLabel;
+    btn.addEventListener('click', function(){
+      if(opts.onAction) opts.onAction();
+      dismissToast(el);
+    });
+    el.appendChild(btn);
+  }
+  stack.appendChild(el);
+  window.requestAnimationFrame(function(){ el.classList.add('is-open'); });
+  if(!opts.persistent){
+    window.setTimeout(function(){ dismissToast(el); }, TOAST_MS);
+  }
+  return el;
+}
+function dismissToast(el){
+  if(!el || !el.parentNode) return;
+  el.classList.remove('is-open');
+  window.setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 240);
+}
+
+function routeProgressStart(){
+  var bar = $('#routeProgress');
+  if(!bar) return;
+  bar.classList.add('is-active');
+  window.setTimeout(function(){ bar.classList.remove('is-active'); }, 260);
+}
+
+/* ============================================================
+   3. SCREEN SWITCHING AND DERIVED CHROME
+   ============================================================ */
+var AUTH_SCREENS = ['A01','A02','A03'];
+var FRAMED_SCREENS = ['A04','A06','A08','EVENT_WORKSPACE','A23','A24','A30'];
+
+function show(screenId, opts){
+  opts = opts || {};
+  routeProgressStart();
+  state.screen = screenId;
+
+  $all('.screen').forEach(function(s){ s.classList.remove('is-active'); });
+
+  var isAuth = AUTH_SCREENS.indexOf(screenId) !== -1;
+  var frame = $('#app-frame');
+
+  if(isAuth || screenId === 'A02sent' ){
+    frame.hidden = true;
+    var target = document.getElementById(screenId) || document.getElementById('A01');
+    target.classList.add('is-active');
+  } else {
+    frame.hidden = false;
+    document.getElementById(screenId === 'A17live' ? 'EVENT_WORKSPACE' : screenId).classList.add('is-active');
+  }
+
+  renderChrome();
+
+  if(screenId === 'A06' || screenId === 'A07'){ renderDashboard(); }
+  if(screenId === 'EVENT_WORKSPACE'){ renderWorkspace(); }
+  if(screenId === 'A08'){ renderEventForm(); }
+  if(screenId === 'A23'){ /* static table, nothing to derive */ }
+
+  window.scrollTo(0,0);
+}
+
+function renderChrome(){
+  var railLinks = $all('.rail-link[data-filter]');
+  railLinks.forEach(function(a){ a.classList.remove('is-active'); });
+  if(state.screen === 'A06' || state.screen === 'A07'){
+    var f = state.currentFilter || 'upcoming';
+    var match = $('.rail-link[data-filter="'+f+'"]');
+    if(match) match.classList.add('is-active');
+  }
+  var railLive = $('#railLive');
+  if(railLive) railLive.hidden = !(state.event.isLive || state.event.dashLive);
+
+  var accountName = $('#accountName');
+  if(accountName) accountName.textContent = state.account.name;
+}
+
+/* ============================================================
+   4. READINESS VALIDATOR — THE ONE TWELVE-POINT CONTRACT (§15.2)
+   Every surface below calls readinessFor(event, flight) and renders the
+   SAME array. Nothing here is duplicated by hand anywhere else in the file.
+   ============================================================ */
+function activeFlight(){
+  return state.flight.filter(function(t){ return !t.removed; });
+}
+
+function readinessFor(ev, flight){
+  if(ev.readinessOverride === true){
+    return ALL_MET_STUB(flight);
+  }
+  var active = flight.filter(function(t){ return !t.removed; });
+  var missingSteep = active.filter(function(t){ return !t.steep; }).map(function(t){ return t.name; });
+  var missingReveal = active.filter(function(t){ return !t.reveal; }).map(function(t){ return t.name; });
+  var missingBrewing = []; // brewing is inherited from the tea default unless overridden — always "effective"
+  var missingTrivia = active.filter(function(t){ return !t.trivia; }).map(function(t){ return t.name; });
+
+  var items = [
+    { key:'title', met: !!ev.title, label:'Give the tasting a name your guests will recognise.', fix:'A08' },
+    { key:'starts_at', met: !!ev.date && !!ev.time, label:'Set when the tasting starts.', fix:'A08' },
+    { key:'location_mode', met: ev.mode === 'in_person' || ev.mode === 'remote', label:"Choose whether this tasting is in person or remote.", fix:'A08' },
+    { key:'location_match', met: ev.mode === 'remote' ? !!ev.videoLink : (!!ev.venueName && !!ev.venueAddress), label: ev.mode === 'remote' ? 'Add the video-call link guests will use.' : 'Add the venue name and address.', fix:'A08' },
+    { key:'capacity', met: ev.capacity >= 1 && ev.capacity <= 24 && ev.capacity >= ev.joined, label:'Set a guest capacity between 1 and 24, at least as many as have already joined.', fix:'A08' },
+    { key:'host', met: !!ev.host, label:"Choose who's running the tasting.", fix:'A08' },
+    { key:'backup_host', met: !!ev.backupHost && ev.backupHost !== ev.host, label:'Assign a backup host, different from the host.', fix:'A08' },
+    { key:'flight_nonempty', met: active.length > 0, label: active.length ? (active.length + ' teas are in the flight.') : "There's nothing to pour yet. Add at least one tea.", fix:'A10' },
+    { key:'steep_time', met: missingSteep.length === 0, label: missingSteep.length ? (missingSteep.join(', ') + (missingSteep.length>1?' have':' has') + ' no steep time set for tonight.') : 'Every tea has a steep time for tonight.', fix:'A11', names: missingSteep },
+    { key:'reveal_description', met: missingReveal.length === 0, label: missingReveal.length ? (missingReveal.join(', ') + (missingReveal.length>1?' have':' has') + ' no reveal description set for tonight.') : 'Every tea has a reveal description for tonight.', fix:'A11', names: missingReveal },
+    { key:'brewing_effective', met: missingBrewing.length === 0, label:'Every tea has brewing guidance for tonight, from a default or an override.', fix:'A11', names: missingBrewing },
+    { key:'trivia_and_invite', met: missingTrivia.length === 0 && state.inviteGenerated, label: buildTriviaInviteLabel(missingTrivia), fix: missingTrivia.length ? 'A12' : 'A15', names: missingTrivia }
+  ];
+  return items;
+}
+
+function buildTriviaInviteLabel(missingTrivia){
+  if(missingTrivia.length && !state.inviteGenerated){
+    return missingTrivia.join(', ') + ' need a trivia question, and the invite hasn\u2019t been generated yet.';
+  }
+  if(missingTrivia.length){
+    return missingTrivia.join(', ') + (missingTrivia.length>1?' need':' needs') + ' a trivia question, with at least two answers and exactly one correct.';
+  }
+  if(!state.inviteGenerated){
+    return "There's no active invite code yet.";
+  }
+  return 'Trivia is written and the invite is active.';
+}
+
+function ALL_MET_STUB(flight){
+  return readinessForAllMet(flight);
+}
+function readinessForAllMet(flight){
+  var active = flight.filter(function(t){ return !t.removed; });
+  return [
+    { key:'title', met:true, label:'Give the tasting a name your guests will recognise.', fix:'A08' },
+    { key:'starts_at', met:true, label:'Set when the tasting starts.', fix:'A08' },
+    { key:'location_mode', met:true, label:'Choose whether this tasting is in person or remote.', fix:'A08' },
+    { key:'location_match', met:true, label:'Add the venue or the video-call link.', fix:'A08' },
+    { key:'capacity', met:true, label:'Set a guest capacity between 1 and 24.', fix:'A08' },
+    { key:'host', met:true, label:"Choose who's running the tasting.", fix:'A08' },
+    { key:'backup_host', met:true, label:'Assign a backup host, different from the host.', fix:'A08' },
+    { key:'flight_nonempty', met: active.length>0, label:'Add at least one tea.', fix:'A10' },
+    { key:'steep_time', met:true, label:'Every tea has a steep time for tonight.', fix:'A11' },
+    { key:'reveal_description', met:true, label:'Every tea has a reveal description for tonight.', fix:'A11' },
+    { key:'brewing_effective', met:true, label:'Every tea has brewing guidance for tonight.', fix:'A11' },
+    { key:'trivia_and_invite', met:true, label:'Trivia is written and the invite is active.', fix:'A15' }
+  ];
+}
+
+function readinessSummary(items){
+  var met = items.filter(function(i){ return i.met; }).length;
+  return { met: met, total: items.length, allMet: met === items.length };
+}
+
+/* Renders the readiness list identically wherever it's used. targetSelector
+   must point at a <ol>/<ul>-capable container. */
+function renderReadinessList(items, container){
+  container.innerHTML = '';
+  items.forEach(function(item){
+    var li = document.createElement('li');
+    li.className = 'readiness-item ' + (item.met ? 'is-met' : 'is-unmet');
+    var glyph = document.createElement('span');
+    glyph.className = 'glyph';
+    glyph.textContent = item.met ? '✓' : '⚠';
+    var body = document.createElement('div');
+    body.className = 'readiness-item-body';
+    var p = document.createElement('div');
+    p.textContent = item.label;
+    body.appendChild(p);
+    if(!item.met){
+      var fixBtn = document.createElement('button');
+      fixBtn.type = 'button';
+      fixBtn.className = 'btn btn--outline btn--small readiness-item-fix';
+      fixBtn.textContent = 'Fix this ▸';
+      fixBtn.addEventListener('click', function(){ goToFix(item.fix); });
+      body.appendChild(fixBtn);
+    }
+    li.appendChild(glyph);
+    li.appendChild(body);
+    container.appendChild(li);
+  });
+}
+
+function goToFix(screenOrTab){
+  if(screenOrTab === 'A08'){ show('A08'); return; }
+  if(screenOrTab === 'A10'){ show('EVENT_WORKSPACE'); switchTab('flight'); return; }
+  if(screenOrTab === 'A11'){ show('EVENT_WORKSPACE'); switchTab('flight'); return; }
+  if(screenOrTab === 'A12'){ show('EVENT_WORKSPACE'); switchTab('trivia'); return; }
+  if(screenOrTab === 'A15'){ show('EVENT_WORKSPACE'); switchTab('invite'); return; }
+}
+
+/* ============================================================
+   5. DASHBOARD RENDERING (A06/A07)
+   ============================================================ */
+function renderDashboard(){
+  var liveBanner = $('#dashLiveBanner');
+  if(liveBanner) liveBanner.hidden = !(state.event.isLive || state.event.dashLive);
+
+  var filtered = !!state.currentFilter && state.screen === 'A07';
+  var filteredHeader = $('#dashFilteredHeader');
+  var todaySection = $('#dashTodaySection');
+  var attentionSection = $('#dashAttentionSection');
+  if(filteredHeader) filteredHeader.hidden = !filtered;
+  if(todaySection) todaySection.hidden = filtered;
+  if(attentionSection) attentionSection.hidden = filtered;
+
+  $all('.filter-chip').forEach(function(chip){
+    if(chip.dataset.filter){
+      chip.classList.toggle('is-active', chip.dataset.filter === (state.currentFilter||'upcoming'));
+    }
+  });
+}
+
+/* ============================================================
+   6. EVENT WORKSPACE
+   ============================================================ */
+function renderWorkspace(){
+  var ev = state.event;
+  $('#wsTitle').textContent = ev.title;
+  $('#wsMeta').textContent = ev.date + ' · ' + ev.time + ' · ' + (ev.mode==='remote'?'Remote':'In person') + ' · ' + ev.capacity + ' seats · Host ' + ev.host;
+
+  var items = readinessFor(ev, state.flight);
+  var summary = readinessSummary(items);
+  var chip = $('#wsStatusChip');
+  if(ev.isCancelled){
+    chip.className = 'chip chip--cancelled'; chip.innerHTML = '<span class="glyph">✕</span> Cancelled';
+  } else if(ev.isLive){
+    chip.className = 'chip chip--live'; chip.innerHTML = '<span class="glyph pulsing">⬤</span> Live now';
+  } else if(ev.hasRun){
+    chip.className = 'chip chip--completed'; chip.innerHTML = '<span class="glyph">✓</span> Completed';
+  } else if(summary.allMet){
+    chip.className = 'chip chip--ready'; chip.innerHTML = '<span class="glyph">✓</span> Ready to launch';
+  } else {
+    chip.className = 'chip chip--attention'; chip.innerHTML = '<span class="glyph">⚠</span> ' + (summary.total - summary.met) + ' things to finish';
+  }
+
+  renderReadinessList(items, $('#readinessList'));
+  $('#readinessCount').textContent = summary.met + ' of ' + summary.total;
+
+  // tab warning dots — derived from the SAME items array (§15.5)
+  var flightUnmet = items.some(function(i){ return !i.met && (i.key==='flight_nonempty'||i.key==='steep_time'||i.key==='reveal_description'||i.key==='brewing_effective'); });
+  var triviaUnmet = items.some(function(i){ return !i.met && i.key==='trivia_and_invite' && i.names && i.names.length; });
+  var inviteUnmet = items.some(function(i){ return !i.met && i.key==='trivia_and_invite' && !state.inviteGenerated; });
+  $('#dotFlight').hidden = !flightUnmet;
+  $('#dotTrivia').hidden = !triviaUnmet;
+  $('#dotInvite').hidden = !inviteUnmet;
+
+  renderLaunchButton(summary);
+  renderFreeze();
+  renderOverviewCards();
+  renderResultsTabState();
+  renderFlightTab();
+  renderTriviaTab();
+  renderInviteTab();
+  renderLiveMonitor();
+  applyTabVisibility();
+}
+
+function renderLaunchButton(summary){
+  var btn = $('#launchBtn');
+  var ev = state.event;
+  var isToday = ev.date === 'Fri 31 Jul 2026' || ev.date === 'Sat 8 Aug 2026'; // mock "today" check
+  btn.disabled = false;
+  btn.title = '';
+  btn.onclick = null;
+
+  if(ev.isLive){
+    if(state.myRole === 'holder'){
+      btn.textContent = 'Return to console';
+      btn.className = 'btn btn--gold';
+      btn.addEventListener('click', function(){ show('EVENT_WORKSPACE'); }, { once:true });
+    } else {
+      btn.textContent = 'View live status';
+      btn.className = 'btn btn--outline';
+    }
+    return;
+  }
+  if(!summary.allMet){
+    btn.disabled = true;
+    btn.className = 'btn btn--primary';
+    btn.textContent = 'Launch ▸';
+    btn.title = (summary.total - summary.met) + ' of ' + summary.total + " readiness points aren't met yet.";
+    return;
+  }
+  if(!isToday){
+    btn.disabled = true;
+    btn.className = 'btn btn--primary';
+    btn.textContent = 'Launch ▸';
+    btn.title = "You can launch once it's the day of the tasting.";
+    return;
+  }
+  btn.disabled = false;
+  btn.className = 'btn btn--primary';
+  btn.textContent = 'Launch ▸';
+  btn.onclick = function(){ openModal('a16Overlay'); };
+}
+
+function renderFreeze(){
+  var ev = state.event;
+  $('#a09LiveLock').hidden = !ev.isLive;
+  $('#flightLiveLock').hidden = !ev.isLive;
+  $('#triviaLiveLock').hidden = !ev.isLive;
+  $('#inviteLiveLock').hidden = !ev.isLive;
+  $('#a17WatchBanner').hidden = ev.isLive ? (state.myRole === 'holder') : true;
+  if(ev.isLive) $('#a17HolderName').textContent = ev.host;
+}
+
+function renderOverviewCards(){
+  var ev = state.event;
+  $('#a09LocationLine').textContent = ev.mode === 'remote' ? 'Remote' : 'In person';
+  $('#a09LocationDetail').textContent = ev.mode === 'remote' ? ev.videoLink : (ev.venueName + (ev.venueAddress ? (' — ' + ev.venueAddress) : ''));
+  $('#a09SeatsLine').textContent = ev.joined + ' of ' + ev.capacity + ' seats';
+  var backupLine = $('#a09BackupLine');
+  backupLine.innerHTML = ev.backupHost
+    ? '<strong>Backup</strong> &nbsp; ' + ev.backupHost
+    : '<strong>Backup</strong> &nbsp; — not set <span style="color:var(--vf-gold)">⚠</span>';
+
+  var manageActions = $('#a09ManageActions');
+  manageActions.innerHTML = '';
+  if(ev.isLive){
+    // Manage list hidden entirely while live (§9)
+  } else if(ev.hasRun || ev.isCancelled){
+    // nothing valid to show
+  } else if(ev.isDraft){
+    manageActions.appendChild(manageBtn('Delete this draft', function(){ openDeleteDraftModal(); }));
+  } else {
+    manageActions.appendChild(manageBtn('Cancel this tasting', function(){ openModal('a26Overlay'); }));
+  }
+}
+function manageBtn(label, handler){
+  var b = document.createElement('button');
+  b.type = 'button'; b.className = 'btn btn--text'; b.style.textAlign='left'; b.style.padding='8px 0'; b.style.color='var(--vf-plum)';
+  b.textContent = label;
+  b.addEventListener('click', handler);
+  return b;
+}
+
+function switchTab(tabName){
+  state.activeTab = tabName;
+  $all('.tab-btn').forEach(function(b){ b.classList.toggle('is-active', b.dataset.tab === tabName); });
+  applyTabVisibility();
+}
+function applyTabVisibility(){
+  var showLive = state.event.isLive && state.myRole !== 'holder' && state.activeTab === 'overview';
+  $('#tabOverview').hidden = state.activeTab !== 'overview' || showLive;
+  $('#tabLiveMonitor').hidden = !showLive;
+  $('#tabFlight').hidden = state.activeTab !== 'flight';
+  $('#tabTrivia').hidden = state.activeTab !== 'trivia';
+  $('#tabInvite').hidden = state.activeTab !== 'invite';
+  $('#tabResults').hidden = state.activeTab !== 'results';
+}
+
+/* ============================================================
+   7. FLIGHT BUILDER (A10) + REORDER (A11.1) + DRAWER (A11)
+   ============================================================ */
+function renderFlightTab(){
+  var list = $('#flightItemsList');
+  var removedList = $('#removedItemsList');
+  list.innerHTML = '';
+  removedList.innerHTML = '';
+
+  var active = state.flight.filter(function(t){ return !t.removed; }).sort(function(a,b){ return a.pos-b.pos; });
+  var removed = state.flight.filter(function(t){ return t.removed; });
+
+  $('#flightCount').textContent = active.length;
+  $('#removedCount').textContent = removed.length;
+  $('#flightAdvisory').hidden = active.length < 6;
+
+  active.forEach(function(t, idx){
+    list.appendChild(buildFlightCard(t, idx, active.length));
+  });
+  removed.forEach(function(t){
+    removedList.appendChild(buildRemovedRow(t));
+  });
+}
+
+function buildFlightCard(t, idx, total){
+  var card = document.createElement('div');
+  card.className = 'flight-card';
+  card.setAttribute('data-tea-id', t.id);
+
+  var head = document.createElement('div');
+  head.className = 'flight-card-head';
+
+  var handle = document.createElement('div');
+  handle.className = 'drag-handle';
+  handle.setAttribute('tabindex', '0');
+  handle.setAttribute('role', 'button');
+  handle.setAttribute('aria-label', 'Reorder ' + t.name + ', position ' + (idx+1) + ' of ' + total);
+  handle.textContent = '⠿';
+  handle.addEventListener('keydown', function(e){ handleDragKeydown(e, t.id); });
+
+  var pos = document.createElement('div');
+  pos.className = 'flight-position';
+  pos.textContent = String(idx+1);
+
+  var name = document.createElement('div');
+  name.className = 'flight-name';
+  name.textContent = t.name.toUpperCase();
+
+  var glyph = document.createElement('div');
+  glyph.className = 'flight-status-glyph';
+  var complete = t.steep && t.reveal && t.trivia;
+  glyph.innerHTML = complete ? '<span style="color:var(--vf-forest)">✓</span>' : '<span style="color:var(--vf-gold)">⚠</span>';
+
+  head.appendChild(handle); head.appendChild(pos); head.appendChild(name); head.appendChild(glyph);
+  card.appendChild(head);
+
+  var subtitle = document.createElement('div');
+  subtitle.className = 'flight-subtitle';
+  subtitle.textContent = t.producer + ' · ' + t.origin;
+  card.appendChild(subtitle);
+
+  var chips = document.createElement('div');
+  chips.className = 'flight-chips';
+  chips.innerHTML =
+    chipHtml('Steep', t.steep) +
+    chipHtml('Brewing', true /* always effective — inherited or overridden */) +
+    chipHtml('Reveal', !!t.reveal) +
+    chipHtml('Trivia', t.trivia);
+  card.appendChild(chips);
+
+  var actions = document.createElement('div');
+  actions.className = 'flight-actions';
+
+  var moveUp = document.createElement('button');
+  moveUp.type='button'; moveUp.className='btn btn--outline btn--small'; moveUp.textContent='Move up';
+  moveUp.disabled = idx === 0;
+  moveUp.addEventListener('click', function(){ moveItem(t.id, -1); moveUp.focus(); });
+
+  var moveDown = document.createElement('button');
+  moveDown.type='button'; moveDown.className='btn btn--outline btn--small'; moveDown.textContent='Move down';
+  moveDown.disabled = idx === total-1;
+  moveDown.addEventListener('click', function(){ moveItem(t.id, 1); moveDown.focus(); });
+
+  var posSelect = document.createElement('select');
+  posSelect.setAttribute('aria-label', 'Position for ' + t.name);
+  for(var i=1;i<=total;i++){
+    var opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = ordinal(i) + ' of ' + total;
+    if(i === idx+1) opt.selected = true;
+    posSelect.appendChild(opt);
+  }
+  posSelect.addEventListener('change', function(){ setItemPosition(t.id, parseInt(posSelect.value,10)); });
+
+  var editBtn = document.createElement('button');
+  editBtn.type='button'; editBtn.className='btn btn--outline btn--small'; editBtn.textContent="Edit tonight's settings";
+  editBtn.addEventListener('click', function(){ openFlightDrawer(t.id); });
+
+  var removeBtn = document.createElement('button');
+  removeBtn.type='button'; removeBtn.className='btn btn--text btn--small'; removeBtn.style.color='var(--vf-plum)';
+  removeBtn.textContent = 'Remove from tonight';
+  removeBtn.addEventListener('click', function(){ removeFromFlight(t.id); });
+
+  actions.appendChild(moveUp); actions.appendChild(moveDown); actions.appendChild(posSelect);
+  actions.appendChild(editBtn); actions.appendChild(removeBtn);
+  card.appendChild(actions);
+
+  if(state.event.isLive){
+    $all('button,select', card).forEach(function(el){ el.disabled = true; });
+  }
+  return card;
+}
+function chipHtml(label, met){
+  var cls = met ? '' : 'warn';
+  var glyph = met ? '✓' : '⚠';
+  return '<span class="' + cls + '">' + glyph + ' ' + label + '</span>';
+}
+function ordinal(n){
+  var s = ['th','st','nd','rd'], v = n%100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+
+function buildRemovedRow(t){
+  var row = document.createElement('div');
+  row.className = 'removed-item';
+  var label = document.createElement('div');
+  label.style.flex = '1';
+  label.textContent = t.name + ' — removed from tonight\u2019s flight';
+  var btn = document.createElement('button');
+  btn.type='button'; btn.className='btn btn--outline btn--small'; btn.textContent='Put back in';
+  btn.addEventListener('click', function(){ restoreToFlight(t.id); });
+  row.appendChild(label); row.appendChild(btn);
+  return row;
+}
+
+function findTea(id){ return state.flight.filter(function(t){ return t.id===id; })[0]; }
+
+function moveItem(id, delta){
+  var active = state.flight.filter(function(t){ return !t.removed; }).sort(function(a,b){ return a.pos-b.pos; });
+  var idx = active.findIndex(function(t){ return t.id===id; });
+  var newIdx = idx + delta;
+  if(newIdx < 0 || newIdx >= active.length) return;
+  var moved = active.splice(idx,1)[0];
+  active.splice(newIdx,0,moved);
+  active.forEach(function(t,i){ t.pos = i+1; });
+  renderFlightTab();
+  renderWorkspace();
+  announce(a11y('reorder_moved', { tea: moved.name, position: (newIdx+1), total: active.length }));
+}
+function setItemPosition(id, newPos){
+  var active = state.flight.filter(function(t){ return !t.removed; }).sort(function(a,b){ return a.pos-b.pos; });
+  var idx = active.findIndex(function(t){ return t.id===id; });
+  var moved = active.splice(idx,1)[0];
+  active.splice(newPos-1,0,moved);
+  active.forEach(function(t,i){ t.pos = i+1; });
+  renderFlightTab();
+  renderWorkspace();
+  announce(a11y('reorder_moved', { tea: moved.name, position: newPos, total: active.length }));
+}
+function removeFromFlight(id){
+  var t = findTea(id);
+  t.removed = true;
+  renderFlightTab();
+  renderWorkspace();
+  toast(t.name + ' removed from tonight.', { actionLabel:'Undo', onAction:function(){ restoreToFlight(id); } });
+}
+function restoreToFlight(id){
+  var t = findTea(id);
+  t.removed = false;
+  var maxPos = Math.max.apply(null, state.flight.filter(function(x){return !x.removed;}).map(function(x){return x.pos;}).concat([0]));
+  t.pos = maxPos + 1;
+  renderFlightTab();
+  renderWorkspace();
+  toast(t.name + ' is back in tonight\u2019s flight. Its readiness requirements apply again immediately.');
+}
+
+var dragLiftedId = null;
+function handleDragKeydown(e, id){
+  if(window.innerWidth < 600) return; // keyboard drag lift disabled below 600px; Move buttons remain
+  if(e.key === ' ' || e.key === 'Enter'){
+    e.preventDefault();
+    if(dragLiftedId === id){
+      dragLiftedId = null;
+      announce(a11y('reorder_dropped', { tea: findTea(id).name }));
+    } else {
+      dragLiftedId = id;
+      announce(a11y('reorder_lifted', { tea: findTea(id).name }));
+    }
+  } else if(e.key === 'Escape' && dragLiftedId === id){
+    dragLiftedId = null;
+    announce(a11y('reorder_cancelled', { tea: findTea(id).name }));
+  } else if(dragLiftedId === id && (e.key === 'ArrowUp' || e.key === 'ArrowDown')){
+    e.preventDefault();
+    moveItem(id, e.key === 'ArrowUp' ? -1 : 1);
+  }
+}
+
+/* §32.10 a11y.* announcement strings, single source used by all reorder methods */
+var A11Y_STRINGS = {
+  reorder_lifted: '{tea} lifted. Use arrow keys to move, space to drop, escape to cancel.',
+  reorder_dropped: '{tea} dropped.',
+  reorder_cancelled: 'Reorder cancelled. {tea} stayed in its position.',
+  reorder_moved: '{tea} moved to position {position} of {total}.'
+};
+function a11y(key, vars){
+  var str = A11Y_STRINGS[key] || '';
+  Object.keys(vars||{}).forEach(function(k){ str = str.replace('{'+k+'}', vars[k]); });
+  return str;
+}
+
+/* --- Flight item drawer (A11) --- */
+function openFlightDrawer(teaId){
+  state.activeTeaId = teaId;
+  var t = findTea(teaId);
+  $('#a11Title').textContent = t.name + ' — tonight\u2019s settings';
+  $('#a11Steep').value = t.steep || '';
+  $('#a11Brewing').value = t.brewing || '';
+  $('#a11BrewingCount').textContent = String((t.brewing||'').length);
+  $('#a11Reveal').value = t.reveal || '';
+  $('#a11RevealCount').textContent = String((t.reveal||'').length);
+  var overlay = $('#a11Overlay');
+  overlay.hidden = false;
+  window.requestAnimationFrame(function(){ overlay.classList.add('is-open'); $('.drawer', overlay).classList.add('is-open'); });
+  document.body.style.overflow = 'hidden';
+}
+function closeFlightDrawer(){
+  var overlay = $('#a11Overlay');
+  overlay.classList.remove('is-open');
+  $('.drawer', overlay).classList.remove('is-open');
+  window.setTimeout(function(){ overlay.hidden = true; }, reduceMotion ? 20 : 240);
+  document.body.style.overflow = '';
+}
+function saveFlightDrawer(){
+  var t = findTea(state.activeTeaId);
+  if(t){
+    t.steep = $('#a11Steep').value;
+    t.brewing = $('#a11Brewing').value;
+    t.reveal = $('#a11Reveal').value;
+  }
+  closeFlightDrawer();
+  renderFlightTab();
+  renderWorkspace();
+  toast('Saved for tonight.');
+}
+
+/* ============================================================
+   8. TRIVIA EDITOR (A12)
+   ============================================================ */
+function renderTriviaTab(){
+  var list = $('#triviaTeaList');
+  list.innerHTML = '';
+  var active = state.flight.filter(function(t){ return !t.removed; }).sort(function(a,b){ return a.pos-b.pos; });
+  var written = 0;
+  active.forEach(function(t){
+    if(t.trivia) written++;
+    var li = document.createElement('li');
+    li.className = t.id === state.activeTriviaTeaId ? 'is-active' : '';
+    li.innerHTML = '<span>' + (t.trivia ? '✓' : '⚠') + ' ' + t.name + '</span>';
+    li.addEventListener('click', function(){ state.activeTriviaTeaId = t.id; renderTriviaTab(); });
+    list.appendChild(li);
+  });
+  $('#triviaProgress').textContent = written + ' of ' + active.length + ' written';
+  var idx = active.findIndex(function(t){ return t.id === state.activeTriviaTeaId; });
+  if(idx === -1 && active.length){ idx = 0; state.activeTriviaTeaId = active[0].id; }
+  var current = active[idx];
+  if(current){
+    $('#triviaEditorHeading').textContent = 'Tea ' + (idx+1) + ' of ' + active.length + ' — ' + current.name;
+  }
+  $('#triviaPrevBtn').disabled = idx <= 0;
+  $('#triviaNextBtn').disabled = idx >= active.length-1;
+
+  if(state.event.isLive){
+    $all('#triviaForm input, #triviaForm textarea, #triviaForm button').forEach(function(el){ el.disabled = true; });
+  }
+}
+function triviaNav(delta){
+  var active = state.flight.filter(function(t){ return !t.removed; }).sort(function(a,b){ return a.pos-b.pos; });
+  var idx = active.findIndex(function(t){ return t.id === state.activeTriviaTeaId; });
+  var next = idx + delta;
+  if(next < 0 || next >= active.length) return;
+  state.activeTriviaTeaId = active[next].id;
+  renderTriviaTab();
+}
+
+/* ============================================================
+   9. INVITE + QR (A15)
+   ============================================================ */
+function renderInviteTab(){
+  $('#inviteEmptyState').hidden = state.inviteGenerated;
+  $('#inviteContent').hidden = !state.inviteGenerated;
+  if(!state.inviteGenerated) return;
+  var ev = state.event;
+  var pct = Math.round((ev.joined/ev.capacity)*100);
+  $('#seatMeterFill').style.width = pct + '%';
+  $('#seatMeterFill').classList.toggle('is-full', pct >= 100);
+  var left = ev.capacity - ev.joined;
+  $('#seatMeterText').textContent = left + (left===1?' seat':' seats') + " left. When they're gone the link stops admitting guests.";
+}
+function generateInvite(){
+  state.inviteGenerated = true;
+  renderInviteTab();
+  renderWorkspace();
+  toast('Invite generated.');
+}
+function regenerateInvite(){
+  toast('New code generated. The old link has stopped working.');
+  renderInviteTab();
+}
+
+/* ============================================================
+   10. LAUNCH (A16) AND LIVE MONITOR (A17)
+   ============================================================ */
+function launchEvent(){
+  state.event.isLive = true;
+  closeModal('a16Overlay');
+  renderWorkspace();
+  renderDashboard();
+  toast('Tasting is live.');
+}
+function endLiveEvent(){
+  state.event.isLive = false;
+  state.event.hasRun = true;
+  renderWorkspace();
+  renderDashboard();
+}
+
+function renderLiveMonitor(){
+  var status = state.leaseHealth;
+  var line = $('#leaseStatusLine');
+  if(!line) return;
+  line.className = 'lease-status ' + status;
+  var glyph = status === 'healthy' ? '✓' : (status === 'unhealthy' ? '⚠' : '✕');
+  var text = status === 'healthy' ? 'Connected · healthy · last seen 2 seconds ago'
+           : status === 'unhealthy' ? 'Slow to respond · unhealthy · last seen 28 seconds ago'
+           : 'Not responding · expired · last seen 52 seconds ago';
+  line.innerHTML = '<span class="glyph">' + glyph + '</span> ' + text;
+  $('#leaseHolderName').textContent = state.event.host;
+
+  var claimBtn = $('#claimControlBtn');
+  if(state.myRole === 'backup' && status !== 'healthy'){
+    claimBtn.hidden = false;
+    claimBtn.textContent = status === 'expired' ? 'Take over now' : 'Claim host control';
+  } else {
+    claimBtn.hidden = true;
+  }
+}
+function claimControl(){
+  toast('You now hold control of this tasting.');
+  state.myRole = 'holder';
+  renderWorkspace();
+}
+
+/* ============================================================
+   11. RESULTS / RECAP / RETENTION (A18/A19/A21)
+   ============================================================ */
+function renderResultsTabState(){
+  var ready = state.event.hasRun;
+  $('#resultsNotYet').hidden = ready;
+  $('#resultsContent').hidden = !ready;
+  var tabBtn = $('#resultsTabBtn');
+  tabBtn.disabled = !ready;
+  tabBtn.title = ready ? '' : 'Available after the tasting.';
+}
+
+/* ============================================================
+   12. TEA LIBRARY (A23/A24)
+   ============================================================ */
+/* Static demonstration content lives in the HTML; no derived state needed
+   beyond navigation, handled by data-goto below. */
+
+/* ============================================================
+   13. FORMS — AUTOSAVE, CHAR COUNTERS, UNSAVED-CHANGES GUARD (A29)
+   ============================================================ */
+var autosaveTimers = {};
+function wireAutosave(formId, indicatorId, isExisting){
+  var form = document.getElementById(formId);
+  if(!form) return;
+  var indicator = document.getElementById(indicatorId);
+  $all('input,textarea,select', form).forEach(function(field){
+    field.addEventListener('input', function(){
+      state.formDirty = true;
+      if(!isExisting) return; // new records: explicit save only
+      window.clearTimeout(autosaveTimers[formId]);
+      if(indicator){ indicator.hidden = false; indicator.textContent = 'Saving…'; }
+      autosaveTimers[formId] = window.setTimeout(function(){
+        var now = new Date();
+        var h = now.getHours()%12; h = h===0?12:h;
+        var m = String(now.getMinutes()).padStart(2,'0');
+        var ampm = now.getHours()>=12 ? 'pm':'am';
+        if(indicator){ indicator.textContent = 'Saved ' + h + ':' + m + ampm; }
+        state.formDirty = false;
+        // never moves focus, never toasts, never blocks typing (§14)
+      }, DEBOUNCE_MS);
+    });
+  });
+}
+
+function wireCharCounter(fieldId, counterId, max){
+  var field = document.getElementById(fieldId);
+  var counter = document.getElementById(counterId);
+  if(!field || !counter) return;
+  function update(){
+    var len = field.value.length;
+    counter.textContent = String(len);
+    var wrap = counter.parentElement;
+    wrap.classList.remove('is-near-limit','is-at-limit');
+    if(len >= max){ wrap.classList.add('is-at-limit'); }
+    else if(len >= max*0.9){ wrap.classList.add('is-near-limit'); }
+  }
+  field.addEventListener('input', update);
+  update();
+}
+
+function requestNavigation(target, args){
+  if(state.formDirty){
+    state.pendingNav = { target: target, args: args };
+    $('#a29ChangesList').textContent = "You've changed fields on this form. Leaving now loses those changes.";
+    openModal('a29Overlay');
+    return;
+  }
+  performNav(target, args);
+}
+/* Several spec screen IDs are tabs or panels inside the event workspace rather
+   than screens of their own. One alias table keeps every navigation entry point
+   — row clicks, readiness fix buttons, the harness — pointing at real markup. */
+var SCREEN_ALIASES = {
+  A07: { screen:'A06' },
+  A09: { screen:'EVENT_WORKSPACE', tab:'overview' },
+  A10: { screen:'EVENT_WORKSPACE', tab:'flight' },
+  A11: { screen:'EVENT_WORKSPACE', tab:'flight' },
+  A12: { screen:'EVENT_WORKSPACE', tab:'trivia' },
+  A15: { screen:'EVENT_WORKSPACE', tab:'invite' },
+  A16: { screen:'EVENT_WORKSPACE', tab:'overview' },
+  A17: { screen:'EVENT_WORKSPACE', tab:'overview' },
+  A18: { screen:'EVENT_WORKSPACE', tab:'results' },
+  A19: { screen:'EVENT_WORKSPACE', tab:'results' },
+  A21: { screen:'EVENT_WORKSPACE', tab:'results' },
+  A22: { screen:'EVENT_WORKSPACE', tab:'results' }
+};
+
+function performNav(target, args){
+  if(target === 'tab'){ switchTab(args); return; }
+  var alias = SCREEN_ALIASES[target];
+  if(alias){
+    show(alias.screen);
+    if(alias.tab) switchTab(alias.tab);
+    if(target === 'A16') openModal('a16Overlay');
+    return;
+  }
+  show(target);
+}
+
+/* ============================================================
+   14. MODALS — CANCEL (A26), DELETE DRAFT (A28), SESSION EXPIRED (A05)
+   ============================================================ */
+function openModal(id){
+  var overlay = document.getElementById(id);
+  overlay.hidden = false;
+  window.requestAnimationFrame(function(){ overlay.classList.add('is-open'); });
+  var focusable = overlay.querySelector('button, input, textarea, select, a[href]');
+  if(focusable) focusable.focus();
+  document.addEventListener('keydown', modalEscHandler);
+}
+function closeModal(id){
+  var overlay = document.getElementById(id);
+  overlay.classList.remove('is-open');
+  window.setTimeout(function(){ overlay.hidden = true; }, reduceMotion ? 20 : 240);
+  document.removeEventListener('keydown', modalEscHandler);
+}
+function modalEscHandler(e){
+  if(e.key !== 'Escape') return;
+  $all('.modal-overlay.is-open').forEach(function(o){ closeModal(o.id); });
+  var drawer = $('#a11Overlay');
+  if(drawer && !drawer.hidden) closeFlightDrawer();
+}
+
+function openDeleteDraftModal(){
+  $('#a28EventName').textContent = state.event.title;
+  $('#a28Confirm').value = '';
+  $('#a28DeleteBtn').disabled = true;
+  openModal('a28Overlay');
+}
+function wireDeleteDraftConfirm(){
+  var input = $('#a28Confirm');
+  input.addEventListener('input', function(){
+    $('#a28DeleteBtn').disabled = input.value.trim() !== state.event.title;
+  });
+}
+
+/* ============================================================
+   15. TABLE SORT / FILTER / SEARCH / ROW-HEIGHT
+   ============================================================ */
+function wireTableSort(tableId){
+  var table = document.getElementById(tableId);
+  if(!table) return;
+  $all('.sort-btn', table).forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var key = btn.dataset.sort;
+      var current = window.location.hash;
+      var reversed = current.indexOf('sort='+key+'-desc') !== -1;
+      window.location.hash = 'sort=' + key + (reversed ? '' : '-desc');
+      $all('.sort-btn', table).forEach(function(b){ b.textContent = b.textContent.replace(/ [▲▼]$/,''); });
+      btn.textContent = btn.textContent.replace(/ [▲▼]$/,'') + (reversed ? ' ▲' : ' ▼');
+    });
+  });
+}
+function wireRowHeightToggle(){
+  var select = $('#rowHeightToggle');
+  if(!select) return;
+
+  var saved = 'comfortable';
+  try {
+    saved = window.localStorage.getItem('vf-row-height') || 'comfortable';
+  } catch (err) {
+    saved = 'comfortable';
+  }
+
+  select.value = saved;
+  applyRowHeight(saved);
+
+  select.addEventListener('change', function(){
+    try {
+      window.localStorage.setItem('vf-row-height', select.value);
+    } catch (err) {
+      // Some embedded preview environments block localStorage.
+      // Row-height switching still works for the current session.
+    }
+    applyRowHeight(select.value);
+  });
+}
+function applyRowHeight(mode){
+  var table = $('#eventsTable');
+  if(!table) return;
+  table.classList.toggle('compact', mode === 'compact');
+}
+function wireDebouncedSearch(inputId, tableBodyId){
+  var input = document.getElementById(inputId);
+  if(!input) return;
+  var timer = null;
+  input.addEventListener('input', function(){
+    window.clearTimeout(timer);
+    timer = window.setTimeout(function(){
+      var q = input.value.toLowerCase();
+      $all('#'+tableBodyId+' tr').forEach(function(row){
+        row.hidden = q.length>0 && row.textContent.toLowerCase().indexOf(q) === -1;
+      });
+    }, 250);
+  });
+}
+
+/* ============================================================
+   16. PROTOTYPE HARNESS — delete in production
+   ============================================================ */
+function buildHarness(){
+  var screens = ['A01','A02','A03','A04','A06','A08','EVENT_WORKSPACE','A23','A24','A30'];
+  var wrap = $('#harnessScreenBtns');
+  screens.forEach(function(id){
+    var b = document.createElement('button');
+    b.type='button'; b.className='btn btn--outline btn--small'; b.textContent = id.replace('EVENT_WORKSPACE','A09/A10/A12/A15/A17/A18');
+    b.addEventListener('click', function(){ show(id); });
+    wrap.appendChild(b);
+  });
+
+  $('#harnessReadyAll').addEventListener('click', function(){
+    state.event.readinessOverride = true;
+    state.flight.forEach(function(t){ if(!t.removed){ t.steep=t.steep||'3:00'; t.reveal=t.reveal||'Ready.'; t.trivia=true; } });
+    state.inviteGenerated = true;
+    renderWorkspace(); renderFlightTab(); renderTriviaTab();
+    toast('Readiness set to 12 of 12.');
+  });
+  $('#harnessReadyPartial').addEventListener('click', function(){
+    state.event.readinessOverride = null;
+    renderWorkspace(); renderFlightTab(); renderTriviaTab();
+    toast('Readiness reset to natural state.');
+  });
+
+  $('#harnessLiveOn').addEventListener('click', function(){ state.event.isLive = true; state.event.dashLive = true; renderChrome(); renderWorkspace(); renderDashboard(); toast('Event set live.'); });
+  $('#harnessLiveOff').addEventListener('click', function(){ state.event.isLive = false; state.event.dashLive = false; renderChrome(); renderWorkspace(); renderDashboard(); toast('Event set not-live.'); });
+  $('#harnessHasRun').addEventListener('click', function(){ state.event.isLive = false; state.event.hasRun = true; renderChrome(); renderWorkspace(); renderDashboard(); toast('Tasting marked completed. Results unlocked.'); });
+
+  $('#harnessLeaseHealthy').addEventListener('click', function(){ state.leaseHealth='healthy'; renderLiveMonitor(); });
+  $('#harnessLeaseUnhealthy').addEventListener('click', function(){ state.leaseHealth='unhealthy'; renderLiveMonitor(); });
+  $('#harnessLeaseExpired').addEventListener('click', function(){ state.leaseHealth='expired'; renderLiveMonitor(); });
+
+  $('#harnessRoleHolder').addEventListener('click', function(){ state.myRole='holder'; renderWorkspace(); toast('Role: lease holder.'); });
+  $('#harnessRoleBackup').addEventListener('click', function(){ state.myRole='backup'; renderWorkspace(); toast('Role: backup host.'); });
+  $('#harnessRoleOwner').addEventListener('click', function(){ state.myRole='owner'; renderWorkspace(); toast('Role: owner only.'); });
+
+  $('#harnessToastSuccess').addEventListener('click', function(){ toast('Saved.'); });
+  $('#harnessToastPersistent').addEventListener('click', function(){ toast('A decision is needed before this can continue.', { persistent:true, actionLabel:'Review' }); });
+  $('#harnessAutosave').addEventListener('click', function(){
+    var indicator = $('#a08SavingIndicator');
+    if(indicator){ indicator.hidden = false; indicator.textContent = 'Saving…'; window.setTimeout(function(){ indicator.textContent='Saved 4:12pm'; }, 900); }
+  });
+
+  $all('[data-open-modal]').forEach(function(btn){
+    btn.addEventListener('click', function(){ openModal(btn.dataset.openModal); });
+  });
+  $('#harnessOpenDrawer').addEventListener('click', function(){ openFlightDrawer('t2'); });
+
+  $('#harnessReducedMotion').addEventListener('click', function(){
+    reduceMotion = !reduceMotion;
+    document.documentElement.classList.toggle('force-reduced-motion', reduceMotion);
+    toast('Reduced motion: ' + (reduceMotion ? 'on' : 'off'));
+  });
+}
+
+/* ============================================================
+   17. BOOT
+   ============================================================ */
+function wireGlobalNav(){
+  document.body.addEventListener('click', function(e){
+    var gotoEl = e.target.closest('[data-goto]');
+    if(gotoEl){
+      e.preventDefault();
+      var target = gotoEl.dataset.goto;
+      if(gotoEl.dataset.event){ /* mock: would load that event's record */ }
+      requestNavigation(target);
+      return;
+    }
+    var tabGotoEl = e.target.closest('[data-tab-goto]');
+    if(tabGotoEl){
+      e.preventDefault();
+      show('EVENT_WORKSPACE');
+      switchTab(tabGotoEl.dataset.tabGoto);
+      return;
+    }
+    var filterEl = e.target.closest('[data-filter]');
+    if(filterEl && filterEl.classList.contains('rail-link')){
+      e.preventDefault();
+      state.currentFilter = filterEl.dataset.filter;
+      show('A07');
+      return;
+    }
+    if(filterEl && filterEl.classList.contains('filter-chip')){
+      e.preventDefault();
+      state.currentFilter = filterEl.dataset.filter;
+      show('A07');
+      return;
+    }
+    var tabBtn = e.target.closest('.tab-btn');
+    if(tabBtn && !tabBtn.disabled){
+      switchTab(tabBtn.dataset.tab);
+      return;
+    }
+  });
+}
+
+function wireTopbar(){
+  $('#accountTrigger').addEventListener('click', function(){
+    var dd = $('#accountDropdown');
+    var open = !dd.hidden;
+    dd.hidden = open;
+    $('#accountTrigger').setAttribute('aria-expanded', String(!open));
+  });
+  $('#navAccount').addEventListener('click', function(e){ e.preventDefault(); $('#accountDropdown').hidden = true; show('A30'); });
+  $('#navSignOut').addEventListener('click', function(){ $('#accountDropdown').hidden = true; show('A01'); toast('Signed out.'); });
+  $('#logoHome').addEventListener('click', function(e){ e.preventDefault(); show('A06'); });
+  $('#navTeas').addEventListener('click', function(e){ e.preventDefault(); show('A23'); });
+}
+
+function wireAuthScreens(){
+  $('#signInForm').addEventListener('submit', function(e){ e.preventDefault(); show('A06'); });
+  $('#a01ToggleFn').addEventListener('click', function(){
+    var input = $('#a01Password');
+    var showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    $('#a01ToggleFn').setAttribute('aria-pressed', String(!showing));
+    $('#a01ToggleFn').setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+  });
+  $('#a01ForgotLink').addEventListener('click', function(e){ e.preventDefault(); show('A02'); $('#a02Request').hidden=false; $('#a02Sent').hidden=true; });
+
+  $('#a02Form').addEventListener('submit', function(e){
+    e.preventDefault();
+    var email = $('#a02Email').value || 'your account';
+    $('#a02SentBody').textContent = 'If ' + email + ' is a staff account, a reset link is on its way. It expires in 60 minutes.';
+    $('#a02Request').hidden = true;
+    $('#a02Sent').hidden = false;
+  });
+  $('#a02BackLink').addEventListener('click', function(e){ e.preventDefault(); show('A01'); });
+  $('#a02BackBtn').addEventListener('click', function(){ show('A01'); });
+
+  $('#resetForm').addEventListener('submit', function(e){ e.preventDefault(); show('A01'); toast('Password saved. Signed in.'); });
+  $('#a03RequestNewBtn').addEventListener('click', function(){ show('A02'); $('#a02Request').hidden=false; $('#a02Sent').hidden=true; });
+  wireLiveRequirements();
+
+  $('#a05SignInBtn').addEventListener('click', function(){ closeModal('a05Overlay'); show('A01'); });
+}
+function wireLiveRequirements(){
+  var pw = $('#a03Pw1');
+  if(!pw) return;
+  pw.addEventListener('input', function(){
+    var v = pw.value;
+    var reqs = $all('#a03Reqs li');
+    var checks = [v.length>=12, v.length>0 && v!=='tastingroom', /[0-9\W]/.test(v)];
+    reqs.forEach(function(li, i){
+      li.className = checks[i] ? 'met' : 'unmet';
+      li.querySelector('.glyph').textContent = checks[i] ? '✓' : '⚠';
+    });
+  });
+}
+
+function wireEventForm(){
+  $all('input[name="a08Mode"]').forEach(function(r){
+    r.addEventListener('change', function(){
+      var remote = $('#a08ModeRemote').checked;
+      $('#a08PersonFields').hidden = remote;
+      $('#a08RemoteFields').hidden = !remote;
+    });
+  });
+  $('#a08Form').addEventListener('submit', function(e){
+    e.preventDefault();
+    state.event.title = $('#a08EventTitle').value;
+    state.event.host = $('#a08Host').value;
+    state.event.backupHost = $('#a08Backup').value;
+    state.event.capacity = Math.min(24, Math.max(1, parseInt($('#a08Capacity').value,10) || 1));
+    show('EVENT_WORKSPACE');
+    toast('Draft created. Next: build the flight.');
+  });
+  wireAutosave('a08Form', 'a08SavingIndicator', true);
+}
+function renderEventForm(){
+  var remote = state.event.mode === 'remote';
+  $('#a08ModeRemote').checked = remote;
+  $('#a08ModePerson').checked = !remote;
+  $('#a08PersonFields').hidden = remote;
+  $('#a08RemoteFields').hidden = !remote;
+}
+
+function wireWorkspace(){
+  $('#a11CloseBtn').addEventListener('click', closeFlightDrawer);
+  $('#a11CancelBtn').addEventListener('click', closeFlightDrawer);
+  $('#a11SaveBtn').addEventListener('click', saveFlightDrawer);
+  $('#a11SteepPrefill').addEventListener('click', function(){ $('#a11Steep').value = '3:00'; });
+  $('#a11BrewingPrefill').addEventListener('click', function(){ $('#a11Brewing').value = 'Steep hot, drink warm — the menthol note fades as it cools.'; $('#a11BrewingCount').textContent = String($('#a11Brewing').value.length); });
+  $('#a11BrewingClear').addEventListener('click', function(){ $('#a11Brewing').value=''; $('#a11BrewingCount').textContent='0'; });
+  $('#a11RevealPrefill').addEventListener('click', function(){ $('#a11Reveal').value = 'Sun Moon Lake black tea, hand-rolled — a bright menthol note that grows as it cools.'; $('#a11RevealCount').textContent = String($('#a11Reveal').value.length); });
+  wireCharCounter('a11Brewing','a11BrewingCount',280);
+  wireCharCounter('a11Reveal','a11RevealCount',280);
+
+  $('#reorderModeBtn').addEventListener('click', function(){ toast('Drag any handle, or use the Move buttons — both work everywhere.'); });
+  $('#addTeaBtn').addEventListener('click', function(){ toast('Pick a tea from the library to add it to tonight.'); });
+  $('#toggleRemovedBtn').addEventListener('click', function(){
+    var el = $('#removedItemsList');
+    el.hidden = !el.hidden;
+  });
+
+  $('#triviaPrevBtn').addEventListener('click', function(){ triviaNav(-1); });
+  $('#triviaNextBtn').addEventListener('click', function(){ triviaNav(1); });
+  $('#triviaForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var t = findTea(state.activeTriviaTeaId);
+    if(t) t.trivia = true;
+    renderTriviaTab(); renderWorkspace();
+    toast('Question saved.');
+  });
+  wireCharCounter('triviaQuestion','triviaQCount',140);
+  $('#triviaQuestion').addEventListener('input', function(){ $('#triviaPreviewQ').textContent = $('#triviaQuestion').value; });
+  $('#addAnswerBtn').addEventListener('click', function(){
+    var wrap = $('#triviaAnswers');
+    if($all('.answer-row', wrap).length >= 4) return;
+    var row = document.createElement('div');
+    row.className = 'answer-row';
+    row.innerHTML = '<input type="radio" name="triviaCorrect" /><input type="text" placeholder="New answer" />';
+    wrap.appendChild(row);
+  });
+
+  $('#generateInviteBtn').addEventListener('click', generateInvite);
+  $('#regenInviteBtn').addEventListener('click', regenerateInvite);
+  $('#copyInviteBtn').addEventListener('click', function(){ toast('Link copied.'); });
+  $('#copyGuidanceBtn').addEventListener('click', function(){ toast('Copied.'); });
+  $('#downloadQrBtn').addEventListener('click', function(){ toast('QR code downloaded.'); });
+  $('#printQrBtn').addEventListener('click', function(){ toast('Opening print dialogue…'); });
+
+  $('#a16NotYetBtn').addEventListener('click', function(){ closeModal('a16Overlay'); });
+  $('#a16OpenConsoleBtn').addEventListener('click', launchEvent);
+  $('#claimControlBtn').addEventListener('click', claimControl);
+  $('#seeWhoBtn').addEventListener('click', function(){ toast('Roster expanded.'); });
+
+  $('#toggleRosterBtn').addEventListener('click', function(){ $('#rosterTableWrap').hidden = !$('#rosterTableWrap').hidden; });
+
+  $('#a09EditDetailsBtn').addEventListener('click', function(){ show('A08'); });
+  $('#a09CancelBtn') && $('#a09CancelBtn').addEventListener('click', function(){ openModal('a26Overlay'); });
+  $('#a09DeleteBtn') && $('#a09DeleteBtn').addEventListener('click', openDeleteDraftModal);
+
+  $('#a26KeepBtn').addEventListener('click', function(){ closeModal('a26Overlay'); });
+  $('#a26CancelBtn').addEventListener('click', function(){
+    closeModal('a26Overlay');
+    state.event.isCancelled = true;
+    renderWorkspace(); renderDashboard();
+    toast('Tasting cancelled.');
+  });
+
+  $('#a28KeepBtn').addEventListener('click', function(){ closeModal('a28Overlay'); });
+  $('#a28DeleteBtn').addEventListener('click', function(){
+    closeModal('a28Overlay');
+    show('A06');
+    toast('Draft deleted.');
+  });
+  wireDeleteDraftConfirm();
+
+  $('#a29DiscardBtn').addEventListener('click', function(){
+    state.formDirty = false;
+    closeModal('a29Overlay');
+    if(state.pendingNav){ performNav(state.pendingNav.target, state.pendingNav.args); state.pendingNav = null; }
+  });
+  $('#a29StayBtn').addEventListener('click', function(){ closeModal('a29Overlay'); state.pendingNav = null; });
+  $('#a29SaveContinueBtn').addEventListener('click', function(){
+    state.formDirty = false;
+    closeModal('a29Overlay');
+    toast('Saved.');
+    if(state.pendingNav){ performNav(state.pendingNav.target, state.pendingNav.args); state.pendingNav = null; }
+  });
+}
+
+function wireTeaLibrary(){
+  var form = $('#a24Form');
+  if(form){
+    form.addEventListener('submit', function(e){ e.preventDefault(); show('A23'); toast('Saved.'); });
+    wireAutosave('a24Form', null, true);
+  }
+  var retire = $('#a24RetireBtn');
+  if(retire) retire.addEventListener('click', function(){ toast('Tea retired. It stays visible in past results.'); });
+}
+
+function wireAccountScreen(){
+  var pwBtn = $('#a30ChangePwBtn');
+  if(pwBtn) pwBtn.addEventListener('click', function(){ show('A02'); });
+  var signOut = $('#a30SignOutBtn');
+  if(signOut) signOut.addEventListener('click', function(){ show('A01'); toast('Signed out.'); });
+}
+
+function wireKeyboardShortcuts(){
+  var pendingG = false;
+  document.addEventListener('keydown', function(e){
+    var tag = (e.target.tagName||'').toLowerCase();
+    if(tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    if(e.key === 'g'){ pendingG = true; window.setTimeout(function(){ pendingG = false; }, 800); return; }
+    if(pendingG && e.key === 'e'){ show('A06'); pendingG = false; return; }
+    if(pendingG && e.key === 't'){ show('A23'); pendingG = false; return; }
+    if(e.key === '/'){
+      var search = $('#eventsSearch') || $('#a23Search');
+      if(search){ e.preventDefault(); search.focus(); }
+    }
+  });
+}
+
+function boot(){
+  wireAuthScreens();
+  wireTopbar();
+  wireGlobalNav();
+  wireEventForm();
+  wireWorkspace();
+  wireTeaLibrary();
+  wireAccountScreen();
+  wireKeyboardShortcuts();
+  buildHarness();
+  wireTableSort('eventsTable');
+  wireRowHeightToggle();
+  wireDebouncedSearch('eventsSearch','eventsTableBody');
+
+  show('A01');
+}
+
+document.addEventListener('DOMContentLoaded', boot);
+
+</script>
+</body>
+</html>

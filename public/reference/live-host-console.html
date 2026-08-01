@@ -1,0 +1,1144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#4B1638" />
+  <title>Vintage Fork — Live Host Console</title>
+  <style>
+    :root {
+      --vf-plum: #4B1638;
+      --vf-plum-aged: #33102A;
+      --vf-gold: #C9A227;
+      --vf-gold-light: #E0BE6B;
+      --vf-parchment: #F7F1E4;
+      --vf-ivory: #FBF7EC;
+      --vf-sage: #7C8B5E;
+      --vf-forest: #3F4E36;
+      --vf-walnut: #4A3524;
+      --vf-ink: #2B2420;
+      --vf-fog: #8C8578;
+      --vf-line: color-mix(in srgb, var(--vf-gold) 46%, transparent);
+      --vf-line-soft: color-mix(in srgb, var(--vf-walnut) 18%, transparent);
+      --shadow-1: 0 1px 2px rgba(43, 36, 32, .13);
+      --ease: cubic-bezier(.32,.08,.24,1);
+      --settle: cubic-bezier(.16,1,.30,1);
+      --rail-height: 92px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      color-scheme: light;
+      font-family: Georgia, 'Times New Roman', serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--vf-parchment); color: var(--vf-ink); }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(201,162,39,.035), transparent 26rem),
+        linear-gradient(rgba(74,53,36,.018), rgba(74,53,36,.018)),
+        var(--vf-parchment);
+      padding-bottom: calc(var(--rail-height) + var(--safe-bottom));
+    }
+    button, input, textarea, select { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    a { color: inherit; }
+    [hidden] { display: none !important; }
+
+    .sr-only { position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important; }
+
+    .skip-link {
+      position: fixed; z-index: 9999; left: 12px; top: -80px;
+      padding: 12px 16px; background: var(--vf-ivory); border: 2px solid var(--vf-gold);
+      border-radius: 6px; transition: top .2s var(--ease);
+    }
+    .skip-link:focus { top: 12px; }
+
+    :focus-visible { outline: 2px solid var(--vf-gold); outline-offset: 3px; }
+
+    .loading-screen {
+      position: fixed; inset: 0; z-index: 5000; display: grid; place-items: center;
+      background: var(--vf-parchment); transition: opacity .2s var(--ease);
+    }
+    .loading-inner { text-align: center; width: min(320px, 80vw); }
+    .loading-mark { width: 58px; height: 58px; margin: 0 auto 16px; }
+    .loading-line { height: 2px; margin-top: 18px; background: rgba(201,162,39,.2); overflow: hidden; }
+    .loading-line::after { content: ''; display:block; width: 42%; height:100%; background: var(--vf-gold); animation: loading 1.2s linear infinite; }
+    @keyframes loading { from { transform: translateX(-105%); } to { transform: translateX(340%); } }
+
+    .app-shell { min-height: 100vh; }
+
+    .lease-band {
+      min-height: 44px; display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 8px max(20px, env(safe-area-inset-left));
+      border-bottom: 1px solid var(--vf-line); background: var(--vf-ivory);
+      color: var(--vf-walnut); position: sticky; top: 0; z-index: 80;
+    }
+    .lease-band[data-tone="healthy"] { box-shadow: inset 0 2px 0 var(--vf-gold); }
+    .lease-band[data-tone="watching"] { box-shadow: inset 0 2px 0 var(--vf-walnut); }
+    .lease-band[data-tone="warning"] { box-shadow: inset 0 3px 0 var(--vf-gold); background: #fbf3d8; }
+    .lease-band[data-tone="expired"], .lease-band[data-tone="failure"] { box-shadow: inset 0 3px 0 var(--vf-plum-aged); background: #f4e8ef; }
+    .lease-copy { display:flex; align-items:center; gap:9px; font-size: 15px; line-height: 1.35; }
+    .status-glyph { width: 18px; text-align:center; flex: 0 0 18px; font-family: system-ui, sans-serif; }
+    .lease-action { min-height: 36px; padding: 8px 14px; border: 1px solid var(--vf-walnut); border-radius: 6px; background: var(--vf-ivory); color: var(--vf-ink); cursor:pointer; }
+
+    .console-header {
+      min-height: 64px; padding: 10px max(20px, env(safe-area-inset-left));
+      display:grid; grid-template-columns: minmax(0,1fr) auto; gap: 16px; align-items:center;
+      background: var(--vf-plum); color: var(--vf-ivory); border-bottom: 1px solid rgba(224,190,107,.65);
+    }
+    .brand-lockup { min-width:0; display:flex; align-items:center; gap: 12px; }
+    .brand-mark {
+      width: 28px; height: 28px; flex: 0 0 28px; border: 1px solid var(--vf-gold-light); border-radius: 50%;
+      display:grid; place-items:center; color: var(--vf-gold-light); font-size: 10px; letter-spacing:.06em;
+      position:relative; overflow:hidden;
+    }
+    .brand-mark::before { content:'❦'; font-size:17px; line-height:1; }
+    .brand-mark span { display:none; }
+    .brand-text { min-width:0; }
+    .event-title { font-size: 18px; line-height: 1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .event-meta { margin-top:3px; color: #e5dcca; font-size: 13px; line-height: 1.2; }
+    .header-status { display:flex; gap: 8px; align-items:center; }
+    .chip {
+      display:inline-flex; align-items:center; gap:7px; min-height: 34px; padding: 7px 11px; border-radius:999px;
+      font: 600 13px/1 system-ui, sans-serif; letter-spacing:.01em; white-space:nowrap;
+      border:1px solid rgba(224,190,107,.45); color: var(--vf-ivory); background: rgba(51,16,42,.5);
+    }
+    .live-dot { width:8px; height:8px; border-radius:50%; background: var(--vf-gold-light); animation: live-pulse 1.4s ease-in-out infinite; }
+    @keyframes live-pulse { 50% { opacity:.38; } }
+
+    .flight-rail-wrap { background: var(--vf-ivory); border-bottom:1px solid var(--vf-line-soft); }
+    .flight-rail {
+      max-width: 1120px; margin:0 auto; padding: 11px 18px; display:flex; gap: 10px; overflow-x:auto; scrollbar-width:thin;
+    }
+    .flight-pip {
+      min-width: 148px; padding: 10px 12px; border:1px solid var(--vf-line-soft); border-radius:6px;
+      background: transparent; color: var(--vf-ink); text-align:left; cursor:default; box-shadow: var(--shadow-1);
+    }
+    .flight-pip .num { font: 600 12px/1 system-ui, sans-serif; color:var(--vf-fog); }
+    .flight-pip .name { margin-top:6px; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .flight-pip[data-state="done"] { background: rgba(63,78,54,.08); border-color: rgba(63,78,54,.3); }
+    .flight-pip[data-state="now"] { border-color:var(--vf-gold); box-shadow: inset 0 2px 0 var(--vf-gold), var(--shadow-1); }
+    .flight-pip[data-state="later"] { opacity:.68; box-shadow:none; }
+
+    .main-wrap { max-width:1120px; margin:0 auto; padding: 22px 20px 28px; }
+    .console-grid { display:grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .75fr); gap: 22px; align-items:start; }
+    .card {
+      background: var(--vf-ivory); border:1px solid var(--vf-line-soft); border-radius:8px; box-shadow:var(--shadow-1);
+    }
+    .primary-card { min-height: 430px; overflow:hidden; }
+    .room-card { position:sticky; top: 66px; overflow:hidden; }
+    .card-section { padding: 22px; border-bottom:1px solid var(--vf-line-soft); }
+    .card-section:last-child { border-bottom:0; }
+    .eyebrow { margin:0 0 7px; font: 700 13px/1.35 system-ui,sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--vf-walnut); }
+    .tea-name { margin:0; font-size:28px; line-height:34px; font-weight:500; }
+    .tea-origin { margin:5px 0 0; color:var(--vf-fog); font-size:14px; }
+    .section-title { margin:0 0 10px; font-size:18px; line-height:24px; color:var(--vf-walnut); font-weight:600; letter-spacing:.02em; }
+    .body-copy { margin:0; font-size:15px; line-height:22px; }
+    .muted { color:var(--vf-fog); }
+    .label { font: 700 13px/18px system-ui,sans-serif; letter-spacing:.04em; text-transform:uppercase; color:var(--vf-walnut); }
+    .metadata { font-size:13px; line-height:18px; color:var(--vf-fog); }
+    .tabular { font-variant-numeric: tabular-nums; }
+    .rule { height:1px; background:var(--vf-line-soft); margin:16px 0; }
+
+    .pre-session-hero {
+      background:var(--vf-plum); color:var(--vf-ivory); text-align:center; padding: 28px 22px;
+      border-radius:8px 8px 0 0; border-bottom:1px solid var(--vf-gold-light);
+    }
+    .pre-logo { width:72px; height:72px; margin:0 auto 14px; border:1px solid var(--vf-gold-light); border-radius:50%; display:grid; place-items:center; color:var(--vf-gold-light); font-size:34px; }
+    .pre-logo::before { content:'❦'; }
+    .pre-session-hero h1 { margin:0; font-size:28px; font-weight:500; }
+    .pre-session-hero p { margin:8px 0 0; color:#e5dcca; }
+    .setup-grid { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:16px; }
+    .setup-tile { padding:16px; border:1px solid var(--vf-line-soft); border-radius:7px; background:rgba(247,241,228,.45); }
+    .check-row { display:flex; align-items:flex-start; gap:10px; margin:12px 0; }
+    .check-row input { width:20px; height:20px; margin:1px 0 0; accent-color:var(--vf-sage); }
+    .glossary { width:100%; min-height:120px; resize:vertical; border:1px solid rgba(74,53,36,.35); border-radius:6px; padding:12px; color:var(--vf-ink); background:var(--vf-ivory); line-height:1.45; }
+    .inline-actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:11px; }
+    .small-btn, .link-btn {
+      min-height:44px; padding:10px 13px; border-radius:6px; border:1px solid rgba(74,53,36,.35); background:var(--vf-ivory); color:var(--vf-ink); cursor:pointer;
+    }
+    .link-btn { text-decoration:underline; text-underline-offset:3px; }
+    .invite-row { display:grid; grid-template-columns: 92px minmax(0,1fr); gap:14px; align-items:center; }
+    .qr { width:92px; height:92px; border:1px solid var(--vf-line-soft); background:var(--vf-ivory); }
+    .invite-code { font:700 20px/1.2 system-ui,sans-serif; letter-spacing:.08em; color:var(--vf-walnut); }
+    .url-box { margin-top:6px; padding:8px 10px; border:1px solid var(--vf-line-soft); border-radius:5px; background:rgba(255,255,255,.45); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:13px/1.3 system-ui,sans-serif; }
+
+    .phase-banner { display:flex; gap:12px; align-items:flex-start; padding:14px 16px; margin-bottom:16px; border:1px solid var(--vf-line-soft); border-radius:6px; background:rgba(201,162,39,.06); }
+    .phase-banner.success { background:rgba(63,78,54,.08); border-color:rgba(63,78,54,.28); }
+    .phase-banner.warning { background:#fbf3d8; border-color:rgba(201,162,39,.55); }
+    .phase-banner.failure { background:#f4e8ef; border-color:rgba(51,16,42,.35); }
+
+    .reveal-status { padding:16px; border:1px solid var(--vf-line-soft); border-radius:7px; background:rgba(201,162,39,.045); }
+    .arming-track { height:3px; background:rgba(201,162,39,.18); overflow:hidden; margin-top:12px; }
+    .arming-fill { height:100%; width:0%; background:var(--vf-gold); }
+    .arming-fill.active { animation: arm 600ms linear forwards; }
+    @keyframes arm { to { width:100%; } }
+    .readiness { display:grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap:10px; margin-top:15px; }
+    .metric { padding:12px; border:1px solid var(--vf-line-soft); border-radius:6px; background:rgba(255,255,255,.3); }
+    .metric strong { display:block; font:600 28px/1 system-ui,sans-serif; color:var(--vf-walnut); font-variant-numeric:tabular-nums; }
+    .metric span { display:block; margin-top:5px; font-size:13px; color:var(--vf-fog); }
+
+    .timer-wrap { display:grid; grid-template-columns: 122px minmax(0,1fr); gap:18px; align-items:center; }
+    .timer-ring { width:120px; height:120px; position:relative; display:grid; place-items:center; }
+    .timer-ring svg { width:120px; height:120px; transform:rotate(-90deg); }
+    .timer-ring circle { fill:none; stroke-width:4; }
+    .timer-bg { stroke:rgba(74,53,36,.12); }
+    .timer-progress { stroke:var(--vf-gold); stroke-linecap:round; transition:stroke-dashoffset .25s linear; }
+    .timer-number { position:absolute; font-size:30px; line-height:1; font-weight:500; font-variant-numeric:tabular-nums; }
+    .brewing-grid { display:grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap:10px; }
+    .brew-cell { padding:11px; border-left:1px solid var(--vf-gold); background:rgba(247,241,228,.55); }
+    .brew-cell strong { display:block; font-size:16px; }
+    .brew-cell span { display:block; margin-top:4px; color:var(--vf-fog); font-size:13px; }
+
+    .trivia-preview { padding:16px; border:1px solid var(--vf-line-soft); border-radius:7px; }
+    .trivia-options { display:grid; gap:8px; margin-top:12px; }
+    .trivia-option { display:flex; gap:10px; padding:10px 12px; border:1px solid var(--vf-line-soft); border-radius:5px; }
+    .trivia-option.correct { border-color:rgba(63,78,54,.55); background:rgba(63,78,54,.08); }
+    .bar-row { display:grid; grid-template-columns: minmax(100px,1fr) 2fr 44px; gap:10px; align-items:center; margin:10px 0; }
+    .bar-track { height:8px; background:rgba(74,53,36,.1); overflow:hidden; border-radius:999px; }
+    .bar-fill { height:100%; background:var(--vf-sage); }
+
+    .room-head { background:var(--vf-walnut); color:var(--vf-ivory); padding:16px 18px; }
+    .room-head h2 { margin:0; font-size:18px; font-weight:600; }
+    .room-body { padding:18px; }
+    .room-summary { display:flex; flex-wrap:wrap; gap:8px 14px; }
+    .room-summary span { font-size:14px; }
+    .status-list { display:grid; gap:10px; margin-top:16px; }
+    .status-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-bottom:9px; border-bottom:1px solid var(--vf-line-soft); }
+    .status-row:last-child { border-bottom:0; }
+    .status-row strong { font:600 20px/1 system-ui,sans-serif; color:var(--vf-walnut); font-variant-numeric:tabular-nums; }
+    .aggregate-strip { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:16px; }
+    .aggregate { padding:12px; background:var(--vf-plum-aged); color:var(--vf-ivory); border-radius:6px; }
+    .aggregate .value { display:block; font:600 26px/1 system-ui,sans-serif; color:var(--vf-gold-light); font-variant-numeric:tabular-nums; }
+    .aggregate .name { display:block; margin-top:7px; font-size:12px; line-height:1.25; }
+
+    .ended-card { text-align:center; padding:48px 24px; background:var(--vf-plum); color:var(--vf-ivory); }
+    .ended-card .pre-logo { width:80px; height:80px; }
+    .ended-card h1 { margin:0; font-size:30px; font-weight:500; }
+    .ended-card p { max-width:560px; margin:12px auto 0; color:#e5dcca; line-height:1.55; }
+
+    .command-rail {
+      position:fixed; z-index:100; left:0; right:0; bottom:0; min-height:var(--rail-height);
+      padding:12px max(16px, env(safe-area-inset-right)) calc(12px + var(--safe-bottom)) max(16px, env(safe-area-inset-left));
+      background:rgba(247,241,228,.97); border-top:1px solid var(--vf-line); backdrop-filter:blur(7px);
+    }
+    .command-inner { max-width:1120px; margin:0 auto; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; }
+    .command-main { display:flex; gap:10px; align-items:center; min-width:0; }
+    .command-primary, .command-reveal, .command-secondary, .command-destructive, .command-inert {
+      min-height:64px; border-radius:6px; padding:14px 20px; font-size:17px; line-height:22px; font-weight:600; cursor:pointer; border:1px solid transparent; box-shadow:var(--shadow-1); transition:transform .12s var(--ease), opacity .18s var(--ease), background .2s var(--ease);
+    }
+    .command-primary { flex:1 1 auto; background:var(--vf-sage); color:var(--vf-ivory); border-color:rgba(74,53,36,.2); }
+    .command-reveal { flex:1 1 auto; background:var(--vf-gold); color:var(--vf-ink); border-color:rgba(74,53,36,.3); }
+    .command-secondary { background:var(--vf-ivory); color:var(--vf-ink); border-color:var(--vf-walnut); min-height:52px; }
+    .command-destructive { background:var(--vf-plum-aged); color:var(--vf-parchment); min-height:52px; }
+    .command-inert { flex:1 1 auto; background:transparent; color:rgba(43,36,32,.42); border:0; box-shadow:none; cursor:default; }
+    .command-primary:active, .command-reveal:active, .command-secondary:active { transform:translateY(2px); }
+    .command-main button[disabled] { cursor:not-allowed; opacity:.55; transform:none; }
+    .overflow-btn { width:64px; height:64px; border-radius:6px; border:1px solid var(--vf-walnut); background:var(--vf-ivory); color:var(--vf-ink); font-size:24px; cursor:pointer; }
+    .busy::after { content:'  ···'; animation:dots 1.2s steps(4,end) infinite; }
+    @keyframes dots { 0%{opacity:.2} 50%{opacity:1} 100%{opacity:.2} }
+
+    .drawer-backdrop, .modal-backdrop { position:fixed; inset:0; z-index:300; background:rgba(43,36,32,.45); opacity:0; pointer-events:none; transition:opacity .24s var(--ease); }
+    .drawer-backdrop.open, .modal-backdrop.open { opacity:1; pointer-events:auto; }
+    .drawer {
+      position:absolute; right:0; top:0; bottom:0; width:min(480px, 92vw); background:var(--vf-ivory); box-shadow:-2px 0 2px rgba(43,36,32,.15);
+      transform:translateX(100%); transition:transform .26s var(--settle); display:flex; flex-direction:column;
+    }
+    .drawer-backdrop.open .drawer { transform:translateX(0); }
+    .drawer-head { padding:18px 20px; border-bottom:1px solid var(--vf-line-soft); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .drawer-head h2 { margin:0; font-size:22px; }
+    .icon-btn { width:48px; height:48px; border-radius:6px; border:1px solid var(--vf-line-soft); background:var(--vf-ivory); cursor:pointer; font-size:22px; }
+    .drawer-body { padding:18px 20px; overflow:auto; flex:1; }
+    .drawer-section { margin-bottom:24px; }
+    .drawer-section h3 { margin:0 0 10px; color:var(--vf-walnut); font-size:17px; }
+    .menu-list { display:grid; gap:8px; }
+    .menu-button { width:100%; min-height:48px; text-align:left; padding:12px 14px; border:1px solid var(--vf-line-soft); background:var(--vf-ivory); border-radius:6px; cursor:pointer; }
+    .menu-button.destructive { margin-top:24px; background:var(--vf-plum-aged); color:var(--vf-parchment); border-color:var(--vf-plum-aged); }
+    .roster-list { display:grid; gap:8px; }
+    .guest-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; padding:12px; border:1px solid var(--vf-line-soft); border-radius:6px; }
+    .guest-name { font-weight:600; }
+    .guest-meta { margin-top:4px; font-size:13px; color:var(--vf-fog); }
+    .guest-actions { display:flex; align-items:center; gap:8px; }
+    .status-word { font:600 12px/1 system-ui,sans-serif; padding:7px 8px; border-radius:999px; background:rgba(63,78,54,.08); white-space:nowrap; }
+    .remove-btn { width:42px; height:42px; border-radius:6px; border:1px solid var(--vf-plum-aged); color:var(--vf-plum-aged); background:transparent; cursor:pointer; }
+
+    .modal {
+      position:absolute; left:50%; top:50%; width:min(520px, calc(100vw - 32px)); max-height:calc(100vh - 32px); overflow:auto;
+      transform:translate(-50%,-47%); opacity:0; background:var(--vf-ivory); border:1px solid var(--vf-line); border-radius:8px; box-shadow:0 2px 2px rgba(43,36,32,.16); transition:transform .24s var(--settle), opacity .2s var(--ease);
+    }
+    .modal-backdrop.open .modal { transform:translate(-50%,-50%); opacity:1; }
+    .modal-head { padding:20px 22px 0; }
+    .modal-head h2 { margin:0; font-size:24px; color:var(--vf-walnut); }
+    .modal-body { padding:14px 22px 20px; line-height:1.55; }
+    .modal-actions { padding:0 22px 22px; display:flex; justify-content:flex-end; gap:12px; flex-wrap:wrap; }
+    .modal-actions button { min-height:48px; padding:10px 16px; border-radius:6px; cursor:pointer; }
+    .safe-btn { border:1px solid var(--vf-walnut); background:var(--vf-ivory); color:var(--vf-ink); }
+    .danger-btn { border:1px solid var(--vf-plum-aged); background:var(--vf-plum-aged); color:var(--vf-parchment); }
+
+    .toast-region { position:fixed; z-index:700; right:18px; bottom:calc(var(--rail-height) + 20px + var(--safe-bottom)); display:grid; gap:8px; width:min(380px, calc(100vw - 36px)); pointer-events:none; }
+    .toast { padding:12px 14px; border:1px solid var(--vf-line); border-radius:6px; background:var(--vf-ivory); box-shadow:var(--shadow-1); animation:toast-in .2s var(--settle); }
+    @keyframes toast-in { from { opacity:0; transform:translateY(8px); } }
+
+    .connection-banner { max-width:1120px; margin:14px auto 0; padding:12px 18px; border:1px solid rgba(201,162,39,.45); background:#fbf3d8; border-radius:6px; display:flex; gap:10px; align-items:flex-start; }
+    .connection-banner.failure { border-color:rgba(51,16,42,.35); background:#f4e8ef; }
+
+    .compact-only { display:none; }
+    .phone-console { display:none; }
+
+    @media (max-width: 920px) {
+      .console-grid { grid-template-columns:1fr; }
+      .room-card { position:static; }
+      .room-card .room-body { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; align-items:start; }
+      .aggregate-strip { margin-top:0; min-width:280px; }
+      .setup-grid { grid-template-columns:1fr; }
+      .command-main { overflow-x:auto; }
+      .command-secondary { flex:0 0 auto; }
+    }
+
+    @media (max-width: 767px) {
+      :root { --rail-height: 88px; }
+      body { padding-bottom:calc(var(--rail-height) + var(--safe-bottom)); }
+      .desktop-tablet { display:none !important; }
+      .compact-only { display:block; }
+      .console-header { min-height:58px; padding:9px 14px; }
+      .header-status .connection-chip { display:none; }
+      .event-title { font-size:16px; }
+      .event-meta { font-size:12px; }
+      .lease-band { padding:8px 14px; align-items:flex-start; }
+      .lease-action { flex:0 0 auto; }
+      .phone-console { display:block; max-width:520px; margin:0 auto; padding:16px; }
+      .phone-card { padding:18px; }
+      .phone-card .tea-name { font-size:25px; }
+      .phone-facts { display:grid; gap:10px; margin-top:18px; }
+      .phone-fact { display:flex; justify-content:space-between; gap:14px; padding-bottom:10px; border-bottom:1px solid var(--vf-line-soft); }
+      .command-inner { grid-template-columns:minmax(0,1fr) 58px; }
+      .command-main { display:block; overflow:visible; }
+      .command-primary, .command-reveal, .command-inert { width:100%; min-height:64px; }
+      .command-secondary { display:none; }
+      .overflow-btn { width:58px; height:64px; }
+      .drawer { width:100vw; }
+      .flight-rail { padding:9px 12px; }
+      .flight-pip { min-width:130px; }
+      .main-wrap { padding:14px; }
+      .toast-region { right:12px; bottom:calc(var(--rail-height) + 12px + var(--safe-bottom)); width:calc(100vw - 24px); }
+    }
+
+    @media (max-width: 420px) {
+      .chip { padding:7px 8px; }
+      .lease-copy { font-size:13px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.12s !important; animation-iteration-count:1 !important; transition-duration:.12s !important; transform:none !important; }
+      .live-dot { animation:none; }
+      .arming-fill.active { animation-timing-function:steps(3,end); }
+    }
+
+    @media print { .command-rail, .lease-band, .drawer-backdrop, .modal-backdrop { display:none !important; } body { padding:0; } }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Skip to current tasting</a>
+
+  <div id="loadingScreen" class="loading-screen" role="status" aria-live="polite">
+    <div class="loading-inner">
+      <div class="loading-mark brand-mark" aria-hidden="true"><span>VF</span></div>
+      <div>Getting the room.</div>
+      <div class="loading-line" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <div id="app" class="app-shell" hidden>
+    <div id="leaseBand" class="lease-band" data-tone="healthy" aria-live="polite"></div>
+    <header class="console-header">
+      <div class="brand-lockup">
+        <!-- Replace this fallback mark with the supplied Vintage Fork logo asset in production. -->
+        <div class="brand-mark" aria-label="Vintage Fork"><span>VF</span></div>
+        <div class="brand-text">
+          <div id="eventTitle" class="event-title"></div>
+          <div id="eventMeta" class="event-meta"></div>
+        </div>
+      </div>
+      <div class="header-status">
+        <div id="phaseChip" class="chip phase-chip" aria-live="polite"></div>
+        <div id="connectionChip" class="chip connection-chip" aria-live="polite"></div>
+      </div>
+    </header>
+
+    <div id="connectionBanner" class="connection-banner" hidden></div>
+
+    <div class="flight-rail-wrap desktop-tablet">
+      <div id="flightRail" class="flight-rail" aria-label="Tonight's tea flight"></div>
+    </div>
+
+    <main id="mainContent" tabindex="-1">
+      <div class="main-wrap desktop-tablet">
+        <div class="console-grid">
+          <section id="primaryCard" class="card primary-card" aria-live="polite"></section>
+          <aside id="roomCard" class="card room-card" aria-label="Room status"></aside>
+        </div>
+      </div>
+      <section id="phoneConsole" class="phone-console compact-only" aria-live="polite"></section>
+    </main>
+
+    <footer class="command-rail" aria-label="Host commands">
+      <div class="command-inner">
+        <div id="commandMain" class="command-main"></div>
+        <button id="overflowButton" class="overflow-btn" type="button" aria-label="Open more options" aria-haspopup="dialog">⋯</button>
+      </div>
+    </footer>
+  </div>
+
+  <div id="drawerBackdrop" class="drawer-backdrop" aria-hidden="true">
+    <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawer-head"><h2 id="drawerTitle">Options</h2><button class="icon-btn" id="closeDrawer" type="button" aria-label="Close">×</button></div>
+      <div id="drawerBody" class="drawer-body"></div>
+    </aside>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" aria-hidden="true">
+    <section class="modal" role="alertdialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalBody">
+      <div class="modal-head"><h2 id="modalTitle"></h2></div>
+      <div id="modalBody" class="modal-body"></div>
+      <div id="modalActions" class="modal-actions"></div>
+    </section>
+  </div>
+
+  <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+  <div id="screenReaderLive" class="sr-only" aria-live="assertive"></div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    /*
+      PRODUCTION INTEGRATION BOUNDARY
+      --------------------------------
+      This single file runs in DEMO_MODE with a durable local snapshot in localStorage.
+      Replace DemoServer.execute(), DemoServer.getSnapshot(), and MessageBus.connect()
+      with authenticated server actions and staff-channel realtime transport.
+
+      Never let browser state become authoritative in production. The backend must verify:
+      staff auth, event access, current HostControlLease, phase legality, current flight item,
+      stale sequence, and reveal/timer eligibility before every live command.
+    */
+    const DEMO_MODE = true;
+    const STORAGE_KEY = 'vf-live-console-v1.1-demo';
+    const QR_DATA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALkAAAC5CAIAAAD7zwkLAAAEZklEQVR4nO3dMW4kNxAFUMvY6xjYwPc/gQMDe43NHWzinAH1a8kiKeC9VKPpluaDKPQUWR+//vv5BwT+vH0DfBmyQkpWSMkKKVkhJSukZIWUrJCSFVLf5j/+/tffZ+7j3x///PZ1h98dDG9VevFG8z/w1l0N5rdhXSElK6RkhZSskPqkth3Ma5+SlXpt422ULtRXkJbe+danYF0hJSukZIWUrJCq1baDjU9XV148LwxXKtD5O5euW6peS/o+hYF1hZSskJIVUrJCaqm27TOv11aaEDZWgm+Wun2sK6RkhZSskJIVUo/WtqWCdKUw3NirO//d0nXfZF0hJSukZIWUrJBaqm1vFWi3enX7rrtSRB/7FKwrpGSFlKyQkhVStdr22Ib9lUbXr/jTkmOfwsC6QkpWSMkKKVkh9Ult++ZX5ytl40oL7Yq+tt9jrCukZIWUrJCSFVIf87lkK/uyNlZzx3Zebew62PgYd+OLV7qArSukZIWUrJCSFVK157bHGk5Lt9FX6pb+/EcaNkovdr4tLWSFlKyQkhVSnzy3nbvVf9p3QtjGF5c80gvhuS17yAopWSElK6RqM3dX9u9v/K58/rsbB4Ida6u49Si2xLpCSlZIyQopWSG185yElaJy423cmsg72PhgujRpraT0VtYVUrJCSlZIyQqppZ6Ewca9/7c2nj1yfEHfbaz8c6wrpGSFlKyQkhVStdq2r3rdeN5rXy9EX6/u3K1ZFQPrCilZISUrpGSFVK0n4djD1tJ1Vxw71ezWeWkbS2zrCilZISUrpGSFVG0v2VzfMQJ9h35tPAlh40PeuWObxwbWFVKyQkpWSMkKqdpz28FXnLW1sh1upT69Vb1ubJywrpCSFVKyQkpWSO3st+37Yr304mOn0Jbcmi22sdnDukJKVkjJCilZIVWbubui70v5+Vv11Xp9wyn6LmR2AyfICilZISUrpM6dk/AlWko3Vs3Hmi6OtYJYV0jJCilZISUrpJbmkr351fngkbq4pFQmHzuozLpCSlZIyQopWSH1SW17bDzBxhJs436wR2rqvhluJdYVUrJCSlZIyQqppZm7fQPB5lNm+y40V7qNWyMkVi40Z10hJSukZIWUrJCq7SXrO4Jg0Pf9fum6bz7GLdnY+2FdISUrpGSFlKyQqu0lO+ZYQXrrQn1Pogdm7nKBrJCSFVKyQmrnXLIVK70Bc292O6zM6y1tLdvIukJKVkjJCilZIVXrt73VKrBipUm29M6DWx0afcMprCukZIWUrJCSFVJLM3f7TlZ95GzcvjEQGwf0zq9rLhkXyAopWSElK6SWats+fd2pb+4HOzYPbfip821pISukZIWUrJB6tLad2/hItO8MsNJ1Nx7c1XfUg3WFlKyQkhVSskJq5xlgJcdOBnhzO1zfKbQDc8m4QFZIyQopWSG1NLuhT9/JAH0jFQbHGidWngjrt6WFrJCSFVKyQurR8215kHWFlKyQkhVSskJKVkjJCilZISUrpGSF1P87GAMawqbV1QAAAABJRU5ErkJggg==';
+
+    const $ = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+    const esc = (value='') => String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    const clone = obj => JSON.parse(JSON.stringify(obj));
+    const now = () => Date.now();
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const formatClock = ms => {
+      const total = Math.max(0, Math.ceil(ms / 1000));
+      return `${Math.floor(total/60)}:${String(total%60).padStart(2,'0')}`;
+    };
+    const formatTime = timestamp => new Intl.DateTimeFormat([], {hour:'numeric', minute:'2-digit'}).format(new Date(timestamp));
+    const phaseLabel = phase => ({lobby:'Lobby',welcome:'Welcome',reveal:'Reveal',brewing:'Brewing',tasting:'Tasting',trivia:'Trivia',recap:'Recap',ended:'Ended'}[phase] || phase);
+
+    const DEFAULT_STATE = {
+      version: 1,
+      event: {
+        id: 'evt_autumn_26',
+        title: 'Autumn Tea Journey',
+        startsAt: new Date().setHours(19, 30, 0, 0),
+        locationMode: 'remote',
+        venueName: 'Vintage Fork Tea Shop',
+        videoCallLink: 'https://meet.google.com/example',
+        capacity: 24,
+        hostName: 'Salar Melli',
+        backupName: 'Sarah Melli',
+        inviteUrl: 'https://tasting.vintagefork.ca/event/AUTUMN-26',
+        inviteCode: 'AUTUMN-26',
+        glossary: 'Dong Ding\nLugu Township\nRuby 18\nShou Mei\nJin Xuan\nNantou\nSun Moon Lake',
+        remoteChecks: { callOpen: false, captionsUnderstood: false }
+      },
+      lease: {
+        mode: 'healthy',
+        holder: 'Salar Melli',
+        viewer: 'Salar Melli',
+        viewerRole: 'host',
+        lastSeenGap: 0,
+        graceRemaining: 30,
+        changedAt: now()
+      },
+      connection: 'online',
+      phase: 'lobby',
+      sequence: 1,
+      currentIndex: 0,
+      tastingOpenedFlightItemId: null,
+      reveal: null,
+      timer: null,
+      trivia: { isOpen:false, isClosed:false, answered:0, closedForFlightId:null, optionCounts:[0,0,0,0] },
+      completion: { done:0 },
+      justOpened: false,
+      endedAt: null,
+      soundsEnabled: false,
+      flights: [
+        {
+          id:'fi_ruby18', name:'Ruby 18', producer:'Sun Moon Lake smallholder cooperative', origin:'Yuchi Township, Nantou, Taiwan',
+          reveal:'A deeply aromatic Taiwanese black tea with natural notes of cinnamon, mint and ripe fruit, developed from a local cultivar selected near Sun Moon Lake.',
+          brewing:'95°C · 3g per 250ml · no rinse', temperature:'95°C', leaf:'3g', detail:'No rinse', steepSeconds:180,
+          trivia:{question:'Ruby 18 was developed in which tea-growing area?', options:['Alishan','Sun Moon Lake','Wuyi Mountains','Uji'], correct:1, explanation:'Ruby 18 is closely associated with the Sun Moon Lake region of Taiwan.', answerWindow:18}
+        },
+        {
+          id:'fi_dongding', name:'Dong Ding', producer:'Lin family charcoal-roasting workshop', origin:'Lugu Township, Nantou, Taiwan',
+          reveal:'A charcoal-roasted oolong from the misty terraces of Lugu, balancing toasted grain, orchid and a lingering mineral sweetness.',
+          brewing:'95°C · 4g per 250ml · rinse once', temperature:'95°C', leaf:'4g', detail:'Rinse once', steepSeconds:210,
+          trivia:{question:'What does “Dong Ding” most directly refer to?', options:['Frozen Summit','Golden Lily','Red Jade','Iron Goddess'], correct:0, explanation:'Dong Ding is commonly translated as “Frozen Summit.”', answerWindow:18}
+        },
+        {
+          id:'fi_shoumei', name:'Shou Mei', producer:'Fuding family garden', origin:'Fuding, Fujian, China',
+          reveal:'A late-harvest white tea with broad leaves, mellow orchard-fruit sweetness and a soft, warming finish.',
+          brewing:'90°C · 4g per 250ml · no rinse', temperature:'90°C', leaf:'4g', detail:'No rinse', steepSeconds:240,
+          trivia:{question:'Shou Mei belongs to which tea family?', options:['Green tea','White tea','Black tea','Dark tea'], correct:1, explanation:'Shou Mei is a style of white tea, typically made with more mature leaves.', answerWindow:18}
+        },
+        {
+          id:'fi_jinxuan', name:'Jin Xuan', producer:'Meishan high-mountain garden', origin:'Chiayi County, Taiwan',
+          reveal:'A creamy high-mountain oolong known for its naturally soft texture, floral lift and gentle dairy-like aroma.',
+          brewing:'92°C · 4g per 250ml · quick rinse', temperature:'92°C', leaf:'4g', detail:'Quick rinse', steepSeconds:180,
+          trivia:{question:'Jin Xuan is also widely known as which cultivar?', options:['Red Jade No. 18','Taiwan No. 12','Qing Xin','Da Ye'], correct:1, explanation:'Jin Xuan is Taiwan Tea No. 12.', answerWindow:18}
+        }
+      ],
+      guests: [
+        ['Sarah','active','online',true],['Jamie','active','online',false],['Maya','active','online',true],['Noah','active','online',true],
+        ['Emma','active','unstable',false],['Liam','active','online',true],['Olivia','active','online',true],['Ethan','active','online',false],
+        ['Ava','active','online',true],['Lucas','active','reconnecting',false],['Sophia','active','online',true],['Oliver','waiting','online',false],
+        ['Mia','active','online',true],['Leo','active','online',false],['Chloe','registered','offline',false]
+      ].map((g,i)=>({id:'p'+(i+1), displayName:g[0], participantStatus:g[1], connection:g[2], completed:g[3], joinedAt:now()-((i+2)*61000), revealReady:false, removed:false})),
+      aggregates: { averageRating:4.4, triviaAccuracy:78, saves:9, northStar:61 }
+    };
+
+    let state;
+    let busy = false;
+    let renderTimer = null;
+    let progressTimer = null;
+    let readinessTimer = null;
+    let revealGateTimer = null;
+    let leaseTimer = null;
+    let armedAt = 0;
+    let armTimeout = null;
+    let armInProgress = false;
+    let modalReturnFocus = null;
+    let currentDrawer = 'menu';
+
+    const live = $('#screenReaderLive');
+    const announce = text => { live.textContent = ''; requestAnimationFrame(()=> live.textContent = text); };
+
+    function loadLocalSnapshot() {
+      if (!DEMO_MODE) return clone(DEFAULT_STATE);
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return clone(DEFAULT_STATE);
+        const saved = JSON.parse(raw);
+        if (saved.version !== DEFAULT_STATE.version) return clone(DEFAULT_STATE);
+        return saved;
+      } catch { return clone(DEFAULT_STATE); }
+    }
+    function persist() {
+      if (!DEMO_MODE) return;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* Opaque previews may block storage; the live page still works. */ }
+    }
+
+    const MessageBus = {
+      seen: new Set(),
+      pending: new Map(),
+      connect() { /* Replace with authenticated staff-channel WebSocket/SSE. */ },
+      apply(message) {
+        if (!message || !message.message_type) return;
+        const isLiveness = ['presence.ping','presence.heartbeat','clock.ping','reveal.ready'].includes(message.message_type);
+        const key = isLiveness ? null : `${message.sequence_number}:${message.message_type}`;
+        if (key && this.seen.has(key)) return;
+        if (key) this.seen.add(key);
+        if (message.message_type === 'phase.changed') state.phase = message.payload.phase;
+        if (message.payload && message.payload.snapshot) state = clone(message.payload.snapshot);
+        persist(); render();
+      },
+      waitForCompanion(sequence, expectedType) {
+        const id = `${sequence}:${expectedType}`;
+        clearTimeout(this.pending.get(id));
+        this.pending.set(id, setTimeout(async () => {
+          toast("Something moved. Getting the room's current state.");
+          state = await DemoServer.getSnapshot();
+          this.pending.delete(id);
+          render();
+        }, 750));
+      }
+    };
+
+    function canControl(s=state) { return s.lease.mode === 'healthy' && s.lease.holder === s.lease.viewer && s.connection !== 'reconnecting' && s.connection !== 'offline' && s.phase !== 'ended'; }
+    function currentFlight(s=state) { return s.flights[s.currentIndex]; }
+    function isBetweenTeas(s=state) { return s.phase === 'tasting' && s.tastingOpenedFlightItemId !== currentFlight(s).id; }
+    function hasNextTea(s=state) { return s.currentIndex < s.flights.length - 1; }
+    function activeGuests(s=state) { return s.guests.filter(g => !g.removed && ['admitted','active','waiting'].includes(g.participantStatus)); }
+    function admittedGuests(s=state) { return s.guests.filter(g => !g.removed && ['admitted','active'].includes(g.participantStatus)); }
+    function catchingUpGuests(s=state) { return admittedGuests(s).filter(g => ['unstable','reconnecting'].includes(g.connection)); }
+    function quietGuests(s=state) { return admittedGuests(s).filter(g => g.connection === 'offline'); }
+
+    const DemoServer = {
+      async getSnapshot() { await sleep(180); return clone(state); },
+      async execute(action, payload={}) {
+        await sleep(220);
+        const s = clone(state);
+        const liveActions = new Set(['openSession','commitReveal','startTimer','cancelTimer','openTasting','openTrivia','closeTrivia','returnTasting','advanceNext','startRecap','endSession','removeGuest']);
+        if (liveActions.has(action) && !canControl(s)) throw new Error(`${s.lease.holder} has control now. You're watching.`);
+        if (s.phase === 'ended' && action !== 'resetDemo') throw new Error("This tasting has ended. It can't be reopened.");
+
+        const advanceSequence = () => { s.sequence += 1; };
+        const tea = currentFlight(s);
+
+        switch(action) {
+          case 'openSession':
+            if (s.phase !== 'lobby') throw new Error("The room is already past that. Here's where it is.");
+            if (s.event.locationMode === 'remote' && (!s.event.remoteChecks.callOpen || !s.event.remoteChecks.captionsUnderstood)) throw new Error('Confirm the remote-call checks before opening the tasting.');
+            s.phase='welcome'; s.justOpened=true; advanceSequence();
+            s.guests.forEach(g=>{ if(!g.removed && ['waiting','registered'].includes(g.participantStatus)) g.participantStatus='admitted'; });
+            break;
+          case 'updateGlossary':
+            if (s.phase !== 'lobby') throw new Error('The tasting is open. This word list is now read-only.');
+            s.event.glossary = String(payload.value || '').slice(0,2000);
+            break;
+          case 'updateRemoteChecks':
+            if (s.phase !== 'lobby') throw new Error('Setup checks are frozen after opening.');
+            s.event.remoteChecks = {...s.event.remoteChecks, ...payload};
+            break;
+          case 'commitReveal': {
+            const allowed = s.phase === 'welcome' || isBetweenTeas(s);
+            if (!allowed) throw new Error("The room is already past that. Here's where it is.");
+            const revealAt = now() + 1200;
+            s.phase='reveal'; s.justOpened=false; s.reveal={flightItemId:tea.id,revealAt,eligibleAt:revealAt+1400,ready:0};
+            s.timer=null; s.trivia={isOpen:false,isClosed:false,answered:0,closedForFlightId:null,optionCounts:[0,0,0,0]}; s.completion={done:0};
+            s.guests.forEach(g=>g.revealReady=false); advanceSequence();
+            break;
+          }
+          case 'startTimer':
+            if (s.phase !== 'reveal' && s.phase !== 'brewing') throw new Error("The room is already past that. Here's where it is.");
+            if (!s.reveal || now() < s.reveal.eligibleAt) throw new Error('The timer will be ready when the reveal finishes.');
+            if (s.phase !== 'brewing') { s.phase='brewing'; advanceSequence(); }
+            s.timer={flightItemId:tea.id, duration:tea.steepSeconds, endsAt:now()+tea.steepSeconds*1000};
+            break;
+          case 'cancelTimer':
+            if (s.phase !== 'brewing' || !s.timer) throw new Error('There is no running timer to cancel.');
+            s.timer=null;
+            break;
+          case 'openTasting':
+            if (!['reveal','brewing'].includes(s.phase)) throw new Error("The room is already past that. Here's where it is.");
+            if (s.phase === 'reveal' && (!s.reveal || now() < s.reveal.eligibleAt)) throw new Error('The tasting will be ready when the reveal finishes.');
+            s.phase='tasting'; s.timer=null; s.tastingOpenedFlightItemId=tea.id; s.completion={done:0}; advanceSequence();
+            s.guests.forEach(g=>g.completed=false);
+            break;
+          case 'openTrivia':
+            if (s.phase !== 'tasting' || s.tastingOpenedFlightItemId !== tea.id || s.trivia.closedForFlightId === tea.id) throw new Error("The room isn't ready for trivia yet.");
+            s.phase='trivia'; s.trivia={isOpen:true,isClosed:false,answered:0,closedForFlightId:null,optionCounts:[0,0,0,0], deadline:now()+tea.trivia.answerWindow*1000}; advanceSequence();
+            break;
+          case 'closeTrivia':
+            if (s.phase !== 'trivia' || !s.trivia.isOpen) throw new Error('This question is already closed.');
+            s.trivia.isOpen=false; s.trivia.isClosed=true; s.trivia.closedForFlightId=tea.id;
+            if (!s.trivia.optionCounts.some(Boolean)) s.trivia.optionCounts=[2,8,3,1];
+            break;
+          case 'returnTasting':
+            if (s.phase !== 'trivia' || !s.trivia.isClosed) throw new Error('Close the question before returning to the tasting.');
+            s.phase='tasting'; s.tastingOpenedFlightItemId=tea.id; advanceSequence();
+            break;
+          case 'advanceNext': {
+            if (!hasNextTea(s)) throw new Error('This is the last tea. Start the recap next.');
+            const directFromTrivia = s.phase==='trivia' && s.trivia.isClosed;
+            const fromTasting = s.phase==='tasting';
+            if (!directFromTrivia && !fromTasting) throw new Error("The room isn't ready for the next tea.");
+            s.currentIndex += 1;
+            if (directFromTrivia) { s.phase='tasting'; advanceSequence(); }
+            s.tastingOpenedFlightItemId = tea.id;
+            s.reveal=null; s.timer=null; s.trivia={isOpen:false,isClosed:false,answered:0,closedForFlightId:null,optionCounts:[0,0,0,0]}; s.completion={done:0};
+            s.guests.forEach(g=>{g.completed=false;g.revealReady=false;});
+            break;
+          }
+          case 'startRecap':
+            if (s.phase !== 'tasting' || hasNextTea(s) || s.trivia.closedForFlightId !== tea.id) throw new Error("The room isn't ready for the recap yet.");
+            s.phase='recap'; advanceSequence();
+            break;
+          case 'endSession':
+            if (s.phase === 'lobby') throw new Error("The tasting hasn't opened yet.");
+            s.phase='ended'; s.endedAt=now(); s.lease.mode='released'; advanceSequence();
+            break;
+          case 'removeGuest': {
+            const guest=s.guests.find(g=>g.id===payload.id);
+            if(!guest) throw new Error('That guest is no longer in the room.');
+            guest.removed=true; guest.participantStatus='removed'; guest.connection='offline'; guest.completed=false;
+            break;
+          }
+          case 'claimControl':
+            if (!['unhealthy','expired','watching'].includes(s.lease.mode)) throw new Error(`${s.lease.holder} is still running this tasting.`);
+            if (s.lease.mode==='unhealthy' && s.lease.viewerRole!=='backup') throw new Error('Only the named backup host can take control during the grace period.');
+            s.lease.holder=s.lease.viewer; s.lease.mode='healthy'; s.lease.lastSeenGap=0; s.lease.graceRemaining=30; s.lease.changedAt=now(); s.connection='online';
+            break;
+          case 'setLeaseDemo':
+            Object.assign(s.lease,payload); s.lease.changedAt=now();
+            break;
+          case 'setConnectionDemo':
+            s.connection=payload.value;
+            break;
+          case 'toggleSound':
+            s.soundsEnabled=!s.soundsEnabled;
+            break;
+          case 'resetDemo':
+            return clone(DEFAULT_STATE);
+          default: throw new Error('Unknown command.');
+        }
+        return s;
+      }
+    };
+
+    async function run(action, payload={}, successText='') {
+      if (busy) return;
+      busy=true; renderCommands();
+      try {
+        state = await DemoServer.execute(action,payload);
+        persist();
+        if (successText) toast(successText);
+        postAction(action);
+        render();
+      } catch (error) {
+        toast(`${error.message} Nothing changed for your guests.`, 'failure');
+        state = await DemoServer.getSnapshot();
+        render();
+      } finally { busy=false; renderCommands(); }
+    }
+
+    function postAction(action) {
+      if (action==='openSession') announce(`The room is now welcome. ${currentFlight().name} is first.`);
+      if (action==='commitReveal') { armedAt=0; startReadinessSimulation(); startRevealGateLoop(); announce(`The room is now revealing ${currentFlight().name}.`); }
+      if (action==='startTimer') { startTimerLoop(); announce(`The room is now brewing ${currentFlight().name}.`); }
+      if (action==='openTasting') { startCompletionSimulation(); announce(`The tasting interaction is open for ${currentFlight().name}.`); }
+      if (action==='openTrivia') { startTriviaSimulation(); announce('Trivia is open.'); }
+      if (action==='closeTrivia') announce(`Trivia is closed. The correct answer is ${currentFlight().trivia.options[currentFlight().trivia.correct]}.`);
+      if (action==='advanceNext') announce(`The current tea is now ${currentFlight().name}.`);
+      if (action==='startRecap') announce('The room is now in recap.');
+      if (action==='endSession') announce('This tasting has ended.');
+      if (action==='claimControl') announce('You have control. Your guests saw nothing change.');
+    }
+
+    function startRevealGateLoop() {
+      clearInterval(revealGateTimer);
+      revealGateTimer=setInterval(()=>{
+        if(state.phase!=='reveal'||!state.reveal){ clearInterval(revealGateTimer); return; }
+        renderPrimary(); renderCommands(); renderPhone();
+        if(now()>=state.reveal.eligibleAt) clearInterval(revealGateTimer);
+      },100);
+    }
+
+    function startReadinessSimulation() {
+      clearInterval(readinessTimer);
+      readinessTimer=setInterval(()=>{
+        if (!state.reveal || state.phase!=='reveal') return clearInterval(readinessTimer);
+        const candidates=admittedGuests().filter(g=>!g.revealReady && g.connection!=='offline');
+        if (candidates.length) {
+          const guest=candidates[Math.floor(Math.random()*candidates.length)]; guest.revealReady=true; state.reveal.ready=admittedGuests().filter(g=>g.revealReady).length; persist(); renderRoom(); renderPrimary();
+        }
+        if (now() >= state.reveal.revealAt || !candidates.length) clearInterval(readinessTimer);
+      },140);
+    }
+
+    function startCompletionSimulation() {
+      clearInterval(progressTimer);
+      progressTimer=setInterval(()=>{
+        if (state.phase!=='tasting' || state.tastingOpenedFlightItemId!==currentFlight().id) return clearInterval(progressTimer);
+        const candidates=admittedGuests().filter(g=>!g.completed && g.connection!=='offline');
+        if(candidates.length){ const g=candidates[Math.floor(Math.random()*candidates.length)]; g.completed=true; state.completion.done=admittedGuests().filter(x=>x.completed).length; persist(); renderRoom(); renderPrimary(); }
+        if(!candidates.length) clearInterval(progressTimer);
+      },900);
+    }
+
+    function startTriviaSimulation() {
+      clearInterval(progressTimer);
+      progressTimer=setInterval(()=>{
+        if(state.phase!=='trivia'||!state.trivia.isOpen) return clearInterval(progressTimer);
+        const total=admittedGuests().length;
+        if(state.trivia.answered<total){
+          state.trivia.answered += 1;
+          const pick = Math.random() < .62 ? currentFlight().trivia.correct : Math.floor(Math.random()*4);
+          state.trivia.optionCounts[pick] += 1;
+          persist(); renderPrimary(); renderRoom();
+        } else clearInterval(progressTimer);
+      },650);
+    }
+
+    function startTimerLoop() {
+      clearInterval(renderTimer);
+      renderTimer=setInterval(()=>{
+        if(!state.timer) return clearInterval(renderTimer);
+        renderPrimary(); renderCommands(); renderPhone();
+        if(now()>=state.timer.endsAt){
+          state.timer.endsAt=now(); persist(); clearInterval(renderTimer); render();
+          if(state.soundsEnabled) playCeramicTap();
+          announce('The steep timer has finished.');
+        }
+      },250);
+    }
+
+    function playCeramicTap() {
+      try {
+        const AudioCtx=window.AudioContext||window.webkitAudioContext; const ctx=new AudioCtx();
+        const osc=ctx.createOscillator(), gain=ctx.createGain();
+        osc.type='sine'; osc.frequency.setValueAtTime(680,ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(320,ctx.currentTime+.24);
+        gain.gain.setValueAtTime(.0001,ctx.currentTime); gain.gain.exponentialRampToValueAtTime(.08,ctx.currentTime+.01); gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.28);
+        osc.connect(gain).connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime+.3);
+      } catch {}
+    }
+
+    function render() {
+      $('#eventTitle').textContent=state.event.title;
+      $('#eventMeta').textContent=`${formatTime(state.event.startsAt)} · ${state.event.locationMode==='remote'?'Remote':'In person'}`;
+      renderLease(); renderHeader(); renderConnectionBanner(); renderFlightRail(); renderPrimary(); renderRoom(); renderPhone(); renderCommands();
+      if(state.timer) startTimerLoop();
+    }
+
+    function leasePresentation() {
+      const l=state.lease;
+      if(state.phase==='ended') return {tone:'watching',glyph:'✓',copy:`This tasting ended at ${formatTime(state.endedAt||now())}.`};
+      if(l.mode==='healthy'&&l.holder===l.viewer) return {tone:'healthy',glyph:'●',copy:"You're running this tasting."};
+      if(l.mode==='healthy'||l.mode==='watching') return {tone:'watching',glyph:'◉',copy:`${l.holder} is running this tasting. You're watching.`};
+      if(l.mode==='unhealthy'&&l.viewerRole==='backup') return {tone:'warning',glyph:'⚠',copy:`${l.holder}'s device last checked in ${l.lastSeenGap||18} seconds ago.`,action:'Claim host control'};
+      if(l.mode==='unhealthy'&&l.holder===l.viewer) return {tone:'warning',glyph:'⚠',copy:`Reconnecting — ${Math.max(0,l.graceRemaining)}s. If we're back before this reaches zero, you keep control. ${state.event.backupName} can step in now if needed.`};
+      if(l.mode==='expired'||l.mode==='released') return {tone:'expired',glyph:'⚠',copy:'Nobody is holding this tasting. Take control to keep it moving.',action:'Take control'};
+      return {tone:'failure',glyph:'⚠',copy:"We've lost our connection to the tasting. Your guests are seeing nothing change."};
+    }
+
+    function renderLease() {
+      const p=leasePresentation(), el=$('#leaseBand'); el.dataset.tone=p.tone;
+      el.innerHTML=`<div class="lease-copy"><span class="status-glyph" aria-hidden="true">${p.glyph}</span><span>${esc(p.copy)}</span></div>${p.action?`<button class="lease-action" id="leaseAction" type="button">${esc(p.action)}</button>`:''}`;
+      $('#leaseAction')?.addEventListener('click',()=>{
+        if(state.lease.mode==='unhealthy') openModal({title:'Claim host control?',body:'The current host may still be reconnecting. Taking control now will end their control immediately.',dangerLabel:'Claim host control',onDanger:()=>run('claimControl',{},'You have control. Your guests saw nothing change.')});
+        else run('claimControl',{},'You have control. Your guests saw nothing change.');
+      });
+    }
+
+    function renderHeader() {
+      $('#phaseChip').innerHTML=`<span class="live-dot" aria-hidden="true"></span><span class="phase-label">${esc(phaseLabel(state.phase))}</span>`;
+      const connectionMap={online:['⌁','Connected'],unstable:['⚠','Patchy'],reconnecting:['↻','Reconnecting'],offline:['×','Offline']};
+      const [glyph,label]=connectionMap[state.connection]||connectionMap.online;
+      $('#connectionChip').innerHTML=`<span aria-hidden="true">${glyph}</span><span>${label}</span>`;
+    }
+
+    function renderConnectionBanner() {
+      const el=$('#connectionBanner');
+      if(state.connection==='online'){el.hidden=true;return;}
+      el.hidden=false; el.classList.toggle('failure',state.connection==='offline');
+      const copy=state.connection==='unstable'?'Your connection is patchy. Commands may take a moment.':state.connection==='reconnecting'?'Reconnecting. Nothing has changed for your guests.':"We've lost our own connection to this tasting. The tasting itself is unaffected.";
+      el.innerHTML=`<span class="status-glyph" aria-hidden="true">⚠</span><span>${esc(copy)}</span>`;
+    }
+
+    function renderFlightRail() {
+      $('#flightRail').innerHTML=state.flights.map((f,i)=>{
+        const status=i<state.currentIndex?'done':i===state.currentIndex?'now':'later';
+        const marker=status==='done'?'✓':status==='now'?'◀ now':'';
+        return `<div class="flight-pip" data-state="${status}"><div class="num">${i+1} ${marker}</div><div class="name">${esc(f.name)}</div></div>`;
+      }).join('');
+    }
+
+    function renderPrimary() {
+      const el=$('#primaryCard');
+      if(state.phase==='lobby') return renderLobby(el);
+      if(state.phase==='ended') return renderEnded(el);
+      const tea=currentFlight();
+      let inner=`<div class="card-section"><p class="eyebrow">Tea ${state.currentIndex+1} of ${state.flights.length}</p><h1 class="tea-name">${esc(tea.name)}</h1><p class="tea-origin">${esc(tea.producer)} · ${esc(tea.origin)}</p></div>`;
+      if(state.justOpened) inner+=`<div class="card-section"><div class="phase-banner success"><span aria-hidden="true">✓</span><div><strong>The room is open.</strong><div class="body-copy">${admittedGuests().length} guests are with you.</div></div></div></div>`;
+      inner += `<div class="card-section"><h2 class="section-title">Reveal text</h2><p class="body-copy">${esc(tea.reveal)}</p></div>`;
+      inner += `<div class="card-section"><h2 class="section-title">Brewing · tonight's guidance</h2><div class="brewing-grid"><div class="brew-cell"><strong>${esc(tea.temperature)}</strong><span>Water</span></div><div class="brew-cell"><strong>${esc(tea.leaf)}</strong><span>Leaf</span></div><div class="brew-cell"><strong>${esc(tea.detail)}</strong><span>Preparation</span></div></div></div>`;
+      inner += phasePanel();
+      el.innerHTML=inner;
+      bindPrimaryLocalControls();
+    }
+
+    function renderLobby(el) {
+      const checks=state.event.remoteChecks;
+      el.innerHTML=`
+        <div class="pre-session-hero"><div class="pre-logo" aria-hidden="true"></div><h1>${esc(state.event.title)}</h1><p>${formatTime(state.event.startsAt)} · ${state.event.locationMode==='remote'?'Remote tasting':'In person'}</p></div>
+        <div class="card-section">
+          <div class="setup-grid">
+            <div class="setup-tile"><p class="eyebrow">Tonight's flight</p>${state.flights.map((f,i)=>`<div class="status-row"><span>${i+1}. ${esc(f.name)}${i===0?' · First pour':''}</span><strong>${formatClock(f.steepSeconds*1000)}</strong></div>`).join('')}</div>
+            <div class="setup-tile"><p class="eyebrow">The room</p><div class="status-row"><span>Capacity</span><strong>${state.event.capacity}</strong></div><div class="status-row"><span>Joined</span><strong>${activeGuests().length}</strong></div><div class="status-row"><span>Waiting</span><strong>${state.guests.filter(g=>!g.removed&&g.participantStatus==='waiting').length}</strong></div><div class="status-row"><span>Backup host</span><strong style="font-size:15px">${esc(state.event.backupName)}</strong></div></div>
+          </div>
+        </div>
+        ${state.event.locationMode==='remote'?`<div class="card-section"><h2 class="section-title">Before you open the tasting</h2><label class="check-row"><input id="callCheck" type="checkbox" ${checks.callOpen?'checked':''}><span>Your Zoom or Meet call is open and your guests are admitted there.</span></label><label class="check-row"><input id="captionCheck" type="checkbox" ${checks.captionsUnderstood?'checked':''}><span>Captions are controlled in Zoom or Meet, not here.</span></label></div>`:''}
+        <div class="card-section"><h2 class="section-title">Tonight's caption word list</h2><p class="body-copy muted">Edit this list before opening the tasting, then copy it into your call where supported.</p><textarea id="glossary" class="glossary" maxlength="2000">${esc(state.event.glossary)}</textarea><div class="inline-actions"><button id="saveGlossary" class="small-btn" type="button">Save word list</button><button id="copyGlossary" class="small-btn" type="button">Copy word list</button></div></div>
+        <div class="card-section"><div class="invite-row"><img class="qr" src="${QR_DATA}" alt="QR code for the guest invite"><div><p class="eyebrow">Invite access</p><div class="invite-code">${esc(state.event.inviteCode)}</div><div class="url-box" title="${esc(state.event.inviteUrl)}">${esc(state.event.inviteUrl)}</div><div class="inline-actions"><button id="copyInvite" class="small-btn" type="button">Copy invite</button><button id="manageInvite" class="link-btn" type="button">Manage invite in Admin</button><button id="manageCapacity" class="link-btn" type="button">Manage capacity in Admin</button></div></div></div></div>`;
+      $('#callCheck')?.addEventListener('change',e=>run('updateRemoteChecks',{callOpen:e.target.checked}));
+      $('#captionCheck')?.addEventListener('change',e=>run('updateRemoteChecks',{captionsUnderstood:e.target.checked}));
+      $('#saveGlossary')?.addEventListener('click',()=>run('updateGlossary',{value:$('#glossary').value},'Word list saved.'));
+      $('#copyGlossary')?.addEventListener('click',()=>copyText($('#glossary').value,'Word list copied.'));
+      $('#copyInvite')?.addEventListener('click',()=>copyText(state.event.inviteUrl,'Invite copied.'));
+      $('#manageInvite')?.addEventListener('click',()=>toast('This link belongs to the protected Admin invite screen.'));
+      $('#manageCapacity')?.addEventListener('click',()=>toast('This link belongs to the protected Admin capacity screen.'));
+    }
+
+    function phasePanel() {
+      const tea=currentFlight();
+      if(state.phase==='welcome'||isBetweenTeas()) {
+        return `<div class="card-section"><div class="reveal-status"><p class="eyebrow">Room health before reveal</p><p class="body-copy">${admittedGuests().length} guests with you · ${catchingUpGuests().length} catching up${quietGuests().length?` · ${quietGuests().length} quiet`:''}</p><div class="arming-track" aria-hidden="true"><div id="armingFill" class="arming-fill ${armInProgress?'active':''}"></div></div><p id="armHelp" class="metadata" style="margin:10px 0 0">${armedAt?'Armed. Reveal when you’re ready.':'Hold for 600ms. Releasing early does nothing.'}</p></div></div>`;
+      }
+      if(state.phase==='reveal') {
+        const active=admittedGuests().length, ready=state.reveal?state.reveal.ready:0, catchup=Math.max(0,active-ready), eligible=state.reveal&&now()>=state.reveal.eligibleAt;
+        const countdown=state.reveal?Math.max(0,state.reveal.eligibleAt-now()):0;
+        return `<div class="card-section"><div class="phase-banner success"><span aria-hidden="true">✓</span><div><strong>Revealed · ${esc(tea.name)}</strong><div class="body-copy">${eligible?'The reveal is complete.':'Reveal in progress.'}</div></div></div><div class="readiness"><div class="metric"><strong>${ready}</strong><span>Ready</span></div><div class="metric"><strong>${active}</strong><span>With you</span></div><div class="metric"><strong>${catchup}</strong><span>Catching up</span></div></div><p class="metadata" style="margin:12px 0 0">${eligible?'The timer is ready.':`The timer will be ready in ${formatClock(countdown)}. The reveal continues for everyone.`}</p></div>`;
+      }
+      if(state.phase==='brewing') {
+        const duration=tea.steepSeconds, remaining=state.timer?Math.max(0,state.timer.endsAt-now()):duration*1000, ratio=state.timer?Math.max(0,Math.min(1,remaining/(duration*1000))):1;
+        const circumference=2*Math.PI*52, offset=circumference*(1-ratio);
+        return `<div class="card-section"><div class="timer-wrap"><div class="timer-ring" role="timer" aria-label="${state.timer?`${formatClock(remaining)} remaining`:'Timer cancelled'}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="timer-bg" cx="60" cy="60" r="52"></circle><circle class="timer-progress" cx="60" cy="60" r="52" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"></circle></svg><div class="timer-number">${state.timer?formatClock(remaining):'—'}</div></div><div><p class="eyebrow">Brewing</p><h2 class="section-title">${state.timer?(remaining<=0?'Steep complete':'Server-relative steep timer'):'Timer cancelled'}</h2><p class="body-copy muted">${state.timer?'The countdown is rebuilt from the saved end time on every render.':'Start the configured timer again, or open the tasting deliberately.'}</p></div></div></div>`;
+      }
+      if(state.phase==='tasting') {
+        const opened=state.tastingOpenedFlightItemId===tea.id;
+        if(!opened) return `<div class="card-section"><div class="phase-banner"><span aria-hidden="true">→</span><div><strong>Ready for the next reveal.</strong><div class="body-copy">The previous tasting remains complete while you introduce ${esc(tea.name)}.</div></div></div></div>`;
+        const done=state.completion.done, total=admittedGuests().length;
+        const finishedTrivia=state.trivia.closedForFlightId===tea.id;
+        return `<div class="card-section"><h2 class="section-title">Tasting interaction</h2><div class="status-row"><span>Finished this tea</span><strong>${done} of ${total}</strong></div><p class="body-copy muted" style="margin-top:12px">Only completion is shown. Private notes, ratings and individual answers never reach this console.</p>${finishedTrivia?`<div class="phase-banner success" style="margin:16px 0 0"><span aria-hidden="true">✓</span><div><strong>Trivia complete.</strong><div class="body-copy">Guests can finish Passport and Save This Tea before you continue.</div></div></div>`:`<div class="trivia-preview" style="margin-top:16px"><p class="eyebrow">Private trivia preview</p><p class="body-copy">${esc(tea.trivia.question)}</p><button id="previewTrivia" class="small-btn" style="margin-top:12px" type="button">Preview the question</button></div>`}</div>`;
+      }
+      if(state.phase==='trivia') {
+        const q=tea.trivia,total=admittedGuests().length;
+        if(state.trivia.isOpen) return `<div class="card-section"><h2 class="section-title">Trivia is open</h2><p class="body-copy">${esc(q.question)}</p><div class="status-row" style="margin-top:15px"><span>Responses</span><strong>${state.trivia.answered} of ${total}</strong></div><p class="metadata" style="margin:10px 0 0">Only the response count is visible while the question is open.</p></div>`;
+        return `<div class="card-section"><h2 class="section-title">Trivia result</h2><p class="body-copy"><strong>Correct answer:</strong> ${esc(q.options[q.correct])}</p><p class="body-copy muted" style="margin-top:8px">${esc(q.explanation)}</p><div style="margin-top:16px">${q.options.map((o,i)=>{const count=state.trivia.optionCounts[i]||0,pct=state.trivia.answered?Math.round(count/state.trivia.answered*100):0;return `<div class="bar-row"><span>${esc(o)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><strong class="tabular">${count}</strong></div>`}).join('')}</div></div>`;
+      }
+      if(state.phase==='recap') return `<div class="card-section"><h2 class="section-title">The recap is open</h2><p class="body-copy">Guests can review their own experience. This console shows only aggregate completion and event-level results.</p><div class="readiness"><div class="metric"><strong>${Math.min(admittedGuests().length,Math.max(state.completion.done,11))}</strong><span>At recap</span></div><div class="metric"><strong>${state.aggregates.averageRating.toFixed(1)}</strong><span>Average rating</span></div><div class="metric"><strong>${state.aggregates.northStar}%</strong><span>Completed + saved</span></div></div></div>`;
+      return '';
+    }
+
+    function renderEnded(el) {
+      el.innerHTML=`<div class="ended-card"><div class="pre-logo" aria-hidden="true"></div><h1>This tasting ended at ${formatTime(state.endedAt||now())}.</h1><p>Your guests' live screens are closed. Their recaps stay available, and recap emails can still be released by the shared backend workflow.</p><button id="resultsBtn" class="small-btn" style="margin-top:22px" type="button">See the results</button></div>`;
+      $('#resultsBtn')?.addEventListener('click',()=>toast('This link belongs to the event Results screen in Admin.'));
+    }
+
+    function bindPrimaryLocalControls() {
+      $('#previewTrivia')?.addEventListener('click',()=>openTriviaPreview());
+    }
+
+    function renderRoom() {
+      const active=admittedGuests().filter(g=>g.connection==='online').length;
+      const catchup=catchingUpGuests().length;
+      const quiet=quietGuests().length;
+      const total=activeGuests().length;
+      const ready=state.reveal?state.reveal.ready:0;
+      const showReadiness=state.phase==='reveal'&&state.reveal;
+      $('#roomCard').innerHTML=`<div class="room-head"><h2>The room</h2></div><div class="room-body"><div><div class="room-summary"><span>● ${active} active</span><span>⚠ ${catchup} catching up</span><span>○ ${quiet} quiet</span></div><div class="status-list"><div class="status-row"><span>Joined</span><strong>${total} / ${state.event.capacity}</strong></div>${showReadiness?`<div class="status-row"><span>Reveal ready</span><strong>${ready} / ${admittedGuests().length}</strong></div>`:''}<div class="status-row"><span>Finished current step</span><strong>${state.completion.done}</strong></div></div><button id="openRoster" class="small-btn" style="width:100%; margin-top:14px" type="button">Roster · ${state.guests.filter(g=>!g.removed).length} guests</button></div><div class="aggregate-strip"><div class="aggregate"><span class="value">${state.phase==='lobby'?'—':state.aggregates.averageRating.toFixed(1)}</span><span class="name">Average rating</span></div><div class="aggregate"><span class="value">${state.phase==='lobby'?'—':state.aggregates.triviaAccuracy+'%'}</span><span class="name">Trivia accuracy</span></div><div class="aggregate"><span class="value">${state.phase==='lobby'?'—':state.aggregates.saves}</span><span class="name">Saved teas</span></div><div class="aggregate"><span class="value">${state.phase==='lobby'?'—':state.aggregates.northStar+'%'}</span><span class="name">North star</span></div></div></div>`;
+      $('#openRoster')?.addEventListener('click',()=>openDrawer('roster'));
+    }
+
+    function renderPhone() {
+      const tea=currentFlight(), p=leasePresentation();
+      const phoneSetup = state.phase==='lobby' && state.event.locationMode==='remote' ? `<div class="rule"></div><p class="eyebrow">Before opening</p><label class="check-row"><input id="phoneCallCheck" type="checkbox" ${state.event.remoteChecks.callOpen?'checked':''}><span>Your Zoom or Meet call is open.</span></label><label class="check-row"><input id="phoneCaptionCheck" type="checkbox" ${state.event.remoteChecks.captionsUnderstood?'checked':''}><span>Captions are controlled in the call.</span></label>` : '';
+      $('#phoneConsole').innerHTML=`<div class="card phone-card"><p class="eyebrow">${esc(state.event.title)}</p><h1 class="tea-name">${state.phase==='ended'?'Tasting complete':`Tea ${state.currentIndex+1} · ${esc(tea.name)}`}</h1><div class="phone-facts"><div class="phone-fact"><span>Room</span><strong>${esc(phaseLabel(state.phase))}</strong></div><div class="phone-fact"><span>Lease</span><strong>${esc(p.copy)}</strong></div><div class="phone-fact"><span>Health</span><strong>${admittedGuests().filter(g=>g.connection==='online').length} active · ${catchingUpGuests().length} catching up</strong></div>${state.timer?`<div class="phone-fact"><span>Timer</span><strong class="tabular">${formatClock(Math.max(0,state.timer.endsAt-now()))}</strong></div>`:''}</div>${phoneSetup}</div>`;
+      $('#phoneCallCheck')?.addEventListener('change',e=>run('updateRemoteChecks',{callOpen:e.target.checked}));
+      $('#phoneCaptionCheck')?.addEventListener('change',e=>run('updateRemoteChecks',{captionsUnderstood:e.target.checked}));
+    }
+
+    function getCommands() {
+      if(state.phase==='ended') return {primary:{label:'See the results',action:'results'},secondary:[]};
+      if(!canControl()) {
+        if(['unhealthy','expired','released'].includes(state.lease.mode) && (state.lease.mode!=='unhealthy'||state.lease.viewerRole==='backup')) return {primary:{label:state.lease.mode==='unhealthy'?'Claim host control':'Take control',action:'claim'},secondary:[]};
+        return {primary:{label:`${state.lease.holder} is running this tasting`,action:null,inert:true},secondary:[]};
+      }
+      if(state.connection==='reconnecting'||state.connection==='offline') return {primary:{label:'Reconnecting. Nothing changed for your guests.',action:null,inert:true},secondary:[]};
+      if(state.phase==='lobby') {
+        const remoteReady=state.event.locationMode!=='remote'||(state.event.remoteChecks.callOpen&&state.event.remoteChecks.captionsUnderstood);
+        return {primary:{label:'Open the tasting',action:'openSession',disabled:!remoteReady},secondary:[]};
+      }
+      if(state.phase==='welcome'||isBetweenTeas()) {
+        if(armedAt) return {primary:{label:'Reveal now',action:'commitReveal',kind:'reveal',disabled:now()-armedAt<400},secondary:[{label:'Cancel',action:'disarm'}]};
+        return {primary:{label:'Hold to arm the reveal',action:'armReveal',hold:true},secondary:[]};
+      }
+      if(state.phase==='reveal') {
+        const eligible=state.reveal&&now()>=state.reveal.eligibleAt;
+        if(!eligible) return {primary:{label:'Reveal in progress',action:null,inert:true},secondary:[]};
+        return {primary:{label:`Start the timer · ${formatClock(currentFlight().steepSeconds*1000)}`,action:'startTimer'},secondary:[{label:'Open the tasting',action:'openTasting'}]};
+      }
+      if(state.phase==='brewing') {
+        const remaining=state.timer?Math.max(0,state.timer.endsAt-now()):0;
+        return {primary:{label:state.timer&&remaining>0?'Open the tasting':'Open the tasting',action:'openTasting'},secondary:[state.timer?{label:'Cancel timer',action:'confirmCancelTimer'}:{label:`Start timer · ${formatClock(currentFlight().steepSeconds*1000)}`,action:'startTimer'}]};
+      }
+      if(state.phase==='tasting') {
+        const tea=currentFlight();
+        if(state.tastingOpenedFlightItemId!==tea.id) return armedAt?{primary:{label:'Reveal now',action:'commitReveal',kind:'reveal',disabled:now()-armedAt<400},secondary:[{label:'Cancel',action:'disarm'}]}:{primary:{label:'Hold to arm the reveal',action:'armReveal',hold:true},secondary:[]};
+        if(state.trivia.closedForFlightId!==tea.id) return {primary:{label:'Open trivia',action:'openTrivia'},secondary:[{label:'Preview question',action:'previewTrivia'}]};
+        if(hasNextTea()) return {primary:{label:`Next tea — ${state.flights[state.currentIndex+1].name}`,action:'advanceNext'},secondary:[]};
+        return {primary:{label:'Start the recap',action:'startRecap'},secondary:[]};
+      }
+      if(state.phase==='trivia') {
+        if(state.trivia.isOpen) return {primary:{label:'Close trivia',action:'closeTrivia'},secondary:[]};
+        return {primary:{label:'Back to the tasting',action:'returnTasting'},secondary:hasNextTea()?[{label:`Next tea — ${state.flights[state.currentIndex+1].name}`,action:'advanceNext'}]:[]};
+      }
+      if(state.phase==='recap') return {primary:{label:'Closing options',action:'openMenu'},secondary:[]};
+      return {primary:{label:'Getting the room',action:null,inert:true},secondary:[]};
+    }
+
+    function renderCommands() {
+      const c=getCommands(), main=$('#commandMain');
+      const primaryClass=c.primary.inert?'command-inert':c.primary.kind==='reveal'?'command-reveal':'command-primary';
+      main.innerHTML=`<button id="primaryCommand" class="${primaryClass}${busy?' busy':''}" type="button" ${c.primary.inert||c.primary.disabled||busy?'disabled':''}>${esc(c.primary.label)}</button>${(c.secondary||[]).slice(0,2).map((s,i)=>`<button class="command-secondary secondary-command" data-index="${i}" type="button" ${busy?'disabled':''}>${esc(s.label)}</button>`).join('')}`;
+      const primary=$('#primaryCommand');
+      if(c.primary.hold) bindHold(primary);
+      else primary?.addEventListener('click',()=>dispatchCommand(c.primary.action));
+      $$('.secondary-command').forEach(btn=>btn.addEventListener('click',()=>dispatchCommand(c.secondary[Number(btn.dataset.index)].action)));
+    }
+
+    function bindHold(button) {
+      const begin = e => {
+        if(busy||!canControl()) return;
+        if(e.type==='keydown'&&e.code!=='Space') return;
+        if(e.type==='keydown'&&e.repeat) return;
+        e.preventDefault();
+        armInProgress=true; renderPrimary();
+        clearTimeout(armTimeout);
+        armTimeout=setTimeout(()=>{ armInProgress=false; armedAt=now(); render(); announce('Armed. Reveal when you are ready.'); setTimeout(()=>{ if(armedAt) renderCommands(); },410); },600);
+      };
+      const cancel = e => {
+        if(e.type==='keyup'&&e.code!=='Space') return;
+        if(!armedAt){ clearTimeout(armTimeout); armInProgress=false; renderPrimary(); }
+      };
+      button.addEventListener('pointerdown',begin); button.addEventListener('pointerup',cancel); button.addEventListener('pointercancel',cancel); button.addEventListener('pointerleave',cancel);
+      button.addEventListener('keydown',begin); button.addEventListener('keyup',cancel);
+    }
+
+    function dispatchCommand(action) {
+      switch(action) {
+        case null: return;
+        case 'openSession': return run('openSession',{},'The room is open.');
+        case 'commitReveal': return run('commitReveal',{},`${currentFlight().name} revealed.`);
+        case 'disarm': armedAt=0; armInProgress=false; return render();
+        case 'startTimer': return run('startTimer',{},'Timer started.');
+        case 'confirmCancelTimer': return openModal({title:'Cancel this timer?',body:"Your guests' timers stop. You can start it again.",dangerLabel:'Cancel the timer',safeLabel:'Keep it running',onDanger:()=>run('cancelTimer',{},'Timer cancelled.')});
+        case 'openTasting': return run('openTasting',{},'The tasting is open.');
+        case 'previewTrivia': return openTriviaPreview();
+        case 'openTrivia': return run('openTrivia',{},'Trivia is open.');
+        case 'closeTrivia': return run('closeTrivia',{},'Trivia closed.');
+        case 'returnTasting': return run('returnTasting',{},'Back to the tasting.');
+        case 'advanceNext': return run('advanceNext',{},`Now pouring ${state.flights[state.currentIndex+1]?.name||'the next tea'}.`);
+        case 'startRecap': return run('startRecap',{},'The recap is open.');
+        case 'openMenu': return openDrawer('menu');
+        case 'claim':
+          if(state.lease.mode==='unhealthy') return openModal({title:'Claim host control?',body:'The current host may still be reconnecting. Taking control now will end their control immediately.',dangerLabel:'Claim host control',onDanger:()=>run('claimControl',{},'You have control. Your guests saw nothing change.')});
+          return run('claimControl',{},'You have control. Your guests saw nothing change.');
+        case 'results': return toast('This link belongs to the event Results screen in Admin.');
+      }
+    }
+
+    function openTriviaPreview() {
+      const q=currentFlight().trivia;
+      openModal({title:'Only you can see this',body:`<p><strong>${esc(q.question)}</strong></p><div class="trivia-options">${q.options.map((o,i)=>`<div class="trivia-option ${i===q.correct?'correct':''}"><span>${String.fromCharCode(65+i)}.</span><span>${esc(o)}${i===q.correct?' · Correct':''}</span></div>`).join('')}</div><p class="metadata">Answer window: ${q.answerWindow} seconds</p>`,safeLabel:'Close'});
+    }
+
+    function openDrawer(type='menu') {
+      currentDrawer=type; const backdrop=$('#drawerBackdrop'); backdrop.classList.add('open'); backdrop.setAttribute('aria-hidden','false');
+      renderDrawer(); setTimeout(()=>$('#closeDrawer').focus(),0);
+    }
+    function closeDrawer() { const b=$('#drawerBackdrop'); b.classList.remove('open'); b.setAttribute('aria-hidden','true'); $('#overflowButton').focus(); }
+    function renderDrawer() {
+      $('#drawerTitle').textContent=currentDrawer==='roster'?'Guest roster':'Options';
+      const body=$('#drawerBody');
+      if(currentDrawer==='roster') {
+        body.innerHTML=`<div class="drawer-section"><p class="body-copy muted">This roster contains operational status only. Private notes, individual ratings, individual answers, email and consent data are not delivered here.</p></div><div class="roster-list">${state.guests.filter(g=>!g.removed).map(g=>guestRow(g)).join('')}</div>`;
+        $$('.remove-btn',body).forEach(btn=>btn.addEventListener('click',()=>confirmRemove(btn.dataset.id)));
+        return;
+      }
+      body.innerHTML=`
+        <div class="drawer-section"><h3>Live tools</h3><div class="menu-list"><button class="menu-button" data-drawer="roster">Guest roster</button><button class="menu-button" id="adminShortcuts">Admin shortcuts</button><button class="menu-button" id="soundToggle">Optional device sounds: ${state.soundsEnabled?'On':'Off'}</button></div></div>
+        <div class="drawer-section"><h3>Protected Admin links</h3><div class="menu-list"><button class="menu-button" id="inviteAdmin">Manage invite in Admin</button><button class="menu-button" id="capacityAdmin">Manage capacity in Admin</button></div></div>
+        ${DEMO_MODE?`<div class="drawer-section"><h3>Prototype controls</h3><p class="metadata">These controls exist only in this standalone demo so each recovery state can be tested.</p><div class="menu-list"><button class="menu-button demo-state" data-demo="watching">Watch as second staff device</button><button class="menu-button demo-state" data-demo="backup">Simulate unhealthy lease as backup</button><button class="menu-button demo-state" data-demo="holderOffline">Simulate holder reconnecting</button><button class="menu-button demo-state" data-demo="expired">Simulate expired lease</button><button class="menu-button demo-state" data-demo="restore">Restore healthy control</button><button class="menu-button demo-state" data-demo="connection">Cycle console connection</button><button class="menu-button" id="resetDemo">Reset prototype</button></div></div>`:''}
+        ${state.phase!=='lobby'&&state.phase!=='ended'?`<button class="menu-button destructive" id="endTasting">End the tasting</button>`:''}`;
+      $$('[data-drawer]',body).forEach(b=>b.addEventListener('click',()=>{currentDrawer=b.dataset.drawer;renderDrawer();}));
+      $('#adminShortcuts')?.addEventListener('click',()=>toast('Capacity and invite writes remain in protected Admin screens.'));
+      $('#soundToggle')?.addEventListener('click',()=>run('toggleSound',{},`Optional device sounds turned ${state.soundsEnabled?'off':'on'}.`));
+      $('#inviteAdmin')?.addEventListener('click',()=>toast('Open /admin/events/[event-id]/invite in production.'));
+      $('#capacityAdmin')?.addEventListener('click',()=>toast('Open /admin/events/[event-id] in production.'));
+      $$('.demo-state',body).forEach(b=>b.addEventListener('click',()=>demoState(b.dataset.demo)));
+      $('#resetDemo')?.addEventListener('click',async()=>{state=await DemoServer.execute('resetDemo');persist();closeDrawer();render();toast('Prototype reset.');});
+      $('#endTasting')?.addEventListener('click',()=>{closeDrawer();confirmEnd();});
+    }
+
+    function guestRow(g) {
+      const connection={online:'With us',unstable:'Patchy',reconnecting:'Reconnecting',offline:'Quiet'}[g.connection];
+      const participant={registered:'Registered',waiting:'Waiting',admitted:'Admitted',active:'Tasting',left:'Left',removed:'Removed'}[g.participantStatus]||g.participantStatus;
+      const readiness=state.phase==='reveal'&&state.reveal?(g.revealReady?' · Ready':' · Catching up'):'';
+      return `<div class="guest-row"><div><div class="guest-name">${esc(g.displayName)}</div><div class="guest-meta">${esc(participant)} · ${esc(connection)}${readiness} · ${g.completed?'Done':'Not yet'} · Joined ${formatTime(g.joinedAt)}</div></div><div class="guest-actions"><span class="status-word">${g.connection==='online'?'●':'⚠'} ${esc(connection)}</span><button class="remove-btn" type="button" data-id="${g.id}" aria-label="Remove ${esc(g.displayName)}">×</button></div></div>`;
+    }
+
+    function confirmRemove(id) {
+      const g=state.guests.find(x=>x.id===id); if(!g)return;
+      closeDrawer(); openModal({title:`Remove ${g.displayName} from this tasting?`,body:`They'll be signed out on their phone. Their recap and deletion rights stay available.`,dangerLabel:`Remove ${g.displayName}`,onDanger:()=>run('removeGuest',{id},`${g.displayName} was removed.`)});
+    }
+    function confirmEnd() {
+      openModal({title:'End this tasting?',body:"This tasting can't be reopened.<br>Your guests' live screens will close.<br>Their recap stays available, and recap emails still go out.",safeLabel:'Keep going',dangerLabel:'End the tasting',onDanger:()=>run('endSession',{},'This tasting has ended.')});
+    }
+
+    function openModal({title,body,safeLabel='Keep going',dangerLabel='',onDanger=null}) {
+      modalReturnFocus=document.activeElement; $('#modalTitle').textContent=title; $('#modalBody').innerHTML=body;
+      const actions=$('#modalActions'); actions.innerHTML=`<button id="modalSafe" class="safe-btn" type="button">${esc(safeLabel)}</button>${dangerLabel?`<button id="modalDanger" class="danger-btn" type="button">${esc(dangerLabel)}</button>`:''}`;
+      const b=$('#modalBackdrop'); b.classList.add('open'); b.setAttribute('aria-hidden','false');
+      $('#modalSafe').addEventListener('click',closeModal); $('#modalDanger')?.addEventListener('click',()=>{closeModal();onDanger?.();});
+      setTimeout(()=>$('#modalSafe').focus(),0);
+    }
+    function closeModal() { const b=$('#modalBackdrop'); b.classList.remove('open'); b.setAttribute('aria-hidden','true'); modalReturnFocus?.focus?.(); }
+
+    async function copyText(text, success='Copied.') {
+      try { await navigator.clipboard.writeText(text); toast(success); }
+      catch { const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast(success); }
+    }
+
+    function toast(message,tone='normal') {
+      const el=document.createElement('div'); el.className='toast'; if(tone==='failure') el.style.borderColor='var(--vf-plum-aged)'; el.textContent=message; $('#toastRegion').appendChild(el); setTimeout(()=>el.remove(),4200);
+    }
+
+    async function demoState(kind) {
+      if(kind==='watching') state=await DemoServer.execute('setLeaseDemo',{mode:'watching',holder:'Sarah Melli',viewer:'Salar Melli',viewerRole:'host'});
+      if(kind==='backup') state=await DemoServer.execute('setLeaseDemo',{mode:'unhealthy',holder:'Salar Melli',viewer:'Sarah Melli',viewerRole:'backup',lastSeenGap:18,graceRemaining:27});
+      if(kind==='holderOffline') { state=await DemoServer.execute('setLeaseDemo',{mode:'unhealthy',holder:'Salar Melli',viewer:'Salar Melli',viewerRole:'host',lastSeenGap:18,graceRemaining:27}); state.connection='reconnecting'; }
+      if(kind==='expired') state=await DemoServer.execute('setLeaseDemo',{mode:'expired',holder:'Nobody',viewer:'Salar Melli',viewerRole:'host',lastSeenGap:45,graceRemaining:0});
+      if(kind==='restore') { state=await DemoServer.execute('setLeaseDemo',{mode:'healthy',holder:'Salar Melli',viewer:'Salar Melli',viewerRole:'host',lastSeenGap:0,graceRemaining:30}); state.connection='online'; }
+      if(kind==='connection') { const order=['online','unstable','reconnecting','offline']; const next=order[(order.indexOf(state.connection)+1)%order.length]; state=await DemoServer.execute('setConnectionDemo',{value:next}); }
+      persist(); closeDrawer(); render();
+    }
+
+    function startLeaseDemoClock() {
+      clearInterval(leaseTimer);
+      leaseTimer=setInterval(()=>{
+        if(state.lease.mode==='unhealthy') {
+          state.lease.lastSeenGap=(state.lease.lastSeenGap||15)+1;
+          state.lease.graceRemaining=Math.max(0,(state.lease.graceRemaining??30)-1);
+          if(state.lease.lastSeenGap>=45){state.lease.mode='expired';state.lease.holder='Nobody';}
+          persist();renderLease();renderPhone();renderCommands();
+        }
+      },1000);
+    }
+
+    $('#overflowButton').addEventListener('click',()=>openDrawer('menu'));
+    $('#closeDrawer').addEventListener('click',closeDrawer);
+    $('#drawerBackdrop').addEventListener('click',e=>{if(e.target===$('#drawerBackdrop'))closeDrawer();});
+    $('#modalBackdrop').addEventListener('click',e=>{if(e.target===$('#modalBackdrop'))closeModal();});
+    document.addEventListener('keydown',e=>{
+      if(e.key==='Escape') {
+        if($('#modalBackdrop').classList.contains('open')) return closeModal();
+        if($('#drawerBackdrop').classList.contains('open')) return closeDrawer();
+        if(armedAt||armInProgress){clearTimeout(armTimeout);armedAt=0;armInProgress=false;render();announce('Reveal disarmed.');}
+      }
+    });
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&state.timer) render(); });
+
+    async function init() {
+      state=loadLocalSnapshot();
+      MessageBus.connect();
+      await sleep(380);
+      $('#app').hidden=false; render(); startLeaseDemoClock();
+      if(state.phase==='reveal') { startReadinessSimulation(); startRevealGateLoop(); }
+      if(state.timer) startTimerLoop();
+      if(state.phase==='trivia'&&state.trivia.isOpen) startTriviaSimulation();
+      if(state.phase==='tasting'&&state.tastingOpenedFlightItemId===currentFlight().id) startCompletionSimulation();
+      const loading=$('#loadingScreen'); loading.style.opacity='0'; setTimeout(()=>loading.remove(),220);
+    }
+    init();
+  })();
+  </script>
+</body>
+</html>
