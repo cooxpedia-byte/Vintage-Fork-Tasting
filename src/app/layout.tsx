@@ -2,11 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { SessionKeeper } from "@/components/SessionKeeper";
+import { BRAND_ASSETS } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: { default: "Vintage Fork Tasting", template: "%s · Vintage Fork" },
   description: "Live guided tea tastings, tasting history and host administration.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000")
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  icons: { icon: BRAND_ASSETS.logo.src },
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#4B1638" };
