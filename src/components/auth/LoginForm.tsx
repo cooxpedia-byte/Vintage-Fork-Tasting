@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/browser";
 import { Brand } from "@/components/Brand";
 
 export function LoginForm({ staff = false }: { staff?: boolean }) {
-  const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,12 +17,11 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
     event.preventDefault();
     setBusy(true); setError("");
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    if (authError) { setError("The email or password was not accepted."); setBusy(false); return; }
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError || !data.session) { setError("The email or password was not accepted."); setBusy(false); return; }
     const fallback = staff ? "/admin" : "/dashboard";
     const next = safeNext(params.get("next"), fallback);
-    router.replace(next);
-    router.refresh();
+    window.location.assign(next);
   }
 
   async function resetPassword() {
