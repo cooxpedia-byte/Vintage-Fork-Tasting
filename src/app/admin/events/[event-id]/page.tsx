@@ -32,10 +32,10 @@ export default async function EventEditorPage({ params }: { params: Promise<{ "e
   const record = existing as { title?: string; status?: string } | undefined;
   const locked = Boolean(record?.status && ["live", "completed", "cancelled"].includes(record.status));
   return <><SiteHeader /><main className="page-shell" id="main-content">
-    <Link href="/admin" className="btn btn-quiet">← All events</Link>
+    <Link href="/admin" prefetch={false} className="btn btn-quiet">← All events</Link>
     <div className="row"><div><p className="eyebrow">Event workspace</p><h1 className="page-title">{eventId === "new" ? "New tasting" : record?.title}</h1></div>
-      {eventId !== "new" && record?.status === "scheduled" && <><span className="spacer" /><Link className="btn btn-primary" href={`/admin/events/${eventId}/live`}>Launch live console</Link></>}
-      {eventId !== "new" && record?.status === "live" && <><span className="spacer" /><Link className="btn btn-primary" href={`/admin/events/${eventId}/live`}>Resume live console</Link></>}
+      {eventId !== "new" && record?.status === "scheduled" && <><span className="spacer" /><Link className="btn btn-primary" href={`/admin/events/${eventId}/live`} prefetch={false}>Launch live console</Link></>}
+      {eventId !== "new" && record?.status === "live" && <><span className="spacer" /><Link className="btn btn-primary" href={`/admin/events/${eventId}/live`} prefetch={false}>Resume live console</Link></>}
     </div>
     {locked ? <section className="card" style={{ marginTop: 20 }}><h2 className="card-title">This event is locked.</h2><p className="page-lede">{record?.status === "live" ? "Live event setup is frozen so every guest stays on the same authoritative session state." : "Completed and cancelled event setup is read-only. Use the event list to open its results."}</p></section> : <EventEditor teas={teas ?? []} staff={staff ?? []} existing={existing as never} />}
   </main></>;

@@ -2,9 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { BRAND_ASSETS } from "@/lib/brand";
 
-export function Brand({ href = "/", compact = false }: { href?: string; compact?: boolean }) {
+export function Brand({ href = "/", compact = false, prefetch }: { href?: string; compact?: boolean; prefetch?: boolean }) {
   return (
-    <Link className="brand" href={href} aria-label="Vintage Fork Tea Company">
+    <Link className="brand" href={href} prefetch={prefetch} aria-label="Vintage Fork Tea Company">
       <span className="brand-mark" aria-hidden="true">
         <Image
           alt=""

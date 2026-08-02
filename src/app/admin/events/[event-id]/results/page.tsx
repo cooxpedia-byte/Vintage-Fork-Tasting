@@ -52,9 +52,9 @@ export default async function EventResultsPage({ params }: { params: Promise<{ "
   const completionRate = participantCount ? Math.round((Number(analytics?.completed_participants ?? 0) / participantCount) * 100) : null;
 
   return <><SiteHeader /><main className="page-shell" id="main-content">
-    <Link className="btn btn-quiet" href="/admin">← All events</Link>
+    <Link className="btn btn-quiet" href="/admin" prefetch={false}>← All events</Link>
     <div className="row" style={{ alignItems:"flex-end" }}><div><p className="eyebrow">Event results</p><h1 className="page-title">{event.title}</h1><p className="page-lede">{new Date(event.starts_at).toLocaleString("en-CA",{dateStyle:"full",timeStyle:"short"})} · {event.location_mode === "remote" ? "Remote" : "In person"}</p></div></div>
-    {event.status !== "completed" ? <section className="empty-state"><h2>Results are available after the tasting.</h2><p>The live console remains the authority while this event is running.</p><Link className="btn btn-secondary" href={`/admin/events/${eventId}/live`}>Open live console</Link></section> : participantCount === 0 ? <section className="empty-state"><h2>Nobody joined this tasting.</h2><p>There is nothing to report for this evening.</p></section> : <>
+    {event.status !== "completed" ? <section className="empty-state"><h2>Results are available after the tasting.</h2><p>The live console remains the authority while this event is running.</p><Link className="btn btn-secondary" href={`/admin/events/${eventId}/live`} prefetch={false}>Open live console</Link></section> : participantCount === 0 ? <section className="empty-state"><h2>Nobody joined this tasting.</h2><p>There is nothing to report for this evening.</p></section> : <>
       <section className="grid grid-4" style={{ marginTop:24 }}>
         <Metric value={String(participantCount)} label={`participants · capacity ${event.capacity}`} />
         <Metric value={completionRate === null ? "—" : `${completionRate}%`} label="completed at least one tea" />
