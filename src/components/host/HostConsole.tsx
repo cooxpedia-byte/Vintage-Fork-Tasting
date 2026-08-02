@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/browser";
 import { Brand } from "@/components/Brand";
 import { StatusChip } from "@/components/StatusChip";
+import { canAcquireHostControl } from "@/lib/host-control";
 import { requestHostCommand } from "@/lib/host-command";
 import type { EventCommand, SessionPhase, UserRole } from "@/types/domain";
 
@@ -29,11 +30,12 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
 
   const current = useMemo(() => flight.find(x => x.id === event.current_flight_item_id) ?? flight[0] ?? null, [flight,event.current_flight_item_id]);
   const currentTrivia = current ? (Array.isArray(current.trivia) ? current.trivia[0] : current.trivia) : null;
-  const holder = lease?.holder_user_id === userId;
   const currentTime = now ?? 0;
+  const controllable = canAcquireHostControl(event.status, event.phase);
   const leaseExpired = Boolean(lease && now !== null && new Date(lease.expires_at).getTime() <= now);
+  const holder = controllable && lease?.holder_user_id === userId && !leaseExpired;
   const leaseUnhealthy = Boolean(lease && now !== null && now - new Date(lease.heartbeat_at).getTime() >= 15000);
-  const canTakeControl = !holder && now !== null && (!lease || leaseExpired || (leaseUnhealthy && (userRole === "admin" || event.backup_host_user_id === userId)));
+  const canTakeControl = controllable && !holder && now !== null && (!lease || leaseExpired || (leaseUnhealthy && (userRole === "admin" || event.backup_host_user_id === userId)));
   const forceTakeover = Boolean(lease && !leaseExpired);
   const active = participants.filter(p => !["left","removed"].includes(p.status) && (!p.last_seen_at || now === null || now-new Date(p.last_seen_at).getTime()<45000));
 
@@ -46,7 +48,7 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
     ]);
     if (eventData && eventData.sequence_number >= eventRef.current.sequence_number) setEvent(eventData as EventState);
     if (participantData) setParticipants(participantData as Participant[]);
-    if (leaseData) setLease(leaseData as Lease);
+    setLease((leaseData as Lease|null) ?? null);
   }, [initialEvent.id]);
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
       if (data) setLease(data as Lease);
       if (acquireError) { setLeaseError(acquireError.message.includes("control_held") ? "Another assigned host is running this tasting. You are watching." : "Host control could not be acquired."); await refresh(); }
     }
-    acquire();
+    if (canAcquireHostControl(initialEvent.status, initialEvent.phase)) acquire();
     const channel = supabase.channel(`host-${initialEvent.id}`, { config: { presence: { key: userId } } });
     const roomChannel = supabase.channel(`event-${initialEvent.invite_code ?? initialEvent.id}`);
     channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "events", filter: `id=eq.${initialEvent.id}` }, payload => { const next = payload.new as EventState; if (next.sequence_number >= eventRef.current.sequence_number) setEvent(next); });
@@ -69,10 +71,10 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
       await roomChannel.send({ type:"broadcast", event:"phase.changed", payload:{ sequenceNumber, phase } });
     };
     return () => { roomSignalRef.current=null; supabase.removeChannel(channel); supabase.removeChannel(roomChannel); };
-  }, [initialEvent.id, initialEvent.invite_code, refresh, userId, userName]);
+  }, [initialEvent.id, initialEvent.invite_code, initialEvent.phase, initialEvent.status, refresh, userId, userName]);
 
   useEffect(() => {
-    if (!lease || lease.holder_user_id !== userId) return;
+    if (!controllable || !lease || lease.holder_user_id !== userId) return;
     const supabase = createClient();
     const t = window.setInterval(async () => {
       const { data, error: heartbeatError } = await supabase.rpc("heartbeat_host_control", { p_event_id: initialEvent.id, p_lease_token: lease.lease_token });
@@ -80,11 +82,12 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
       if (heartbeatError) { setLeaseError("Host control was lost. Nothing changed for guests."); setLease(null); await refresh(); }
     }, 5000);
     return () => window.clearInterval(t);
-  }, [lease, userId, initialEvent.id, refresh]);
+  }, [controllable, lease, userId, initialEvent.id, refresh]);
 
   useEffect(() => { const t=setInterval(()=>setNow(Date.now()),250); return()=>clearInterval(t); },[]);
 
   async function takeControl(force = false) {
+    if (!controllable) return;
     const supabase = createClient(); setBusy(true); setError(null);
     const { data, error: takeError } = await supabase.rpc("acquire_host_control", { p_event_id: event.id, p_force: force });
     setBusy(false);
@@ -115,6 +118,7 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
         return;
       }
       setEvent(result.event);
+      if (result.event.phase === "ended") setLease(null);
       await roomSignalRef.current?.(result.event.sequence_number, result.event.phase);
     } catch {
       setError({ message:"The connection dropped while checking that command.", detail:"We couldn’t confirm what guests received. Check the current phase before trying again." });
