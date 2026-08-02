@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/browser";
 import { Brand } from "@/components/Brand";
+import { safeNextPath } from "@/lib/auth-redirect";
 
 export function LoginForm({ staff = false }: { staff?: boolean }) {
   const params = useSearchParams();
@@ -12,6 +13,7 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const callbackError = params.get("authError") ? "That email link is invalid or has expired. Request a fresh one." : "";
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -20,7 +22,7 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
     const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (authError || !data.session) { setError("The email or password was not accepted."); setBusy(false); return; }
     const fallback = staff ? "/admin" : "/dashboard";
-    const next = safeNext(params.get("next"), fallback);
+    const next = safeNextPath(params.get("next"), fallback);
     window.location.assign(next);
   }
 
@@ -53,7 +55,7 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
         <p className="eyebrow">{staff ? "Tasting administration" : "Customer dashboard"}</p>
         <h1 className="page-title">{staff ? "Staff sign in" : "Welcome back"}</h1>
         <p className="page-lede">{staff ? "Use your assigned Vintage Fork staff account." : "Your tasting notes, Passport and saved teas are waiting."}</p>
-        {error && <div className={error.startsWith("If") ? "notice success" : "form-error"} role="status">{error}</div>}
+        {(error||callbackError) && <div className={error.startsWith("If") ? "notice success" : "form-error"} role="status">{error||callbackError}</div>}
         <form onSubmit={submit} style={{ marginTop: 20 }}>
           <div className="field"><label htmlFor="email">Email</label><input className="input" id="email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} /></div>
           <div className="field"><label htmlFor="password">Password</label><input className="input" id="password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></div>
@@ -64,8 +66,4 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
       </section>
     </main>
   );
-}
-
-function safeNext(value: string | null, fallback: string) {
-  return value && value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") ? value : fallback;
 }

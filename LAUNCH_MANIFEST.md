@@ -13,7 +13,7 @@ This manifest maps every requested launch requirement to its implementation. It 
 | 7 | Participant waiting room | Guest lobby UI and durable `waiting`/`admitted` participant statuses |
 | 8 | Real-time participant presence | Supabase Presence plus durable participant heartbeat and last-seen health |
 | 9 | Host-controlled session start | `open_session` command through server-validated `apply_event_command` RPC |
-| 10 | Synchronized tea reveals | Hold-to-arm/tap-to-commit host control, durable server `reveal_at`, 1.2-second scheduling buffer, public-state Realtime signal and a server-enforced 1.4-second ceremony gate |
+| 10 | Synchronized tea reveals | Hold-to-arm/tap-to-commit host control, durable server `reveal_at`, client/server clock-offset correction, 1.2-second scheduling buffer, invite-scoped payload-free Realtime signal, reveal-skew samples and a server-enforced 1.4-second ceremony gate |
 | 11 | Synchronized brewing timer | Server stores `timer_started_at`/`timer_ends_at`; clients derive remaining time from the committed end timestamp |
 | 12 | Aroma and flavour response collection | First impression, max-three descriptors, intensity, rating and local-first personal notes |
 | 13 | Trivia questions and scoring | Time-bounded answer API, one-answer uniqueness, server-calculated correctness, delayed answer reveal |
@@ -28,7 +28,7 @@ This manifest maps every requested launch requirement to its implementation. It 
 - Shared Vintage Fork tokens and components: `src/app/globals.css`, `Brand`, `SiteHeader`, `StatusChip`.
 - Central schema and state transitions: `supabase/migrations/` and `src/lib/transitions.ts`.
 - Server-authoritative live state: events table, monotonic sequence, current flight item, explicit tasting-open marker and immutable state log.
-- Real-time: authenticated staff channels and a deliberately minimal `event_public_state` guest feed.
+- Real-time: authenticated staff channels and invite-scoped guest signals; participant snapshots remain cookie-authenticated server reads.
 - Media: private `tasting-media` bucket and signed-upload endpoint.
 - Loading/offline/error: global loading and error routes, branded invalid-invite states, offline banner, stale-command recovery and empty states.
 - Responsive/accessibility: keyboard focus, skip link, reduced motion, responsive dashboard/host/guest layouts and minimum control sizes.

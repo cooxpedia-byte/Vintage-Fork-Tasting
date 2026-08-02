@@ -33,4 +33,25 @@ if (process.env.SUPABASE_SECRET_KEY?.startsWith("eyJ") && process.env.SUPABASE_S
   process.exit(1);
 }
 
+if (process.env.NODE_ENV === "production") {
+  const monitoringDsn = process.env.SENTRY_DSN?.trim();
+  const publicMonitoringDsn = process.env.NEXT_PUBLIC_SENTRY_DSN?.trim();
+  if (!monitoringDsn || !publicMonitoringDsn) {
+    console.error("SENTRY_DSN and NEXT_PUBLIC_SENTRY_DSN are required for production monitoring.");
+    process.exit(1);
+  }
+  requireRecentEvidence("AUTH_EMAIL_VERIFIED_AT", 30);
+  requireRecentEvidence("BACKUP_RESTORE_VERIFIED_AT", 90);
+}
+
 console.log(`Preflight passed for ${site.origin}.`);
+
+function requireRecentEvidence(name, maximumAgeDays) {
+  const value=process.env[name];
+  const timestamp=value?new Date(value).getTime():NaN;
+  const age=Date.now()-timestamp;
+  if (!Number.isFinite(timestamp)||age<0||age>maximumAgeDays*86_400_000) {
+    console.error(`${name} must be a valid ISO timestamp from the last ${maximumAgeDays} days.`);
+    process.exit(1);
+  }
+}

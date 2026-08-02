@@ -84,7 +84,9 @@ Add `tasting.vintagefork.ca` to the Vercel project. Copy the DNS record Vercel d
 
 ## 7. Logs and alerts
 
-Structured server events are emitted to Vercel Runtime Logs. Alert on repeated 5xx responses, rejected host commands, lost leases, retention failures and database capacity/storage warnings. `SENTRY_DSN` is reserved but Sentry initialization is intentionally not included; add it only when a Sentry project is available.
+Structured server events are emitted to Vercel Runtime Logs and caught errors are sent to Sentry when `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` are configured. Alert on repeated 5xx responses, rejected host commands, lost leases, retention failures and database capacity/storage warnings. Configure `SENTRY_AUTH_TOKEN` during builds if source-map upload is required.
+
+Production preflight also requires recent `AUTH_EMAIL_VERIFIED_AT` and `BACKUP_RESTORE_VERIFIED_AT` evidence. Run `npm run verify:operations` after deploying migrations to confirm CSP/frame protection, closed anonymous event-state access, required email confirmation, a recent successful retention run and a current backup/PITR.
 
 ## 8. Rollback
 

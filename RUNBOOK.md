@@ -2,12 +2,13 @@
 
 ## 30 minutes before
 
-1. Confirm Vercel and Supabase status.
-2. Open the event editor and confirm all readiness checks.
-3. Confirm the assigned backup host can sign in.
-4. Open Zoom/Meet, admit the backup host and enable captions.
-5. Open the host console on the primary device and keep it connected to power.
-6. Open the live console on the backup device; verify it says watching.
+1. Run `npm run preflight` and `npm run verify:operations`; do not open a paid room unless both pass.
+2. Confirm Vercel and Supabase status and confirm Sentry has received a recent test event.
+3. Open the event editor and confirm all readiness checks.
+4. Confirm the assigned backup host can sign in.
+5. Open Zoom/Meet, admit the backup host and enable captions.
+6. Open the host console on the primary device and keep it connected to power.
+7. Open the live console on the backup device; verify it says watching.
 
 ## When guests arrive
 
@@ -46,3 +47,12 @@ Do not include private tasting notes in incident reports.
 3. Review the privacy-safe event results in Admin.
 4. Review error logs and event-state history.
 5. Confirm the customer dashboard contains the completed event for an account-linked test participant.
+6. Confirm the latest `operational_job_runs` retention record remains successful after the next scheduled cron.
+
+## Paid-pilot evidence
+
+- Authentication email: set `AUTH_TEST_EMAIL` to a controlled inbox, run `npm run verify:auth-email`, follow the recovery link, save a temporary password and sign in. Record the successful UTC time in `AUTH_EMAIL_VERIFIED_AT`.
+- Backups: verify a completed backup/PITR in Supabase, perform the restore rehearsal in an isolated project, and record the successful UTC time in `BACKUP_RESTORE_VERIFIED_AT`.
+- Retention: `npm run verify:operations` requires a successful durable cron record from the last 26 hours.
+- Reveal synchronization: after a rehearsal, query `reveal_sync_samples` and require the p95 absolute `reveal_skew_ms` to remain below the agreed pilot threshold.
+- 100-client load: use an empty scheduled event whose title begins `[LOAD TEST]`, set the guarded `LOAD_TEST_*` variables, and run `npm run test:load`. The harness deletes only the participants it created.

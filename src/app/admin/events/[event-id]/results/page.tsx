@@ -23,7 +23,7 @@ export default async function EventResultsPage({ params }: { params: Promise<{ "
     admin.from("event_analytics").select("participants,completed_participants,average_rating,tea_saves,trivia_answers,trivia_correct").eq("event_id", eventId).maybeSingle(),
     admin.from("event_flight_items").select("id,position,reveal_title,tea:teas(name),trivia:trivia_questions(id)").eq("event_id", eventId).order("position"),
     admin.from("tea_responses").select("event_flight_item_id,rating,saved,completed_at,participant:participants!inner(event_id)").eq("participant.event_id", eventId),
-    admin.from("trivia_answers").select("trivia_question_id,is_correct,participant:participants!inner(event_id)").eq("participant.event_id", eventId)
+    admin.from("trivia_answers").select("trivia_question_id,is_correct,participant:participants!inner(event_id)").eq("participant.event_id", eventId).eq("on_time", true)
   ]);
 
   const flight = (flightData ?? []) as unknown as FlightRow[];

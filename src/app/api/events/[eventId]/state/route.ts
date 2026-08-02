@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireParticipant } from "@/lib/guest-token";
+import { createTriviaDeadlineToken } from "@/lib/trivia-token";
 
 export async function GET(_: Request, { params }: { params: Promise<{ eventId: string }> }) {
+  const serverReceivedTime = new Date().toISOString();
   const { eventId } = await params;
   const participant = await requireParticipant(eventId);
   if (!participant) return NextResponse.json({ error: "Participation session expired." }, { status: 401 });
@@ -34,6 +36,15 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
         question: question.question,
         options: question.options,
         answerWindowSeconds: question.answer_window_seconds,
+        flightItemId: rawCurrent.id,
+        deadlineAt: event.trivia_closes_at,
+        deadlineToken: event.trivia_closes_at && !closed && event.phase === "trivia" ? createTriviaDeadlineToken({
+          eventId,
+          participantId: participant.id,
+          flightItemId: rawCurrent.id,
+          questionId: question.id,
+          deadlineAt: event.trivia_closes_at
+        }) : null,
         selectedIndex: ownAnswer?.selected_index ?? null,
         closed,
         ...(closed ? { correctIndex: question.correct_index, explanation: question.explanation } : {})
@@ -55,7 +66,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
   if (includeResults) {
     const { data: aggregate } = await admin.from("event_analytics").select("participants,completed_participants,average_rating,tea_saves,trivia_answers,trivia_correct").eq("event_id", eventId).maybeSingle();
     analytics = aggregate;
-    const { data: answerRows } = await admin.from("trivia_answers").select("is_correct,participant:participants!inner(id,display_name,event_id)").eq("participant.event_id", eventId);
+    const { data: answerRows } = await admin.from("trivia_answers").select("is_correct,participant:participants!inner(id,display_name,event_id)").eq("participant.event_id", eventId).eq("on_time", true);
     const scores = new Map<string, { name: string; score: number }>();
     for (const row of answerRows ?? []) {
       const person = Array.isArray(row.participant) ? row.participant[0] : row.participant;
@@ -73,6 +84,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
   }
 
   return NextResponse.json({
+    serverReceivedTime,
+    serverTime: new Date().toISOString(),
     event,
     participant: { id: participant.id, displayName: participant.display_name, status: participant.status, linkedToAccount: Boolean(participant.user_id) },
     flightCount: flight?.length ?? 0,
@@ -85,5 +98,5 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
     analytics,
     leaderboard,
     descriptorLeaders
-  });
+  }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }

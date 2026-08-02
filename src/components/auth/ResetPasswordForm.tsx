@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Brand } from "@/components/Brand";
 import { createClient } from "@/lib/supabase/browser";
+import { safeNextPath } from "@/lib/auth-redirect";
 
 export function ResetPasswordForm() {
   const params = useSearchParams();
-  const next = safeNext(params.get("next"), "/dashboard");
+  const next = safeNextPath(params.get("next"), "/dashboard");
   const minimumLength = next.startsWith("/admin") ? 12 : 8;
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -39,8 +40,4 @@ export function ResetPasswordForm() {
       <button className="btn btn-primary" style={{ width:"100%" }} disabled={busy}>{busy ? "Saving…" : "Save new password"}</button>
     </form>
   </section></main>;
-}
-
-function safeNext(value: string | null, fallback: string) {
-  return value && value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") ? value : fallback;
 }

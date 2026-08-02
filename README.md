@@ -119,7 +119,7 @@ Open `http://localhost:3000/admin/login`.
 
 ## Error logging
 
-Server routes emit structured JSON logs through `src/lib/logger.ts`, visible in Vercel Runtime Logs. Set `SENTRY_DSN` and add your preferred Sentry initialization before launch if centralized alerting is required; the environment key is already reserved.
+Server routes emit structured JSON logs through `src/lib/logger.ts`, visible in Vercel Runtime Logs. Sentry is initialized for browser, Node and Edge errors when `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` are configured; default PII and session replay are disabled.
 
 Recommended alerts:
 

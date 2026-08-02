@@ -23,6 +23,7 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
   const [presence, setPresence] = useState(0);
   const [now, setNow] = useState<number|null>(null);
   const eventRef = useRef(event); eventRef.current = event;
+  const roomSignalRef = useRef<((sequenceNumber:number, phase:SessionPhase)=>Promise<void>)|null>(null);
 
   const current = useMemo(() => flight.find(x => x.id === event.current_flight_item_id) ?? flight[0] ?? null, [flight,event.current_flight_item_id]);
   const currentTrivia = current ? (Array.isArray(current.trivia) ? current.trivia[0] : current.trivia) : null;
@@ -55,13 +56,18 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
     }
     acquire();
     const channel = supabase.channel(`host-${initialEvent.id}`, { config: { presence: { key: userId } } });
+    const roomChannel = supabase.channel(`event-${initialEvent.invite_code ?? initialEvent.id}`);
     channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "events", filter: `id=eq.${initialEvent.id}` }, payload => { const next = payload.new as EventState; if (next.sequence_number >= eventRef.current.sequence_number) setEvent(next); });
     channel.on("postgres_changes", { event: "*", schema: "public", table: "participants", filter: `event_id=eq.${initialEvent.id}` }, () => refresh());
     channel.on("postgres_changes", { event: "*", schema: "public", table: "host_control_leases", filter: `event_id=eq.${initialEvent.id}` }, () => refresh());
     channel.on("presence", { event: "sync" }, () => setPresence(Object.keys(channel.presenceState()).length));
     channel.subscribe(status => { if (status === "SUBSCRIBED") channel.track({ name:userName, role:"host", onlineAt:new Date().toISOString() }); });
-    return () => { supabase.removeChannel(channel); };
-  }, [initialEvent.id, refresh, userId, userName]);
+    roomChannel.subscribe();
+    roomSignalRef.current = async (sequenceNumber, phase) => {
+      await roomChannel.send({ type:"broadcast", event:"phase.changed", payload:{ sequenceNumber, phase } });
+    };
+    return () => { roomSignalRef.current=null; supabase.removeChannel(channel); supabase.removeChannel(roomChannel); };
+  }, [initialEvent.id, initialEvent.invite_code, refresh, userId, userName]);
 
   useEffect(() => {
     if (!lease || lease.holder_user_id !== userId) return;
@@ -97,6 +103,7 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
     const result = await response.json().catch(()=>({})); setBusy(false);
     if (!response.ok) { setError(result.error??"The command was not applied."); await refresh(); return; }
     setEvent(result.event as EventState);
+    await roomSignalRef.current?.(result.event.sequence_number, result.event.phase);
   }
 
   const triviaClosed = Boolean(event.trivia_closes_at && now !== null && new Date(event.trivia_closes_at).getTime() <= now);
