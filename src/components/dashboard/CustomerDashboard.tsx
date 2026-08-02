@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { parseCustomerDashboardSection, type CustomerDashboardSection } from "@/lib/customer-dashboard";
 
 type EventRow = {
   id: string;
@@ -24,28 +25,45 @@ type EventRow = {
 
 type Upcoming = { id: string; title: string; starts_at: string; location_mode: string; invite_code: string | null };
 
-export function CustomerDashboard({ name, events, upcoming }: { name: string; events: EventRow[]; upcoming: Upcoming[] }) {
-  const [tab, setTab] = useState<"home" | "journal" | "passport" | "saved">("home");
+export function CustomerDashboard({ name, events, upcoming, initialTab }: { name: string; events: EventRow[]; upcoming: Upcoming[]; initialTab: CustomerDashboardSection }) {
+  const [tab, setTab] = useState<CustomerDashboardSection>(initialTab);
   const allResponses = useMemo(() => events.flatMap(e => e.responses.map(r => ({ ...r, event: e }))), [events]);
   const completed = allResponses.filter(r => r.completed_at);
   const saved = allResponses.filter(r => r.saved);
   const average = completed.filter(r => r.rating).length ? completed.reduce((sum, r) => sum + (r.rating ?? 0), 0) / completed.filter(r => r.rating).length : 0;
 
+  useEffect(() => {
+    function syncTabFromHistory() {
+      const section = new URL(window.location.href).searchParams.get("section") ?? undefined;
+      setTab(parseCustomerDashboardSection(section));
+    }
+    window.addEventListener("popstate", syncTabFromHistory);
+    return () => window.removeEventListener("popstate", syncTabFromHistory);
+  }, []);
+
+  function selectTab(nextTab: CustomerDashboardSection) {
+    setTab(nextTab);
+    const url = new URL(window.location.href);
+    if (nextTab === "home") url.searchParams.delete("section");
+    else url.searchParams.set("section", nextTab);
+    window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
   return (
     <div className="dashboard-shell">
       <aside className="sidebar" aria-label="Customer dashboard">
         <nav>
-          <button className={`btn btn-quiet ${tab === "home" ? "active" : ""}`} aria-pressed={tab === "home"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("home")}><span aria-hidden="true">⌂</span> Home</button>
-          <button className={`btn btn-quiet ${tab === "journal" ? "active" : ""}`} aria-pressed={tab === "journal"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("journal")}><span aria-hidden="true">▤</span> Tastings</button>
-          <button className={`btn btn-quiet ${tab === "passport" ? "active" : ""}`} aria-pressed={tab === "passport"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("passport")}><span aria-hidden="true">✦</span> Passport</button>
-          <button className={`btn btn-quiet ${tab === "saved" ? "active" : ""}`} aria-pressed={tab === "saved"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("saved")}><span aria-hidden="true">♡</span> Saved teas</button>
+          <button className={`btn btn-quiet ${tab === "home" ? "active" : ""}`} aria-pressed={tab === "home"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span> Home</button>
+          <button className={`btn btn-quiet ${tab === "journal" ? "active" : ""}`} aria-pressed={tab === "journal"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span> Tastings</button>
+          <button className={`btn btn-quiet ${tab === "passport" ? "active" : ""}`} aria-pressed={tab === "passport"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span> Passport</button>
+          <button className={`btn btn-quiet ${tab === "saved" ? "active" : ""}`} aria-pressed={tab === "saved"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span> Saved teas</button>
         </nav>
       </aside>
       <nav className="customer-mobile-nav" aria-label="Customer dashboard mobile">
-        <button className={tab === "home" ? "active" : ""} aria-pressed={tab === "home"} onClick={() => setTab("home")}><span aria-hidden="true">⌂</span><small>Home</small></button>
-        <button className={tab === "journal" ? "active" : ""} aria-pressed={tab === "journal"} onClick={() => setTab("journal")}><span aria-hidden="true">▤</span><small>Tastings</small></button>
-        <button className={tab === "passport" ? "active" : ""} aria-pressed={tab === "passport"} onClick={() => setTab("passport")}><span aria-hidden="true">✦</span><small>Passport</small></button>
-        <button className={tab === "saved" ? "active" : ""} aria-pressed={tab === "saved"} onClick={() => setTab("saved")}><span aria-hidden="true">♡</span><small>Saved</small></button>
+        <button className={tab === "home" ? "active" : ""} aria-pressed={tab === "home"} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span><small>Home</small></button>
+        <button className={tab === "journal" ? "active" : ""} aria-pressed={tab === "journal"} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span><small>Tastings</small></button>
+        <button className={tab === "passport" ? "active" : ""} aria-pressed={tab === "passport"} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span><small>Passport</small></button>
+        <button className={tab === "saved" ? "active" : ""} aria-pressed={tab === "saved"} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span><small>Saved</small></button>
       </nav>
       <main className="dashboard-content" id="main-content">
         {tab === "home" && <>

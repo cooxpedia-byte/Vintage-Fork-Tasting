@@ -1,12 +1,13 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { CustomerDashboard } from "@/components/dashboard/CustomerDashboard";
 import { requireUser } from "@/lib/auth";
-import { shouldShowUpcomingEvent } from "@/lib/customer-dashboard";
+import { parseCustomerDashboardSection, shouldShowUpcomingEvent } from "@/lib/customer-dashboard";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ section?: string | string[] }> }) {
+  const { section } = await searchParams;
   const user = await requireUser();
   const supabase = await createClient();
   const [{ data: profile }, { data: participants }] = await Promise.all([
@@ -23,5 +24,5 @@ export default async function DashboardPage() {
   const completed = rows.filter(row => row.event.status === "completed").map(row => ({ ...row.event, participant_id: row.id, responses: row.responses }));
   const upcoming = rows.filter(row => shouldShowUpcomingEvent(row.status, row.event.status)).map(row => row.event);
 
-  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} events={completed} upcoming={upcoming} /></>;
+  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} events={completed} upcoming={upcoming} initialTab={parseCustomerDashboardSection(section)} /></>;
 }
