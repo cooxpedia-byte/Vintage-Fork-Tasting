@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/browser";
 import { Brand } from "@/components/Brand";
 import { StatusChip } from "@/components/StatusChip";
+import { requestHostCommand } from "@/lib/host-command";
 import type { EventCommand, SessionPhase, UserRole } from "@/types/domain";
 
 type Trivia = {id:string;question:string;options:string[];correct_index:number;explanation:string|null;answer_window_seconds:number};
@@ -12,6 +13,7 @@ type Flight = { id:string; position:number; reveal_title:string; reveal_descript
 type EventState = { id:string; title:string; status:string; phase:SessionPhase; sequence_number:number; current_flight_item_id:string|null; tasting_opened_flight_item_id:string|null; reveal_at:string|null; timer_ends_at:string|null; trivia_closes_at:string|null; invite_code:string|null; starts_at:string; location_mode:string; capacity:number; host_user_id:string; backup_host_user_id:string|null };
 type Participant = { id:string;display_name:string;status:string;last_seen_at:string|null;joined_at:string|null };
 type Lease = { holder_user_id:string;lease_token:string;expires_at:string;heartbeat_at:string };
+type ConsoleError = { message:string; detail:string };
 
 export function HostConsole({ initialEvent, flight, initialParticipants, userId, userName, userRole }: { initialEvent:EventState; flight:Flight[]; initialParticipants:Participant[]; userId:string; userName:string; userRole:UserRole }) {
   const [event, setEvent] = useState(initialEvent);
@@ -19,7 +21,7 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
   const [lease, setLease] = useState<Lease|null>(null);
   const [leaseError, setLeaseError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ConsoleError|null>(null);
   const [presence, setPresence] = useState(0);
   const [now, setNow] = useState<number|null>(null);
   const eventRef = useRef(event); eventRef.current = event;
@@ -83,27 +85,44 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
   useEffect(() => { const t=setInterval(()=>setNow(Date.now()),250); return()=>clearInterval(t); },[]);
 
   async function takeControl(force = false) {
-    const supabase = createClient(); setBusy(true); setError("");
+    const supabase = createClient(); setBusy(true); setError(null);
     const { data, error: takeError } = await supabase.rpc("acquire_host_control", { p_event_id: event.id, p_force: force });
     setBusy(false);
-    if (takeError) { setError(takeError.message.includes("control_held") ? "The current host still has a healthy control lease." : "Control could not be acquired."); return; }
+    if (takeError) { setError({ message:takeError.message.includes("control_held") ? "The current host still has a healthy control lease." : "Control could not be acquired.", detail:"Nothing changed for guests." }); return; }
     setLease(data as Lease); setLeaseError("");
   }
 
   async function copyInvite() {
     const value = `${window.location.origin}/event/${event.invite_code}`;
-    try { await navigator.clipboard.writeText(value); setError(""); }
-    catch { const input=document.createElement("textarea"); input.value=value; input.style.position="fixed"; input.style.opacity="0"; document.body.append(input); input.select(); const copied=document.execCommand("copy"); input.remove(); if (!copied) setError("The invite could not be copied. Select it from event setup instead."); }
+    try { await navigator.clipboard.writeText(value); setError(null); }
+    catch { const input=document.createElement("textarea"); input.value=value; input.style.position="fixed"; input.style.opacity="0"; document.body.append(input); input.select(); const copied=document.execCommand("copy"); input.remove(); if (!copied) setError({ message:"The invite could not be copied. Select it from event setup instead.", detail:"Nothing changed for guests." }); }
   }
 
   async function command(command: EventCommand) {
     if (!lease || !holder) return;
-    setBusy(true); setError("");
-    const response = await fetch(`/api/events/${event.id}/command`, { method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({command,expectedSequence:event.sequence_number,leaseToken:lease.lease_token}) });
-    const result = await response.json().catch(()=>({})); setBusy(false);
-    if (!response.ok) { setError(result.error??"The command was not applied."); await refresh(); return; }
-    setEvent(result.event as EventState);
-    await roomSignalRef.current?.(result.event.sequence_number, result.event.phase);
+    setBusy(true); setError(null);
+    let shouldRefresh = false;
+    try {
+      const result = await requestHostCommand<EventState>({ eventId:event.id, command, expectedSequence:event.sequence_number, leaseToken:lease.lease_token });
+      if (result.kind === "rejected") {
+        setError({ message:result.message, detail:"Nothing changed for guests." });
+        shouldRefresh = true;
+        return;
+      }
+      if (result.kind === "unconfirmed") {
+        setError({ message:"The connection dropped while checking that command.", detail:"We couldn’t confirm what guests received. Check the current phase before trying again." });
+        shouldRefresh = true;
+        return;
+      }
+      setEvent(result.event);
+      await roomSignalRef.current?.(result.event.sequence_number, result.event.phase);
+    } catch {
+      setError({ message:"The connection dropped while checking that command.", detail:"We couldn’t confirm what guests received. Check the current phase before trying again." });
+      shouldRefresh = true;
+    } finally {
+      setBusy(false);
+      if (shouldRefresh) void refresh().catch(() => undefined);
+    }
   }
 
   const triviaClosed = Boolean(event.trivia_closes_at && now !== null && new Date(event.trivia_closes_at).getTime() <= now);
@@ -114,7 +133,7 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
   return <main className="live-shell" id="main-content">
     <div className="live-topbar"><Brand compact /><div><strong>{event.title}</strong><div style={{fontSize:12,opacity:.75}}>{new Date(event.starts_at).toLocaleString("en-CA",{dateStyle:"medium",timeStyle:"short"})}</div></div><span className="spacer"/><StatusChip value={event.phase}/><span className="chip">{presence} staff device{presence===1?"":"s"}</span></div>
     <div className={`notice ${holder?"success":""}`} style={{borderRadius:0}}>{holder?"You’re running this tasting.":leaseError||"You are watching this tasting."}{canTakeControl&&<button className="btn btn-secondary" style={{marginLeft:12}} disabled={busy} onClick={()=>takeControl(forceTakeover)}>{forceTakeover ? "Claim host control" : "Take control"}</button>}</div>
-    {error&&<div className="notice error" role="alert">{error} Nothing changed for guests.</div>}
+    {error&&<div className="notice error" role="alert">{error.message} {error.detail}</div>}
     <div className="live-main"><div className="row" style={{marginBottom:16,overflowX:"auto",flexWrap:"nowrap"}}>{flight.map(item=><div key={item.id} className={`chip ${item.id===event.current_flight_item_id?"chip-live":""}`}>{item.position}. {item.reveal_title}</div>)}</div>
       <div className="live-grid"><section className="card" aria-live="polite">{event.phase==="lobby"?<Lobby event={event} flight={flight} active={active.length}/>:event.phase==="ended"?<Ended event={event}/>:<CurrentPhase event={event} current={current} trivia={currentTrivia} triviaClosed={triviaClosed} remaining={remaining} participants={active}/>}</section>
       <aside className="card" style={{position:"sticky",top:80}}><div className="card-header"><h2 className="card-title">The room</h2><span className="chip chip-success">{active.length} / {event.capacity}</span></div><div className="stack" style={{gap:8}}>{participants.map(p=><div className="row" key={p.id} style={{borderBottom:"1px solid var(--vf-line)",paddingBottom:8}}><div><strong>{p.display_name}</strong><div className="help">{p.status} · {freshness(p.last_seen_at,currentTime)}</div></div><span className="spacer"/><span aria-hidden="true" style={{color:p.last_seen_at&&now!==null&&now-new Date(p.last_seen_at).getTime()<45000?"var(--vf-forest)":"var(--vf-gold)"}}>●</span></div>)}</div><div className="card-footer"><button className="btn btn-secondary" onClick={copyInvite}>Copy invite</button><Link className="btn btn-secondary" href={`/admin/events/${event.id}`} prefetch={false}>Event setup</Link></div></aside></div>
