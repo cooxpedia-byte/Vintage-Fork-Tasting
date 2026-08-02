@@ -205,7 +205,6 @@ tr:last-child td { border-bottom: 0; }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
   .page-shell { padding: 1.2rem .8rem 3rem; }
   .live-main { padding-inline: .75rem; }
-  .command-inner .btn-secondary { display: none; }
   .desktop-admin-table { display: none; }
   .mobile-swipe-list {
     display: grid;
