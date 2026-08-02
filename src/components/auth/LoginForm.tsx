@@ -26,10 +26,19 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
 
   async function resetPassword() {
     if (!email) { setError("Enter your email first."); return; }
+    setBusy(true);
+    setError("");
     const supabase = createClient();
     const afterReset = `/reset-password?next=${staff ? "/admin" : "/dashboard"}`;
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(afterReset)}`;
-    await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    setBusy(false);
+    if (resetError) {
+      setError(resetError.status === 429
+        ? "Please wait at least 60 seconds before requesting another reset email."
+        : "The reset email could not be sent. Please try again or contact Vintage Fork.");
+      return;
+    }
     setError("If that account exists, a reset link is on its way.");
   }
 
@@ -46,7 +55,7 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
           <div className="field"><label htmlFor="password">Password</label><input className="input" id="password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></div>
           <button className="btn btn-primary" style={{ width: "100%" }} disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
         </form>
-        <button className="btn btn-quiet" type="button" onClick={resetPassword}>Forgot your password?</button>
+        <button className="btn btn-quiet" type="button" disabled={busy} onClick={resetPassword}>Forgot your password?</button>
         {!staff && <p className="help">New to the tasting cellar? <Link href="/signup">Create a customer account</Link>.</p>}
       </section>
     </main>
