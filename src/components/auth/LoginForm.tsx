@@ -34,9 +34,13 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     setBusy(false);
     if (resetError) {
-      setError(resetError.status === 429
-        ? "Please wait at least 60 seconds before requesting another reset email."
-        : "The reset email could not be sent. Please try again or contact Vintage Fork.");
+      if (resetError.code === "over_email_send_rate_limit") {
+        setError("The password-reset email service is temporarily at capacity. Please contact Vintage Fork for help.");
+      } else if (resetError.code === "over_request_rate_limit") {
+        setError("Too many reset requests were made recently. Please wait briefly and try again.");
+      } else {
+        setError("The reset email could not be sent. Please try again or contact Vintage Fork.");
+      }
       return;
     }
     setError("If that account exists, a reset link is on its way.");
