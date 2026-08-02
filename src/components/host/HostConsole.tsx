@@ -7,6 +7,7 @@ import { Brand } from "@/components/Brand";
 import { StatusChip } from "@/components/StatusChip";
 import { canAcquireHostControl } from "@/lib/host-control";
 import { requestHostCommand } from "@/lib/host-command";
+import { getHostRecoveryView, isHostConsoleCurrent, type HostConnectionStatus, type HostSyncStatus } from "@/lib/host-recovery";
 import type { EventCommand, SessionPhase, UserRole } from "@/types/domain";
 
 type Trivia = {id:string;question:string;options:string[];correct_index:number;explanation:string|null;answer_window_seconds:number};
@@ -25,8 +26,14 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
   const [error, setError] = useState<ConsoleError|null>(null);
   const [presence, setPresence] = useState(0);
   const [now, setNow] = useState<number|null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<HostConnectionStatus>("reconnecting");
+  const [syncStatus, setSyncStatus] = useState<HostSyncStatus>("catching_up");
+  const [recoveryNotice, setRecoveryNotice] = useState(false);
   const eventRef = useRef(event); eventRef.current = event;
   const roomSignalRef = useRef<((sequenceNumber:number, phase:SessionPhase)=>Promise<void>)|null>(null);
+  const staffChannelSubscribedRef = useRef(false);
+  const roomChannelSubscribedRef = useRef(false);
+  const hadConnectionProblemRef = useRef(false);
 
   const current = useMemo(() => flight.find(x => x.id === event.current_flight_item_id) ?? flight[0] ?? null, [flight,event.current_flight_item_id]);
   const currentTrivia = current ? (Array.isArray(current.trivia) ? current.trivia[0] : current.trivia) : null;
@@ -35,24 +42,73 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
   const leaseExpired = Boolean(lease && now !== null && new Date(lease.expires_at).getTime() <= now);
   const holder = controllable && lease?.holder_user_id === userId && !leaseExpired;
   const leaseUnhealthy = Boolean(lease && now !== null && now - new Date(lease.heartbeat_at).getTime() >= 15000);
-  const canTakeControl = controllable && !holder && now !== null && (!lease || leaseExpired || (leaseUnhealthy && (userRole === "admin" || event.backup_host_user_id === userId)));
+  const consoleCurrent = isHostConsoleCurrent(connectionStatus, syncStatus);
+  const recoveryView = getHostRecoveryView(connectionStatus, syncStatus);
+  const canTakeControl = consoleCurrent && controllable && !holder && now !== null && (!lease || leaseExpired || (leaseUnhealthy && (userRole === "admin" || event.backup_host_user_id === userId)));
   const forceTakeover = Boolean(lease && !leaseExpired);
   const active = participants.filter(p => !["left","removed"].includes(p.status) && (!p.last_seen_at || now === null || now-new Date(p.last_seen_at).getTime()<45000));
 
   const refresh = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: eventData }, { data: participantData }, { data: leaseData }] = await Promise.all([
+    const [eventResult, participantResult, leaseResult] = await Promise.all([
       supabase.from("events").select("id,title,status,phase,sequence_number,current_flight_item_id,tasting_opened_flight_item_id,reveal_at,timer_ends_at,trivia_closes_at,invite_code,starts_at,location_mode,capacity,host_user_id,backup_host_user_id").eq("id", initialEvent.id).single(),
       supabase.from("participants").select("id,display_name,status,last_seen_at,joined_at").eq("event_id", initialEvent.id).order("joined_at"),
       supabase.from("host_control_leases").select("holder_user_id,lease_token,expires_at,heartbeat_at").eq("event_id", initialEvent.id).maybeSingle()
     ]);
+    if (eventResult.error || participantResult.error || leaseResult.error) return false;
+    const { data: eventData } = eventResult;
+    const { data: participantData } = participantResult;
+    const { data: leaseData } = leaseResult;
     if (eventData && eventData.sequence_number >= eventRef.current.sequence_number) setEvent(eventData as EventState);
     if (participantData) setParticipants(participantData as Participant[]);
     setLease((leaseData as Lease|null) ?? null);
+    return true;
   }, [initialEvent.id]);
 
   useEffect(() => {
+    let cancelled = false;
     const supabase = createClient();
+    function markConnectionProblem(status: HostConnectionStatus) {
+      if (cancelled) return;
+      hadConnectionProblemRef.current = true;
+      setConnectionStatus(status);
+      setSyncStatus("stale");
+      setRecoveryNotice(false);
+    }
+    async function recoverFromSnapshot() {
+      if (!cancelled) setSyncStatus("catching_up");
+      const snapshotCurrent = await refresh();
+      if (cancelled) return;
+      if (!snapshotCurrent) {
+        hadConnectionProblemRef.current = true;
+        setConnectionStatus(current => current === "offline" ? "offline" : "unstable");
+        setSyncStatus("stale");
+        return;
+      }
+      setSyncStatus("current");
+      if (staffChannelSubscribedRef.current && roomChannelSubscribedRef.current) {
+        setConnectionStatus("online");
+        if (hadConnectionProblemRef.current) setRecoveryNotice(true);
+        hadConnectionProblemRef.current = false;
+      }
+    }
+    function refreshFromChange() {
+      void refresh().then(snapshotCurrent => {
+        if (cancelled) return;
+        if (snapshotCurrent) {
+          setSyncStatus("current");
+          if (staffChannelSubscribedRef.current && roomChannelSubscribedRef.current) {
+            setConnectionStatus("online");
+            if (hadConnectionProblemRef.current) setRecoveryNotice(true);
+            hadConnectionProblemRef.current = false;
+          }
+          return;
+        }
+        hadConnectionProblemRef.current = true;
+        setConnectionStatus(current => current === "offline" ? "offline" : "unstable");
+        setSyncStatus("stale");
+      });
+    }
     async function acquire() {
       const { data, error: acquireError } = await supabase.rpc("acquire_host_control", { p_event_id: initialEvent.id, p_force: false });
       if (data) setLease(data as Lease);
@@ -62,24 +118,110 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
     const channel = supabase.channel(`host-${initialEvent.id}`, { config: { presence: { key: userId } } });
     const roomChannel = supabase.channel(`event-${initialEvent.invite_code ?? initialEvent.id}`);
     channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "events", filter: `id=eq.${initialEvent.id}` }, payload => { const next = payload.new as EventState; if (next.sequence_number >= eventRef.current.sequence_number) setEvent(next); });
-    channel.on("postgres_changes", { event: "*", schema: "public", table: "participants", filter: `event_id=eq.${initialEvent.id}` }, () => refresh());
-    channel.on("postgres_changes", { event: "*", schema: "public", table: "host_control_leases", filter: `event_id=eq.${initialEvent.id}` }, () => refresh());
+    channel.on("postgres_changes", { event: "*", schema: "public", table: "participants", filter: `event_id=eq.${initialEvent.id}` }, refreshFromChange);
+    channel.on("postgres_changes", { event: "*", schema: "public", table: "host_control_leases", filter: `event_id=eq.${initialEvent.id}` }, refreshFromChange);
     channel.on("presence", { event: "sync" }, () => setPresence(Object.keys(channel.presenceState()).length));
-    channel.subscribe(status => { if (status === "SUBSCRIBED") channel.track({ name:userName, role:"host", onlineAt:new Date().toISOString() }); });
-    roomChannel.subscribe();
+    channel.subscribe(status => {
+      if (cancelled) return;
+      if (status === "SUBSCRIBED") {
+        staffChannelSubscribedRef.current = true;
+        void channel.track({ name:userName, role:"host", onlineAt:new Date().toISOString() });
+        if (roomChannelSubscribedRef.current) void recoverFromSnapshot();
+      } else if (status === "TIMED_OUT" || status === "CHANNEL_ERROR") {
+        staffChannelSubscribedRef.current = false;
+        markConnectionProblem("reconnecting");
+      } else if (status === "CLOSED") {
+        staffChannelSubscribedRef.current = false;
+        markConnectionProblem("offline");
+      }
+    });
+    roomChannel.subscribe(status => {
+      if (cancelled) return;
+      if (status === "SUBSCRIBED") {
+        roomChannelSubscribedRef.current = true;
+        if (staffChannelSubscribedRef.current) void recoverFromSnapshot();
+      } else if (status === "TIMED_OUT" || status === "CHANNEL_ERROR") {
+        roomChannelSubscribedRef.current = false;
+        markConnectionProblem("reconnecting");
+      } else if (status === "CLOSED") {
+        roomChannelSubscribedRef.current = false;
+        markConnectionProblem("offline");
+      }
+    });
     roomSignalRef.current = async (sequenceNumber, phase) => {
-      await roomChannel.send({ type:"broadcast", event:"phase.changed", payload:{ sequenceNumber, phase } });
+      const sendStatus = await roomChannel.send({ type:"broadcast", event:"phase.changed", payload:{ sequenceNumber, phase } });
+      if (sendStatus !== "ok") {
+        hadConnectionProblemRef.current = true;
+        setConnectionStatus("unstable");
+        setSyncStatus("stale");
+        throw new Error("room_broadcast_unconfirmed");
+      }
     };
-    return () => { roomSignalRef.current=null; supabase.removeChannel(channel); supabase.removeChannel(roomChannel); };
+    function handleOffline() {
+      staffChannelSubscribedRef.current = false;
+      roomChannelSubscribedRef.current = false;
+      markConnectionProblem("offline");
+    }
+    function handleOnline() { markConnectionProblem("reconnecting"); void recoverFromSnapshot(); }
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      cancelled = true;
+      staffChannelSubscribedRef.current = false;
+      roomChannelSubscribedRef.current = false;
+      roomSignalRef.current=null;
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+      supabase.removeChannel(channel);
+      supabase.removeChannel(roomChannel);
+    };
   }, [initialEvent.id, initialEvent.invite_code, initialEvent.phase, initialEvent.status, refresh, userId, userName]);
+
+  useEffect(() => {
+    if (consoleCurrent) return;
+    const poll = window.setInterval(() => {
+      void refresh().then(snapshotCurrent => {
+        if (!snapshotCurrent) return;
+        setSyncStatus("current");
+        if (staffChannelSubscribedRef.current && roomChannelSubscribedRef.current) {
+          setConnectionStatus("online");
+          if (hadConnectionProblemRef.current) setRecoveryNotice(true);
+          hadConnectionProblemRef.current = false;
+        }
+      });
+    }, 5000);
+    return () => window.clearInterval(poll);
+  }, [consoleCurrent, refresh]);
+
+  useEffect(() => {
+    if (!recoveryNotice) return;
+    const timeout = window.setTimeout(() => setRecoveryNotice(false), 6000);
+    return () => window.clearTimeout(timeout);
+  }, [recoveryNotice]);
 
   useEffect(() => {
     if (!controllable || !lease || lease.holder_user_id !== userId) return;
     const supabase = createClient();
     const t = window.setInterval(async () => {
       const { data, error: heartbeatError } = await supabase.rpc("heartbeat_host_control", { p_event_id: initialEvent.id, p_lease_token: lease.lease_token });
-      if (data) setLease(data as Lease);
-      if (heartbeatError) { setLeaseError("Host control was lost. Nothing changed for guests."); setLease(null); await refresh(); }
+      if (data) {
+        setLease(data as Lease);
+        if (staffChannelSubscribedRef.current && roomChannelSubscribedRef.current) {
+          setConnectionStatus("online");
+          setSyncStatus("current");
+          setLeaseError("");
+          if (hadConnectionProblemRef.current) setRecoveryNotice(true);
+          hadConnectionProblemRef.current = false;
+        }
+      }
+      if (heartbeatError) {
+        hadConnectionProblemRef.current = true;
+        setConnectionStatus(window.navigator.onLine ? "reconnecting" : "offline");
+        setSyncStatus("stale");
+        setRecoveryNotice(false);
+        setLeaseError("Host control could not be confirmed. Nothing changed for guests.");
+        await refresh();
+      }
     }, 5000);
     return () => window.clearInterval(t);
   }, [controllable, lease, userId, initialEvent.id, refresh]);
@@ -87,7 +229,7 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
   useEffect(() => { const t=setInterval(()=>setNow(Date.now()),250); return()=>clearInterval(t); },[]);
 
   async function takeControl(force = false) {
-    if (!controllable) return;
+    if (!controllable || !consoleCurrent) return;
     const supabase = createClient(); setBusy(true); setError(null);
     const { data, error: takeError } = await supabase.rpc("acquire_host_control", { p_event_id: event.id, p_force: force });
     setBusy(false);
@@ -102,7 +244,7 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
   }
 
   async function command(command: EventCommand) {
-    if (!lease || !holder) return;
+    if (!lease || !holder || !consoleCurrent) return;
     setBusy(true); setError(null);
     let shouldRefresh = false;
     try {
@@ -135,14 +277,16 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
   const remaining = event.timer_ends_at && now !== null ? Math.max(0,new Date(event.timer_ends_at).getTime()-now) : (current?.steep_seconds ?? 0) * 1000;
 
   return <main className="live-shell" id="main-content">
-    <div className="live-topbar"><Brand compact /><div><strong>{event.title}</strong><div style={{fontSize:12,opacity:.75}}>{new Date(event.starts_at).toLocaleString("en-CA",{dateStyle:"medium",timeStyle:"short"})}</div></div><span className="spacer"/><StatusChip value={event.phase}/><span className="chip">{presence} staff device{presence===1?"":"s"}</span></div>
+    <div className="live-topbar"><Brand compact /><div><strong>{event.title}</strong><div style={{fontSize:12,opacity:.75}}>{new Date(event.starts_at).toLocaleString("en-CA",{dateStyle:"medium",timeStyle:"short"})}</div></div><span className="spacer"/><StatusChip value={event.phase}/><span className={`chip ${recoveryView.tone === "success" ? "chip-success" : "chip-warning"}`}>{recoveryView.label}</span><span className="chip">{presence} staff device{presence===1?"":"s"}</span></div>
     <div className={`notice ${holder?"success":""}`} style={{borderRadius:0}}>{holder?"You’re running this tasting.":leaseError||"You are watching this tasting."}{canTakeControl&&<button className="btn btn-secondary" style={{marginLeft:12}} disabled={busy} onClick={()=>takeControl(forceTakeover)}>{forceTakeover ? "Claim host control" : "Take control"}</button>}</div>
+    {!consoleCurrent&&<div className={`notice ${recoveryView.tone === "error" ? "error" : ""}`} role="status" aria-live="assertive"><strong>{recoveryView.message}</strong> Controls will return after the current room state is confirmed.</div>}
+    {consoleCurrent&&recoveryNotice&&<div className="notice success" role="status" aria-live="polite">You’re back. Nothing changed for your guests.</div>}
     {error&&<div className="notice error" role="alert">{error.message} {error.detail}</div>}
     <div className="live-main"><div className="row" style={{marginBottom:16,overflowX:"auto",flexWrap:"nowrap"}}>{flight.map(item=><div key={item.id} className={`chip ${item.id===event.current_flight_item_id?"chip-live":""}`}>{item.position}. {item.reveal_title}</div>)}</div>
       <div className="live-grid"><section className="card" aria-live="polite">{event.phase==="lobby"?<Lobby event={event} flight={flight} active={active.length}/>:event.phase==="ended"?<Ended event={event}/>:<CurrentPhase event={event} current={current} trivia={currentTrivia} triviaClosed={triviaClosed} remaining={remaining} participants={active}/>}</section>
       <aside className="card" style={{position:"sticky",top:80}}><div className="card-header"><h2 className="card-title">The room</h2><span className="chip chip-success">{active.length} / {event.capacity}</span></div><div className="stack" style={{gap:8}}>{participants.map(p=><div className="row" key={p.id} style={{borderBottom:"1px solid var(--vf-line)",paddingBottom:8}}><div><strong>{p.display_name}</strong><div className="help">{p.status} · {freshness(p.last_seen_at,currentTime)}</div></div><span className="spacer"/><span aria-hidden="true" style={{color:p.last_seen_at&&now!==null&&now-new Date(p.last_seen_at).getTime()<45000?"var(--vf-forest)":"var(--vf-gold)"}}>●</span></div>)}</div><div className="card-footer"><button className="btn btn-secondary" onClick={copyInvite}>Copy invite</button><Link className="btn btn-secondary" href={`/admin/events/${event.id}`} prefetch={false}>Event setup</Link></div></aside></div>
     </div>
-    <footer className="command-rail"><div className="command-inner">{event.phase!=="ended"&&holder&&primary&&(primary.command==="reveal_tea"?<RevealControl label={primary.label} busy={busy} onCommit={()=>command(primary.command)}/>:<button className="btn btn-primary" disabled={busy||primary.disabled} onClick={()=>command(primary.command)}>{busy?"Applying…":primary.label}</button>)}{event.phase!=="ended"&&!holder&&<button className="btn btn-secondary" disabled>Watching — {lease?.holder_user_id?"another host has control":"no active control"}</button>}{event.phase!=="lobby"&&event.phase!=="ended"&&holder&&<button className="btn btn-danger" disabled={busy} onClick={()=>{if(confirm("End this tasting? This tasting can’t be reopened. Your guests’ live screens will close. Their recap stays available."))command("end_session")}}>End tasting</button>}{event.phase==="ended"&&<Link className="btn btn-primary" href={`/admin/events/${event.id}/results`} prefetch={false}>See results</Link>}</div></footer>
+    <footer className="command-rail"><div className="command-inner">{event.phase!=="ended"&&!consoleCurrent&&<button className="btn btn-secondary" disabled>Reconnecting — controls paused</button>}{event.phase!=="ended"&&consoleCurrent&&holder&&primary&&(primary.command==="reveal_tea"?<RevealControl label={primary.label} busy={busy} onCommit={()=>command(primary.command)}/>:<button className="btn btn-primary" disabled={busy||primary.disabled} onClick={()=>command(primary.command)}>{busy?"Applying…":primary.label}</button>)}{event.phase!=="ended"&&consoleCurrent&&!holder&&<button className="btn btn-secondary" disabled>Watching — {lease?.holder_user_id?"another host has control":"no active control"}</button>}{event.phase!=="lobby"&&event.phase!=="ended"&&consoleCurrent&&holder&&<button className="btn btn-danger" disabled={busy} onClick={()=>{if(confirm("End this tasting? This tasting can’t be reopened. Your guests’ live screens will close. Their recap stays available."))command("end_session")}}>End tasting</button>}{event.phase==="ended"&&<Link className="btn btn-primary" href={`/admin/events/${event.id}/results`} prefetch={false}>See results</Link>}</div></footer>
   </main>;
 }
 
