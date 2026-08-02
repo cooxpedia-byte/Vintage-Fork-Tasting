@@ -1,7 +1,7 @@
 export const BRAND_ASSETS = {
   logo: {
-    src: "/brand/vintage-fork-mark.svg",
-    width: 64,
-    height: 64,
+    src: "/brand/vintage-fork-icon.jpg",
+    width: 550,
+    height: 575,
   },
 } as const;

@@ -65,8 +65,8 @@ h1, h2, h3, p { margin-top: 0; }
 .skip-link:focus { top: 1rem; }
 
 .brand { display: inline-flex; align-items: center; gap: .75rem; text-decoration: none; color: inherit; }
-.brand-mark { width: 38px; height: 38px; display: block; flex: 0 0 auto; }
-.brand-mark img { width: 100%; height: 100%; display: block; object-fit: contain; }
+.brand-mark { width: 38px; height: 38px; display: block; flex: 0 0 auto; overflow: hidden; border-radius: 50%; }
+.brand-mark img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .brand-copy { display: grid; line-height: 1.05; }
 .brand-name { font-family: Georgia, serif; font-size: 1.05rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
 .brand-sub { color: var(--vf-gold-light); font-size: .62rem; letter-spacing: .2em; text-transform: uppercase; font-weight: 700; margin-top: .23rem; }
