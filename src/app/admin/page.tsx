@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { StatusChip } from "@/components/StatusChip";
 import { requireStaff } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -9,9 +10,13 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   await requireStaff();
   const supabase = await createClient();
-  const { data: events } = await supabase.from("events").select(`id,title,starts_at,location_mode,capacity,status,phase,invite_code,
-    participants(count),flight:event_flight_items(count)`)
+  const { data: events, error: eventsError } = await supabase.from("events").select(`id,title,starts_at,location_mode,capacity,status,phase,invite_code,
+    participants(count),flight:event_flight_items!event_flight_items_event_id_fkey(count)`)
     .order("starts_at", { ascending: false });
+  if (eventsError) {
+    logger.error("admin_events_query_failed", eventsError);
+    throw new Error("Unable to load events.");
+  }
   const live = events?.filter(e => e.status === "live") ?? [];
   const attention = events?.filter(e => e.status === "draft") ?? [];
 
