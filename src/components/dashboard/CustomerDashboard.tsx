@@ -35,17 +35,17 @@ export function CustomerDashboard({ name, events, upcoming }: { name: string; ev
     <div className="dashboard-shell">
       <aside className="sidebar" aria-label="Customer dashboard">
         <nav>
-          <button className="btn btn-quiet" style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("home")}><span>⌂</span> Home</button>
-          <button className="btn btn-quiet" style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("journal")}><span>▤</span> Tastings</button>
-          <button className="btn btn-quiet" style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("passport")}><span>✦</span> Passport</button>
-          <button className="btn btn-quiet" style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("saved")}><span>♡</span> Saved teas</button>
+          <button className={`btn btn-quiet ${tab === "home" ? "active" : ""}`} aria-pressed={tab === "home"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("home")}><span aria-hidden="true">⌂</span> Home</button>
+          <button className={`btn btn-quiet ${tab === "journal" ? "active" : ""}`} aria-pressed={tab === "journal"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("journal")}><span aria-hidden="true">▤</span> Tastings</button>
+          <button className={`btn btn-quiet ${tab === "passport" ? "active" : ""}`} aria-pressed={tab === "passport"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("passport")}><span aria-hidden="true">✦</span> Passport</button>
+          <button className={`btn btn-quiet ${tab === "saved" ? "active" : ""}`} aria-pressed={tab === "saved"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => setTab("saved")}><span aria-hidden="true">♡</span> Saved teas</button>
         </nav>
       </aside>
       <nav className="customer-mobile-nav" aria-label="Customer dashboard mobile">
-        <button className={tab === "home" ? "active" : ""} onClick={() => setTab("home")}><span aria-hidden="true">⌂</span><small>Home</small></button>
-        <button className={tab === "journal" ? "active" : ""} onClick={() => setTab("journal")}><span aria-hidden="true">▤</span><small>Tastings</small></button>
-        <button className={tab === "passport" ? "active" : ""} onClick={() => setTab("passport")}><span aria-hidden="true">✦</span><small>Passport</small></button>
-        <button className={tab === "saved" ? "active" : ""} onClick={() => setTab("saved")}><span aria-hidden="true">♡</span><small>Saved</small></button>
+        <button className={tab === "home" ? "active" : ""} aria-pressed={tab === "home"} onClick={() => setTab("home")}><span aria-hidden="true">⌂</span><small>Home</small></button>
+        <button className={tab === "journal" ? "active" : ""} aria-pressed={tab === "journal"} onClick={() => setTab("journal")}><span aria-hidden="true">▤</span><small>Tastings</small></button>
+        <button className={tab === "passport" ? "active" : ""} aria-pressed={tab === "passport"} onClick={() => setTab("passport")}><span aria-hidden="true">✦</span><small>Passport</small></button>
+        <button className={tab === "saved" ? "active" : ""} aria-pressed={tab === "saved"} onClick={() => setTab("saved")}><span aria-hidden="true">♡</span><small>Saved</small></button>
       </nav>
       <main className="dashboard-content" id="main-content">
         {tab === "home" && <>

@@ -82,7 +82,7 @@ h1, h2, h3, p { margin-top: 0; }
 .sidebar { background: linear-gradient(180deg, var(--vf-plum), var(--vf-plum-aged)); color: var(--vf-ivory); padding: 1rem .75rem; }
 .sidebar nav { position: sticky; top: 80px; display: grid; gap: .25rem; }
 .sidebar a, .sidebar nav > .btn { width: 100%; min-height: 48px; display: flex; align-items: center; gap: .75rem; padding: .65rem .8rem; border-radius: var(--radius-md); text-decoration: none; font-weight: 700; color: rgba(251,247,236,.82); }
-.sidebar a:hover, .sidebar a.active, .sidebar nav > .btn:hover { color: white; background: rgba(255,255,255,.1); }
+.sidebar a:hover, .sidebar a.active, .sidebar nav > .btn:hover, .sidebar nav > .btn.active { color: white; background: rgba(255,255,255,.1); }
 .dashboard-content { min-width: 0; padding: 2rem 1.25rem 4rem; }
 .dashboard-content > * { width: min(100%, var(--content-max)); margin-inline: auto; }
 .customer-mobile-nav { display: none; }
