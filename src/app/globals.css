@@ -99,6 +99,10 @@ h1, h2, h3, p { margin-top: 0; }
 .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .split { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .75fr); gap: 1rem; align-items: start; }
 .stack { display: grid; gap: 1rem; }
+.event-editor-layout > * { min-width: 0; }
+.event-editor-flight-header { flex-wrap: wrap; }
+.event-editor-flight-header > * { min-width: 0; }
+.event-editor-tea-select { flex: 0 1 28rem; width: 28rem; max-width: 100%; min-width: 0; }
 .row { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
 .spacer { flex: 1; }
 .section-label { display: flex; align-items: center; gap: .75rem; margin: 1.8rem 0 .8rem; color: var(--vf-plum); font-size: .74rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }

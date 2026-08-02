@@ -84,7 +84,7 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
 
   return <form onSubmit={save}>
     {error && <div className="form-error" role="alert">{error}</div>}
-    <div className="split" style={{ marginTop: 20 }}>
+    <div className="split event-editor-layout" style={{ marginTop: 20 }}>
       <div className="stack">
         <section className="card">
           <h2 className="card-title">The basics</h2>
@@ -101,7 +101,7 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
           </div>
         </section>
         <section className="card">
-          <div className="card-header"><div><h2 className="card-title">Tonight’s flight</h2><p className="card-meta">Event-specific reveal, brewing and trivia settings.</p></div><select className="select" aria-label="Add a tea to the flight" style={{ width: "auto" }} defaultValue="" onChange={e => { addTea(e.target.value); e.target.value = ""; }}><option value="" disabled>+ Add tea</option>{teas.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
+          <div className="card-header event-editor-flight-header"><div><h2 className="card-title">Tonight’s flight</h2><p className="card-meta">Event-specific reveal, brewing and trivia settings.</p></div><select className="select event-editor-tea-select" aria-label="Add a tea to the flight" defaultValue="" onChange={e => { addTea(e.target.value); e.target.value = ""; }}><option value="" disabled>+ Add tea</option>{teas.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
           <div className="stack">{flight.map((item, index) => <FlightEditor key={`${item.tea_id}-${index}`} item={item} index={index} teaName={teas.find(t => t.id === item.tea_id)?.name ?? item.reveal_title} update={patch => updateFlight(index, patch)} move={delta => move(index, delta)} remove={() => remove(index)} />)}</div>
           {!flight.length && <div className="empty-state"><h3>No teas in the flight.</h3><p>Add the first tea above.</p></div>}
         </section>
