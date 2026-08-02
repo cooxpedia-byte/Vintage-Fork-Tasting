@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { authenticatedFetch } from "@/lib/authenticated-fetch";
+import { parseEventStartTime } from "@/lib/event-start-time";
 
 type Tea = { id: string; name: string; origin: string | null; default_character: string | null; default_brewing: string | null; default_steep_seconds: number | null };
 type Staff = { id: string; display_name: string; role: string };
@@ -60,12 +61,16 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
   }
 
   async function save(event: React.FormEvent, status = existing?.status === "scheduled" ? "scheduled" : "draft") {
-    event.preventDefault(); setBusy(true); setError("");
-    const payload = {
-      event: { id: existing?.id, title, slug: existing?.slug, invite_code: existing?.invite_code, status, location_mode: mode, starts_at: new Date(startsAt).toISOString(), timezone: "America/Edmonton", capacity, venue_name: venueName, venue_address: venueAddress, video_call_url: videoCallUrl, host_user_id: hostId, backup_host_user_id: backupId },
-      flight
-    };
+    event.preventDefault(); setError("");
+    const parsedStart = parseEventStartTime(startsAt);
+    if (!parsedStart.ok) { setError(parsedStart.error); return; }
+
+    setBusy(true);
     try {
+      const payload = {
+        event: { id: existing?.id, title, slug: existing?.slug, invite_code: existing?.invite_code, status, location_mode: mode, starts_at: parsedStart.iso, timezone: "America/Edmonton", capacity, venue_name: venueName, venue_address: venueAddress, video_call_url: videoCallUrl, host_user_id: hostId, backup_host_user_id: backupId },
+        flight
+      };
       const response = await authenticatedFetch("/api/admin/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) { setError(result.error ?? "The event could not be saved."); return; }
