@@ -102,7 +102,7 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
         </section>
         <section className="card">
           <div className="card-header event-editor-flight-header"><div><h2 className="card-title">Tonight’s flight</h2><p className="card-meta">Event-specific reveal, brewing and trivia settings.</p></div><select className="select event-editor-tea-select" aria-label="Add a tea to the flight" defaultValue="" onChange={e => { addTea(e.target.value); e.target.value = ""; }}><option value="" disabled>+ Add tea</option>{teas.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
-          <div className="stack">{flight.map((item, index) => <FlightEditor key={`${item.tea_id}-${index}`} item={item} index={index} teaName={teas.find(t => t.id === item.tea_id)?.name ?? item.reveal_title} update={patch => updateFlight(index, patch)} move={delta => move(index, delta)} remove={() => remove(index)} />)}</div>
+          <div className="stack">{flight.map((item, index) => <FlightEditor key={`${item.tea_id}-${index}`} item={item} index={index} teaName={teas.find(t => t.id === item.tea_id)?.name ?? item.reveal_title} canMoveUp={index > 0} canMoveDown={index < flight.length - 1} update={patch => updateFlight(index, patch)} move={delta => move(index, delta)} remove={() => remove(index)} />)}</div>
           {!flight.length && <div className="empty-state"><h3>No teas in the flight.</h3><p>Add the first tea above.</p></div>}
         </section>
       </div>
@@ -115,10 +115,10 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
   </form>;
 }
 
-function FlightEditor({ item, index, teaName, update, move, remove }: { item: Flight; index: number; teaName: string; update: (patch: Partial<Flight>) => void; move: (delta: number) => void; remove: () => void }) {
+function FlightEditor({ item, index, teaName, canMoveUp, canMoveDown, update, move, remove }: { item: Flight; index: number; teaName: string; canMoveUp: boolean; canMoveDown: boolean; update: (patch: Partial<Flight>) => void; move: (delta: number) => void; remove: () => void }) {
   const updateTrivia = (patch: Partial<Flight["trivia"]>) => update({ trivia: { ...item.trivia, ...patch } });
   return <article className="card" style={{ boxShadow: "none" }}>
-    <div className="card-header"><div><p className="eyebrow">Tea {index + 1}</p><h3 className="card-title">{teaName}</h3></div><div className="row"><button className="btn btn-quiet" type="button" onClick={() => move(-1)} aria-label="Move up">↑</button><button className="btn btn-quiet" type="button" onClick={() => move(1)} aria-label="Move down">↓</button><button className="btn btn-quiet" type="button" onClick={remove}>Remove</button></div></div>
+    <div className="card-header"><div><p className="eyebrow">Tea {index + 1}</p><h3 className="card-title">{teaName}</h3></div><div className="row"><button className="btn btn-quiet btn-icon" type="button" disabled={!canMoveUp} onClick={() => move(-1)} aria-label="Move up">↑</button><button className="btn btn-quiet btn-icon" type="button" disabled={!canMoveDown} onClick={() => move(1)} aria-label="Move down">↓</button><button className="btn btn-quiet" type="button" onClick={remove}>Remove</button></div></div>
     <div className="grid grid-2"><div className="field"><label htmlFor={`reveal-title-${index}`}>Reveal title</label><input className="input" id={`reveal-title-${index}`} value={item.reveal_title} onChange={e => update({ reveal_title: e.target.value })} /></div><div className="field"><label htmlFor={`steep-seconds-${index}`}>Steep seconds</label><input className="input" id={`steep-seconds-${index}`} type="number" min={1} value={item.steep_seconds} onChange={e => update({ steep_seconds: Number(e.target.value) })} /></div></div>
     <div className="field"><label htmlFor={`reveal-description-${index}`}>Reveal description</label><textarea className="textarea" id={`reveal-description-${index}`} value={item.reveal_description} onChange={e => update({ reveal_description: e.target.value })} /></div>
     <div className="field"><label htmlFor={`brewing-${index}`}>Brewing instructions</label><textarea className="textarea" id={`brewing-${index}`} value={item.brewing_instructions} onChange={e => update({ brewing_instructions: e.target.value })} /></div>

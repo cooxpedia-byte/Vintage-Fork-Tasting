@@ -119,6 +119,7 @@ h1, h2, h3, p { margin-top: 0; }
 .btn-secondary:hover { background: rgba(75,22,56,.06); border-color: var(--vf-plum); }
 .btn-danger { background: var(--vf-plum-aged); border-color: var(--vf-plum-aged); color: var(--vf-ivory); }
 .btn-quiet { background: transparent; border-color: transparent; color: var(--vf-plum); padding-inline: .4rem; }
+.btn-icon { width: 44px; min-width: 44px; padding-inline: 0; }
 
 .chip { display: inline-flex; align-items: center; min-height: 28px; padding: .3rem .65rem; border-radius: 999px; border: 1px solid var(--vf-line); background: rgba(255,255,255,.55); color: var(--vf-walnut); font-size: .72rem; line-height: 1; font-weight: 800; white-space: nowrap; }
 .chip-success { color: var(--vf-forest); background: rgba(124,139,94,.13); border-color: rgba(63,78,54,.25); }
@@ -190,6 +191,7 @@ tr:last-child td { border-bottom: 0; }
 }
 @media (max-width: 640px) {
   .site-nav a:not(.keep-mobile) { display: none; }
+  .site-header .brand { min-height: 44px; }
   .brand-mark { width: 34px; height: 34px; }
   .dashboard-shell { display: block; }
   .sidebar { display: none; }
