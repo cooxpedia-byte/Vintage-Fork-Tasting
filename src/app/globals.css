@@ -137,6 +137,8 @@ h1, h2, h3, p { margin-top: 0; }
 .notice { border-left: 4px solid var(--vf-gold); background: rgba(201,162,39,.09); padding: .85rem 1rem; border-radius: 0 var(--radius-md) var(--radius-md) 0; }
 .notice.success { border-color: var(--vf-sage); background: rgba(124,139,94,.1); color: var(--vf-forest); }
 .notice.error { border-color: var(--vf-plum); background: rgba(75,22,56,.08); color: var(--vf-plum-aged); }
+.connection-banner { position: sticky; top: 0; z-index: 200; display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.connection-banner .btn { flex: 0 0 auto; }
 
 .table-wrap { overflow-x: auto; background: var(--vf-ivory); border: 1px solid var(--vf-line); border-radius: var(--radius-md); }
 .mobile-swipe-list { display: none; }
@@ -197,6 +199,8 @@ tr:last-child td { border-bottom: 0; }
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
+  .connection-banner { align-items: stretch; flex-direction: column; }
+  .connection-banner .btn { width: 100%; }
   .site-nav a:not(.keep-mobile) { display: none; }
   .site-header .brand { min-height: 44px; }
   .brand-mark { width: 34px; height: 34px; }

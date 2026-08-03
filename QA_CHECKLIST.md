@@ -43,6 +43,8 @@ Test with one host, one backup/observer and at least three guest browsers.
 - Guest cannot start, stop or reset the timer.
 - Host disconnect for >45 seconds permits recovery; guests do not move phases during the gap.
 - Reconnecting guest receives the current state, not an earlier animation.
+- API and realtime failures show the connection banner even when `navigator.onLine` remains true; “Retry now” requests a fresh guest snapshot.
+- A network exception during join, tasting-response save, saved-tea change or recap claim always restores the action button and presents a retryable error.
 - Ended event cannot be reopened.
 
 ## Responses and trivia

@@ -6,6 +6,11 @@ import { Brand } from "@/components/Brand";
 import { correctedNow, estimateClockOffset, TRIVIA_GRACE_MS } from "@/lib/live-timing";
 import { shouldHoldGuestTransition } from "@/lib/guest-notes";
 import { clearGuestDeviceData } from "@/lib/guest-privacy";
+import {
+  listenForConnectionRetry,
+  reportConnectionHealthy,
+  reportConnectionIssue
+} from "@/lib/connection-health";
 
 type EventPreview = { id: string; title: string; invite_code: string; status: string; starts_at: string; location_mode: string; capacity: number };
 type CurrentItem = { id: string; position: number; reveal_title: string; reveal_description: string; brewing_instructions: string; steep_seconds: number; temperature_c: number | null; leaf_grams: number | null; water_ml: number | null; tea: { name: string; origin: string | null; producer: string | null; tea_type: string | null } | null };
@@ -28,10 +33,13 @@ type Draft = { firstImpression: string; descriptors: string[]; intensity: "subtl
 type DraftUpdate = Draft | ((draft: Draft) => Draft);
 type PendingNoteSave = { flightItemId: string; personalNotes: string };
 type NotesSyncStatus = "device" | "saving" | "saved";
+type GuestJoinPayload = { inviteCode: string; displayName: string; email: string; marketingConsent: boolean | null };
+type GuestJoinRequest = (payload: GuestJoinPayload) => Promise<Response>;
 const DESCRIPTORS = ["honeyed","orchid","buttery","toasted grain","stone fruit","cream","green bean","jasmine","caramel","mineral","citrus peel","sweet hay"];
 const blankDraft: Draft = { firstImpression: "", descriptors: [], intensity: null, rating: 0, personalNotes: "", saved: false, completed: false };
+const guestConnectionSource = (eventId: string, operation: string) => `guest:${eventId}:${operation}`;
 
-export function GuestExperience({ preview, initialParticipant }: { preview: EventPreview; initialParticipant: { id: string; display_name: string } | null }) {
+export function GuestExperience({ preview, initialParticipant, joinRequest = persistGuestJoin }: { preview: EventPreview; initialParticipant: { id: string; display_name: string } | null; joinRequest?: GuestJoinRequest }) {
   const [joined, setJoined] = useState(Boolean(initialParticipant));
   const [name, setName] = useState(initialParticipant?.display_name ?? "");
   const [email, setEmail] = useState("");
@@ -89,13 +97,22 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
           body: JSON.stringify(pending),
           keepalive: true
         });
-        if (!response.ok) throw new Error("Notes save rejected.");
+        if (!response.ok) {
+          if (response.status >= 500) reportConnectionIssue(guestConnectionSource(preview.id, "notes"));
+          else reportConnectionHealthy(guestConnectionSource(preview.id, "notes"));
+          if (latestQueuedNotesRef.current.get(flightItemId) === pending && activeFlightIdRef.current === flightItemId) {
+            setNotesSyncStatus("device");
+          }
+          return;
+        }
+        reportConnectionHealthy(guestConnectionSource(preview.id, "notes"));
         lastSavedNotesRef.current.set(flightItemId, personalNotes);
         if (latestQueuedNotesRef.current.get(flightItemId) === pending) {
           latestQueuedNotesRef.current.delete(flightItemId);
           if (activeFlightIdRef.current === flightItemId) setNotesSyncStatus("saved");
         }
       } catch {
+        reportConnectionIssue(guestConnectionSource(preview.id, "notes"));
         if (latestQueuedNotesRef.current.get(flightItemId) === pending && activeFlightIdRef.current === flightItemId) {
           setNotesSyncStatus("device");
         }
@@ -140,35 +157,41 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
 
   const refresh = useCallback(async () => {
     if (!joined) return;
-    const requestStartedAt = Date.now();
-    const response = await fetch(`/api/events/${preview.id}/state`, { cache: "no-store" });
-    const responseReceivedAt = Date.now();
-    if (response.status === 401) { setJoined(false); return; }
-    if (!response.ok) return;
-    const next = await response.json() as StatePayload;
-    const nextOffset = estimateClockOffset(next.serverTime, requestStartedAt, responseReceivedAt,next.serverReceivedTime);
-    clockOffsetRef.current = nextOffset;
-    setClockOffsetMs(nextOffset);
-    setRoundTripMs(responseReceivedAt-requestStartedAt);
-    if (next.event.sequence_number < sequenceRef.current) return;
-    sequenceRef.current = next.event.sequence_number;
-    const current = stateRef.current;
-    if (current && next.event.sequence_number > current.event.sequence_number && current.currentItem) {
-      void queuePersonalNotes(current.currentItem.id, draftRef.current.personalNotes);
+    const source = guestConnectionSource(preview.id, "state");
+    try {
+      const requestStartedAt = Date.now();
+      const response = await fetch(`/api/events/${preview.id}/state`, { cache: "no-store" });
+      const responseReceivedAt = Date.now();
+      if (response.status === 401) { reportConnectionHealthy(source); setJoined(false); return; }
+      if (!response.ok) { reportConnectionIssue(source); return; }
+      const next = await response.json() as StatePayload;
+      reportConnectionHealthy(source);
+      const nextOffset = estimateClockOffset(next.serverTime, requestStartedAt, responseReceivedAt,next.serverReceivedTime);
+      clockOffsetRef.current = nextOffset;
+      setClockOffsetMs(nextOffset);
+      setRoundTripMs(responseReceivedAt-requestStartedAt);
+      if (next.event.sequence_number < sequenceRef.current) return;
+      sequenceRef.current = next.event.sequence_number;
+      const current = stateRef.current;
+      if (current && next.event.sequence_number > current.event.sequence_number && current.currentItem) {
+        void queuePersonalNotes(current.currentItem.id, draftRef.current.personalNotes);
+      }
+      if (shouldHoldGuestTransition({
+        currentSequence: current?.event.sequence_number ?? null,
+        nextSequence: next.event.sequence_number,
+        notesActive: notesProtectedRef.current,
+        alreadyHolding: Boolean(pendingStateRef.current)
+      })) {
+        pendingStateRef.current = next;
+        setPendingState(next);
+        return;
+      }
+      pendingStateRef.current = null;
+      setPendingState(null);
+      applySnapshot(next);
+    } catch {
+      reportConnectionIssue(source);
     }
-    if (shouldHoldGuestTransition({
-      currentSequence: current?.event.sequence_number ?? null,
-      nextSequence: next.event.sequence_number,
-      notesActive: notesProtectedRef.current,
-      alreadyHolding: Boolean(pendingStateRef.current)
-    })) {
-      pendingStateRef.current = next;
-      setPendingState(next);
-      return;
-    }
-    pendingStateRef.current = null;
-    setPendingState(null);
-    applySnapshot(next);
   }, [applySnapshot, joined, preview.id, queuePersonalNotes]);
 
   const showPendingTransition = useCallback(() => {
@@ -195,19 +218,38 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
     const timer = window.setTimeout(() => { void refresh(); }, 0);
     return () => window.clearTimeout(timer);
   }, [refresh]);
+  useEffect(() => listenForConnectionRetry(() => { void refresh(); }), [refresh]);
+  useEffect(() => () => {
+    for (const operation of ["state", "notes", "trivia", "join", "response"]) {
+      reportConnectionHealthy(guestConnectionSource(preview.id, operation));
+    }
+  }, [preview.id]);
   useEffect(() => {
     if (!joined) return;
     const supabase = createClient();
     const channel = supabase.channel(`event-${preview.invite_code}`, { config: { presence: { key: initialParticipant?.id ?? crypto.randomUUID() } } });
     channel.on("broadcast", { event: "phase.changed" }, () => refresh());
     channel.on("presence", { event: "sync" }, () => setPresenceCount(Object.keys(channel.presenceState()).length));
-    channel.subscribe(status => { if (status === "SUBSCRIBED") channel.track({ displayName: name, onlineAt: new Date().toISOString() }); });
+    let disposed = false;
+    const realtimeSource = guestConnectionSource(preview.id, "realtime");
+    const heartbeatSource = guestConnectionSource(preview.id, "heartbeat");
+    channel.subscribe(status => {
+      if (disposed) return;
+      if (status === "SUBSCRIBED") {
+        reportConnectionHealthy(realtimeSource);
+        void channel.track({ displayName: name, onlineAt: new Date().toISOString() });
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+        reportConnectionIssue(realtimeSource);
+      }
+    });
     async function heartbeat() {
       const requestStartedAt=Date.now();
       try {
         const response=await fetch(`/api/events/${preview.id}/heartbeat`,{method:"POST",cache:"no-store"});
         const responseReceivedAt=Date.now();
-        if (!response.ok) return;
+        if (response.status===401) { reportConnectionHealthy(heartbeatSource); setJoined(false); return; }
+        if (!response.ok) { reportConnectionIssue(heartbeatSource); return; }
+        reportConnectionHealthy(heartbeatSource);
         const payload=await response.json() as {serverReceivedTime?:string;serverTime?:string;sequenceNumber?:number|null};
         if (payload.serverTime) {
           const offset=estimateClockOffset(payload.serverTime,requestStartedAt,responseReceivedAt,payload.serverReceivedTime);
@@ -219,13 +261,13 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
           else void pendingDeliveryRef.current(pending);
         }
         if (typeof payload.sequenceNumber==="number"&&payload.sequenceNumber>sequenceRef.current) await refresh();
-      } catch { /* The global offline banner reports connectivity loss. */ }
+      } catch { reportConnectionIssue(heartbeatSource); }
     }
     const heartbeatTimer = window.setInterval(()=>{void heartbeat()},5000);
     const foreground = () => { if (document.visibilityState==="visible") { void heartbeat(); void refresh(); } };
     document.addEventListener("visibilitychange",foreground);
     window.addEventListener("online",foreground);
-    return () => { window.clearInterval(heartbeatTimer); document.removeEventListener("visibilitychange",foreground); window.removeEventListener("online",foreground); supabase.removeChannel(channel); };
+    return () => { disposed=true; reportConnectionHealthy(realtimeSource); reportConnectionHealthy(heartbeatSource); window.clearInterval(heartbeatTimer); document.removeEventListener("visibilitychange",foreground); window.removeEventListener("online",foreground); void supabase.removeChannel(channel); };
   }, [joined, preview.id, preview.invite_code, refresh, name, initialParticipant?.id]);
 
   useEffect(() => {
@@ -267,12 +309,15 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
         const response=await fetch(`/api/events/${preview.id}/trivia`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(pending)});
         const result=await response.json().catch(()=>({}));
         if(!response.ok){
+          if(response.status>=500)reportConnectionIssue(guestConnectionSource(preview.id,"trivia"));
+          else reportConnectionHealthy(guestConnectionSource(preview.id,"trivia"));
           if(response.status===401||response.status===403)clearPendingTrivia();
           else setError("Your answer is saved on this device and will send when you reconnect.");
           return false;
         }
+        reportConnectionHealthy(guestConnectionSource(preview.id,"trivia"));
         clearPendingTrivia();setTriviaChoice(result.selectedIndex??pending.selectedIndex);setError("");return true;
-      }catch{setError("Your answer is saved on this device and will send when you reconnect.");return false}
+      }catch{reportConnectionIssue(guestConnectionSource(preview.id,"trivia"));setError("Your answer is saved on this device and will send when you reconnect.");return false}
     };
     return()=>{pendingDeliveryRef.current=async()=>false};
   },[preview.id]);
@@ -286,30 +331,49 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
 
   async function join(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setError("");
-    const response = await fetch("/api/events/join", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ inviteCode: preview.invite_code, displayName: name, email, marketingConsent: email ? marketing : null }) });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) { setError(result.error ?? "We could not save your seat."); setBusy(false); return; }
-    setJoined(true); setBusy(false);
+    const source = guestConnectionSource(preview.id, "join");
+    try {
+      const response = await joinRequest({ inviteCode: preview.invite_code, displayName: name, email, marketingConsent: email ? marketing : null });
+      const result = await response.json().catch(() => ({}));
+      if (response.status >= 500) reportConnectionIssue(source); else reportConnectionHealthy(source);
+      if (!response.ok) { setError(result.error ?? "We could not save your seat."); return; }
+      setJoined(true);
+    } catch {
+      reportConnectionIssue(source);
+      setError("We couldn’t reach the tasting. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function submitResponse(completed = false, patch: Partial<Draft> = {}) {
     if (!state?.currentItem) return false;
     setBusy(true); setError("");
-    await queuePersonalNotes(state.currentItem.id, draftRef.current.personalNotes);
-    const latestDraft = draftRef.current;
-    const payload = { ...latestDraft, ...patch, flightItemId: state.currentItem.id, completed: completed || latestDraft.completed };
-    const response = await fetch(`/api/events/${preview.id}/response`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
-    const result = await response.json().catch(() => ({})); setBusy(false);
-    if (!response.ok) { setError(result.error ?? "We could not save that just now."); return false; }
-    if (draftRef.current.personalNotes === payload.personalNotes) {
-      lastSavedNotesRef.current.set(state.currentItem.id, payload.personalNotes);
-      const queued = latestQueuedNotesRef.current.get(state.currentItem.id);
-      if (queued?.personalNotes === payload.personalNotes) latestQueuedNotesRef.current.delete(state.currentItem.id);
-      if (activeFlightIdRef.current === state.currentItem.id) setNotesSyncStatus("saved");
+    const source = guestConnectionSource(preview.id, "response");
+    try {
+      await queuePersonalNotes(state.currentItem.id, draftRef.current.personalNotes);
+      const latestDraft = draftRef.current;
+      const payload = { ...latestDraft, ...patch, flightItemId: state.currentItem.id, completed: completed || latestDraft.completed };
+      const response = await fetch(`/api/events/${preview.id}/response`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+      const result = await response.json().catch(() => ({}));
+      if (response.status >= 500) reportConnectionIssue(source); else reportConnectionHealthy(source);
+      if (!response.ok) { setError(result.error ?? "We could not save that just now."); return false; }
+      if (draftRef.current.personalNotes === payload.personalNotes) {
+        lastSavedNotesRef.current.set(state.currentItem.id, payload.personalNotes);
+        const queued = latestQueuedNotesRef.current.get(state.currentItem.id);
+        if (queued?.personalNotes === payload.personalNotes) latestQueuedNotesRef.current.delete(state.currentItem.id);
+        if (activeFlightIdRef.current === state.currentItem.id) setNotesSyncStatus("saved");
+      }
+      setDraft(d => ({ ...d, ...patch, completed: completed || d.completed }));
+      if (sound) ceramicClink();
+      return true;
+    } catch {
+      reportConnectionIssue(source);
+      setError("We couldn’t reach the tasting. Your notes remain on this device—try again.");
+      return false;
+    } finally {
+      setBusy(false);
     }
-    setDraft(d => ({ ...d, ...patch, completed: completed || d.completed }));
-    if (sound) ceramicClink();
-    return true;
   }
 
   async function answerTrivia(index: number) {
@@ -362,6 +426,14 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
   return <LoadingRoom />;
 }
 
+function persistGuestJoin(payload: GuestJoinPayload) {
+  return fetch("/api/events/join", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
 function Registration({ preview, name, setName, email, setEmail, marketing, setMarketing, error, busy, join }: { preview: EventPreview; name: string; setName: (x:string)=>void; email:string; setEmail:(x:string)=>void; marketing:boolean; setMarketing:(x:boolean)=>void; error:string; busy:boolean; join:(e:React.FormEvent)=>void }) {
   return <main className="guest-shell" id="main-content"><div className="guest-pane enter"><Brand href="https://vintagefork.ca/" /><div style={{ textAlign: "center", margin: "1.5rem 0" }}><p className="eyebrow">{preview.title}</p><h1 className="page-title">What should we call you tonight?</h1><p className="page-lede">A first name or nickname is plenty.</p></div>{error && <div className="form-error">{error}</div>}<form onSubmit={join} className="stack"><div className="field"><label htmlFor="guest-name">Your name</label><input className="input" id="guest-name" maxLength={40} required value={name} onChange={e => setName(e.target.value)} /></div><div className="field"><label htmlFor="guest-email">Email (optional)</label><input className="input" id="guest-email" type="email" value={email} onChange={e => setEmail(e.target.value)} /><span className="help">Add your email to save this evening to your customer dashboard.</span></div>{email && <label className="row"><input type="checkbox" checked={marketing} onChange={e => setMarketing(e.target.checked)} /> Send me occasional notes about new teas and tastings.</label>}<div className="guest-actions"><button className="btn btn-primary" disabled={busy}>{busy ? "Saving your seat…" : "Save My Seat"}</button></div></form></div></main>;
 }
@@ -412,6 +484,7 @@ export function GuestRecap({ state, saveTeaRequest = persistGuestSavedTea }: { s
   ));
   const [savingTeaId, setSavingTeaId] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<{ teaId: string; text: string; error: boolean } | null>(null);
+  useEffect(() => () => reportConnectionHealthy(guestConnectionSource(state.event.id, "saved-tea")), [state.event.id]);
   if (deleted) return <Terminal title="Your tasting data has been deleted." copy="Your notes, ratings, answers, stamps and saved teas from this tasting are gone." />;
 
   const own = state.responses;
@@ -441,12 +514,20 @@ export function GuestRecap({ state, saveTeaRequest = persistGuestSavedTea }: { s
 }
 
 async function persistGuestSavedTea(eventId: string, flightItemId: string, saved: boolean) {
-  const response = await fetch(`/api/events/${eventId}/saved-tea`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ flightItemId, saved })
-  });
+  const source = guestConnectionSource(eventId, "saved-tea");
+  let response: Response;
+  try {
+    response = await fetch(`/api/events/${eventId}/saved-tea`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flightItemId, saved })
+    });
+  } catch {
+    reportConnectionIssue(source);
+    throw new Error("We couldn’t reach the tasting. Try that saved-tea change again.");
+  }
   const result = await response.json().catch(() => ({}));
+  if (response.status >= 500) reportConnectionIssue(source); else reportConnectionHealthy(source);
   if (!response.ok) throw new Error(result.error ?? "We couldn’t update that saved tea.");
   return { saved: Boolean(result.saved) };
 }
@@ -508,7 +589,33 @@ function RecapPrivacyControls({ state, onDeleted }: { state: StatePayload; onDel
   const noRetriesRemain = attemptsRemaining === 0;
   return <div className="stack"><section className="card"><h2 className="card-title">Email me my recap</h2><p>Get your own ratings, descriptors, notes and saved teas, plus a private link to delete this tasting data later.</p>{editingEmail && <div className="field"><label htmlFor="recap-email">Email address</label><input className="input" id="recap-email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} placeholder={maskedEmail ?? "you@example.com"} /></div>}{emailMessage && <div className={emailStatus === "sent" ? "notice success" : "form-error"} role={emailStatus === "sent" ? "status" : "alert"}>{emailMessage}</div>}{attemptsRemaining !== null && <p className="help">{attemptsRemaining} resend{attemptsRemaining === 1 ? "" : "s"} remaining in the next 24 hours.</p>}<div className="row" style={{ marginTop: 16 }}><button className="btn btn-primary" type="button" disabled={emailStatus === "sending" || noRetriesRemain || (editingEmail && !email.trim())} onClick={sendRecap}>{emailStatus === "sending" ? "Sending…" : emailStatus === "sent" ? "Send this to me again" : emailStatus === "failed" ? "Try again" : "Send my recap"}</button>{!editingEmail && <button className="btn btn-quiet" type="button" onClick={() => setEditingEmail(true)}>Use another address</button>}</div></section><section className="card"><h2 className="card-title">Your tasting data</h2>{!confirmingDelete ? <><p>You can permanently remove your notes, ratings, answers, stamps and saved teas from this tasting.</p><button className="btn btn-secondary" type="button" onClick={() => setConfirmingDelete(true)}>Delete my tasting data</button></> : <><div className="notice error"><strong>This cannot be undone.</strong><p style={{ margin: "8px 0 0" }}>Your tasting data will be permanently deleted. Your Vintage Fork account, if you have one, will not be deleted.</p></div>{deleteError && <div className="form-error" role="alert">{deleteError}</div>}<div className="row" style={{ marginTop: 16 }}><button className="btn btn-danger" type="button" disabled={deleting} onClick={deleteData}>{deleting ? "Deleting…" : "Yes, delete my tasting data"}</button><button className="btn btn-secondary" type="button" disabled={deleting} onClick={() => { setConfirmingDelete(false); setDeleteError(""); }}>Keep my data</button></div></>}</section></div>;
 }
-function ClaimButton({eventId,linked}:{eventId:string;linked:boolean}){const[busy,setBusy]=useState(false);const[message,setMessage]=useState("");async function claim(){if(linked){window.location.href="/dashboard";return}setBusy(true);const response=await fetch(`/api/events/${eventId}/claim`,{method:"POST"});const result=await response.json().catch(()=>({}));if(response.status===401){window.location.href=`/login?next=${encodeURIComponent(window.location.pathname)}`;return}if(!response.ok){setMessage(result.error??"The tasting could not be linked.");setBusy(false);return}window.location.href="/dashboard"}return <><button className="btn btn-primary" disabled={busy} onClick={claim}>{linked?"Open My Tea Cellar":busy?"Saving…":"Save to My Tea Cellar"}</button>{message&&<div className="form-error">{message}</div>}</>}
+function ClaimButton({ eventId, linked }: { eventId: string; linked: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const source = guestConnectionSource(eventId, "claim");
+  useEffect(() => () => reportConnectionHealthy(source), [source]);
+
+  async function claim() {
+    if (linked) { window.location.href = "/dashboard"; return; }
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/events/${eventId}/claim`, { method: "POST" });
+      const result = await response.json().catch(() => ({}));
+      if (response.status >= 500) reportConnectionIssue(source); else reportConnectionHealthy(source);
+      if (response.status === 401) { window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`; return; }
+      if (!response.ok) { setMessage(result.error ?? "The tasting could not be linked."); return; }
+      window.location.href = "/dashboard";
+    } catch {
+      reportConnectionIssue(source);
+      setMessage("We couldn’t reach the tasting. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <><button className="btn btn-primary" disabled={busy} onClick={claim}>{linked ? "Open My Tea Cellar" : busy ? "Saving…" : "Save to My Tea Cellar"}</button>{message && <div className="form-error">{message}</div>}</>;
+}
 
 function Terminal({ title, copy }: { title:string; copy:string }) { return <main className="guest-shell"><div className="guest-pane" style={{ justifyContent:"center",textAlign:"center" }}><Brand /><h1 className="page-title">{title}</h1><p>{copy}</p></div></main>; }
 function formatClock(ms:number){const total=Math.max(0,Math.ceil(ms/1000));return `${Math.floor(total/60)}:${String(total%60).padStart(2,"0")}`;}
