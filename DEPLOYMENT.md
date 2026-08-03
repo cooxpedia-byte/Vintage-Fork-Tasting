@@ -63,6 +63,9 @@ Required production values:
 NEXT_PUBLIC_SITE_URL=https://tasting.vintagefork.ca
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+TEA_LAB_ENABLED=false
+TEA_LAB_MIGRATIONS_VERIFIED_AT=
+TEA_LAB_ACCEPTANCE_VERIFIED_AT=
 SUPABASE_SECRET_KEY=...
 SUPABASE_DATABASE_URL=...
 CRON_SECRET=<at least 32 random characters>
@@ -74,6 +77,8 @@ RECAP_EMAIL_FROM=<Brevo-verified sender address>
 Enter SMTP credentials directly in the deployment secret store—never in source control, logs or chat. Confirm the sender is verified in Brevo before testing recap delivery. The recap email route is unavailable by design when these values are absent; deletion from an active guest recap remains available.
 
 Run `npm run preflight` as a deployment check before `next build` or in CI. Use `npm ci` after the lockfile is committed. Deploy a preview, complete QA, then promote the approved commit.
+
+Tea Lab remains off until migrations `0018`, `0019`, `0020`, `0021` and `0022` have been applied and all eleven staging scenarios in `docs/tea-lab/TEA_LAB_RELEASE_RUNBOOK.md` pass. Only then record the real verification timestamps and set `TEA_LAB_ENABLED=true`. Preflight rejects a flag-on deployment when either Tea Lab evidence timestamp is missing, invalid or older than 30 days.
 
 ## 5. Configure the hostname and HTTPS
 
@@ -100,3 +105,5 @@ Production preflight also requires recent `AUTH_EMAIL_VERIFIED_AT` and `BACKUP_R
 3. Do not manually reverse a database migration during a live event.
 4. Restore into a separate Supabase project if data recovery is required, verify it, then switch environment variables during a controlled maintenance window.
 5. Record the event ID, sequence number and timestamps in `RUNBOOK.md` incident format.
+
+For a Tea Lab-only rollback, set `TEA_LAB_ENABLED=false` first. Leave the additive migrations and customer data in place; do not reverse them or clear device drafts.

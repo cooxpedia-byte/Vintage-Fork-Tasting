@@ -43,6 +43,8 @@ The central rule is: **the database is authoritative**. Host commands execute th
 
 Read `LAUNCH_MANIFEST.md` for the complete MVP mapping, `DEPLOYMENT.md` for the production procedure, and `VALIDATION_REPORT.md` / `DELIVERY_NOTES.md` for the checks and remaining credential-dependent work.
 
+The feature-gated Tea Lab Solo Tasting MVP is also implemented in the workspace, including offline drafts, unified Journal, private Library, derived Passport seals and owner-safe lifecycle controls. It remains disabled pending the separate staging gate in `docs/tea-lab/TEA_LAB_RELEASE_RUNBOOK.md`.
+
 ## Local setup
 
 ### 1. Install dependencies
@@ -91,12 +93,21 @@ cp .env.example .env.local
 
 Use the current Supabase **publishable key** in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the server-only **secret key** in `SUPABASE_SECRET_KEY`. Never expose the secret key to the browser.
 
+`TEA_LAB_ENABLED` is a server-side release flag. It is disabled when missing or set to `false`; only the exact value `true` enables Tea Lab. Keep it `false` until migrations `0018`–`0022` and the [Tea Lab release runbook](docs/tea-lab/TEA_LAB_RELEASE_RUNBOOK.md) have passed. Flag-on preflight also requires recent `TEA_LAB_MIGRATIONS_VERIFIED_AT` and `TEA_LAB_ACCEPTANCE_VERIFIED_AT` evidence.
+
 Guest recap delivery uses Brevo SMTP. Configure `BREVO_SMTP_USER`, `BREVO_SMTP_KEY` and a Brevo-verified sender in `RECAP_EMAIL_FROM`; keep all three server-only. The default relay is `smtp-relay.brevo.com:587`.
 
 ### 5. Run
 
 ```bash
 npm run dev
+```
+
+For a local production-parity run, build first and then start the prepared standalone server. The start command loads `.env.local` when present and otherwise uses environment variables injected by the hosting platform.
+
+```bash
+npm run build
+npm start
 ```
 
 Open `http://localhost:3000/admin/login`.
@@ -135,7 +146,7 @@ Recommended alerts:
 
 ## Logo asset
 
-The supplied prototypes use a placeholder mark and explicitly instruct production to replace it with the approved logo. Replace `src/components/Brand.tsx` with the official transparent SVG/PNG asset while preserving its clear space and without recolouring, cropping or animating it. No official logo file was included in the four uploads, so the placeholder remains intentionally visible in this package.
+The approved Vintage Fork mark is tracked at `public/brand/vintage-fork-icon.jpg` and rendered by the shared `Brand` component. Preserve its clear space and do not recolour, crop or animate it.
 
 ## Important launch boundaries
 

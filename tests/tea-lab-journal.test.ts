@@ -1,0 +1,181 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildArchivedJournalSessions,
+  buildJournalSessions,
+  mapLegacyJournalDescriptor,
+  mapLiveEventToJournalSession,
+  mapSoloSessionToJournalSession,
+  type LiveJournalEventRow,
+  type SoloJournalSessionRow
+} from "@/lib/tea-lab/journal";
+
+const liveEvent: LiveJournalEventRow = {
+  id: "event-1",
+  title: "Summer tea table",
+  starts_at: "2026-08-01T18:00:00.000Z",
+  timezone: "America/Edmonton",
+  location_mode: "remote",
+  participant_id: "participant-1",
+  responses: [
+    {
+      id: "response-2",
+      rating: null,
+      first_impression: null,
+      personal_notes: null,
+      descriptors: ["Unexpected smoke"],
+      intensity: null,
+      saved: false,
+      completed_at: null,
+      flight: { id: "flight-2", reveal_title: "Second tea", position: 2, tea: null }
+    },
+    {
+      id: "response-1",
+      rating: 5,
+      first_impression: "Golden and bright",
+      personal_notes: "Try with cooler water",
+      descriptors: ["Honeyed", "stone fruit"],
+      intensity: "dominant",
+      saved: true,
+      completed_at: "2026-08-01T18:30:00.000Z",
+      flight: { id: "flight-1", reveal_title: "First tea", position: 1, tea: { name: "Golden Yunnan", origin: "Yunnan" } }
+    }
+  ]
+};
+
+function soloSession(overrides: Partial<SoloJournalSessionRow> = {}): SoloJournalSessionRow {
+  return {
+    id: "session-1",
+    kind: "solo",
+    status: "completed",
+    started_at: "2026-08-02T10:00:00.000Z",
+    completed_at: "2026-08-02T10:30:00.000Z",
+    archived_at: null,
+    revision: 2,
+    cards: [{
+      id: "card-1",
+      position: 1,
+      tea_name_snapshot: "Moonlight White",
+      origin_snapshot: "Yunnan",
+      rating: 4,
+      intensity: "clear",
+      completed_at: "2026-08-02T10:30:00.000Z",
+      private_notes: [{ first_impression: "Soft apricot", personal_notes: "Excellent on steep three" }],
+      descriptor_links: [
+        {
+          descriptor_id: "descriptor-2",
+          position: 2,
+          descriptor: { id: "descriptor-2", label: "Stone fruit" }
+        },
+        {
+          descriptor_id: "descriptor-1",
+          position: 1,
+          descriptor: [{ id: "descriptor-1", label: "Honeyed" }]
+        }
+      ]
+    }],
+    ...overrides
+  };
+}
+
+describe("Tea Lab Journal adapters", () => {
+  it("maps known legacy descriptors without rewriting unknown observations", () => {
+    expect(mapLegacyJournalDescriptor(" Stone   Fruit ")).toEqual({
+      stableId: "10000000-0000-4000-8000-000000000005",
+      label: "Stone   Fruit",
+      mapped: true
+    });
+    expect(mapLegacyJournalDescriptor("Unexpected smoke")).toEqual({
+      stableId: null,
+      label: "Unexpected smoke",
+      mapped: false
+    });
+  });
+
+  it("adapts live history with source-qualified IDs, private notes, and derived verification", () => {
+    const session = mapLiveEventToJournalSession(liveEvent);
+
+    expect(session.id).toBe("live-session:event-1:participant-1");
+    expect(session.source).toBe("live");
+    expect(session.timeZone).toBe("America/Edmonton");
+    expect(session.contextLabel).toBe("Remote");
+    expect(session.cards.map(card => card.id)).toEqual(["live:response-1", "live:response-2"]);
+    expect(session.cards[0]).toMatchObject({
+      teaName: "Golden Yunnan",
+      origin: "Yunnan",
+      firstImpression: "Golden and bright",
+      personalNotes: "Try with cooler water",
+      sealClass: "live_event_verified"
+    });
+    expect(session.cards[0].descriptors.map(descriptor => descriptor.stableId)).toEqual([
+      "10000000-0000-4000-8000-000000000001",
+      "10000000-0000-4000-8000-000000000005"
+    ]);
+    expect(session.cards[1]).toMatchObject({
+      teaName: "Second tea",
+      completedAt: null,
+      sealClass: null
+    });
+    expect(session.cards[1].descriptors[0].mapped).toBe(false);
+  });
+
+  it("adapts solo rows while preserving snapshots and relation ordering", () => {
+    const input = soloSession();
+    const session = mapSoloSessionToJournalSession(input);
+
+    expect(session).toMatchObject({
+      id: "solo-session:session-1",
+      source: "solo",
+      title: "Solo tasting",
+      occurredAt: "2026-08-02T10:30:00.000Z",
+      completedAt: "2026-08-02T10:30:00.000Z",
+      archivedAt: null,
+      status: "completed"
+    });
+    expect(session.cards[0]).toMatchObject({
+      id: "solo:card-1",
+      teaName: "Moonlight White",
+      origin: "Yunnan",
+      firstImpression: "Soft apricot",
+      personalNotes: "Excellent on steep three",
+      sealClass: "documented_tasting"
+    });
+    expect(session.cards[0].descriptors).toEqual([
+      { stableId: "descriptor-1", label: "Honeyed", mapped: true },
+      { stableId: "descriptor-2", label: "Stone fruit", mapped: true }
+    ]);
+    expect(input.cards?.[0].descriptor_links?.[0].position).toBe(2);
+  });
+
+  it("combines sources newest-first and excludes draft, archived, and incomplete solo records", () => {
+    const sessions = buildJournalSessions([liveEvent], [
+      soloSession(),
+      soloSession({ id: "draft", status: "draft", completed_at: null }),
+      soloSession({ id: "archived", archived_at: "2026-08-03T00:00:00.000Z" }),
+      soloSession({
+        id: "incomplete-card",
+        cards: [{ ...soloSession().cards![0], id: "incomplete", completed_at: null, rating: null }]
+      })
+    ]);
+
+    expect(sessions.map(session => session.id)).toEqual([
+      "solo-session:session-1",
+      "live-session:event-1:participant-1"
+    ]);
+    expect(sessions.flatMap(session => session.cards).map(card => card.id)).toEqual([
+      "solo:card-1",
+      "live:response-1",
+      "live:response-2"
+    ]);
+  });
+
+  it("offers completed archived solo sessions through a separate reversible view", () => {
+    const sessions = buildArchivedJournalSessions([
+      soloSession(),
+      soloSession({ id: "archived", archived_at: "2026-08-03T00:00:00.000Z", revision: 4 }),
+      soloSession({ id: "draft", status: "draft", completed_at: null, archived_at: "2026-08-04T00:00:00.000Z" })
+    ]);
+
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]).toMatchObject({ id: "solo-session:archived", revision: 4, archivedAt: "2026-08-03T00:00:00.000Z" });
+  });
+});

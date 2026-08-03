@@ -32,6 +32,14 @@ if (process.env.SUPABASE_SECRET_KEY?.startsWith("eyJ") && process.env.SUPABASE_S
   console.error("The server secret and browser publishable key must not be the same value.");
   process.exit(1);
 }
+if (process.env.TEA_LAB_ENABLED !== undefined && !["true", "false"].includes(process.env.TEA_LAB_ENABLED)) {
+  console.error("TEA_LAB_ENABLED must be exactly true or false when set.");
+  process.exit(1);
+}
+if (process.env.TEA_LAB_ENABLED === "true") {
+  requireRecentEvidence("TEA_LAB_MIGRATIONS_VERIFIED_AT", 30);
+  requireRecentEvidence("TEA_LAB_ACCEPTANCE_VERIFIED_AT", 30);
+}
 
 if (process.env.NODE_ENV === "production") {
   const monitoringDsn = process.env.SENTRY_DSN?.trim();

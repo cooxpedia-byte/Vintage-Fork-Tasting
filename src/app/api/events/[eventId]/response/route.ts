@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireParticipant } from "@/lib/guest-token";
+import { evaluateLiveResponseWindow } from "@/lib/live-response";
 import { responseSchema } from "@/lib/validation";
 import { logger } from "@/lib/logger";
 
@@ -19,9 +20,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ eve
       admin.from("event_flight_items").select("id").eq("id", parsed.data.flightItemId).eq("event_id", eventId).maybeSingle()
     ]);
     if (!flightItem) return NextResponse.json({ error: "That tea does not belong to this tasting." }, { status: 400 });
-    if (!event || event.status !== "live" || !["tasting","trivia","recap"].includes(event.phase)) return NextResponse.json({ error: "The host has not opened tasting responses." }, { status: 409 });
-    if (event.phase !== "recap" && event.tasting_opened_flight_item_id !== event.current_flight_item_id) return NextResponse.json({ error: "The host has not opened this tea for responses." }, { status: 409 });
-    if (event.current_flight_item_id !== parsed.data.flightItemId && event.phase !== "recap") return NextResponse.json({ error: "The room has moved to another tea." }, { status: 409 });
+    const responseWindow = evaluateLiveResponseWindow(event, parsed.data.flightItemId);
+    if (!responseWindow.allowed) return NextResponse.json({ error: responseWindow.message }, { status: 409 });
     const { data: existingResponse } = await admin.from("tea_responses").select("completed_at").eq("participant_id", participant.id).eq("event_flight_item_id", parsed.data.flightItemId).maybeSingle();
     const payload = {
       participant_id: participant.id,

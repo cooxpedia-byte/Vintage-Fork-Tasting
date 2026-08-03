@@ -39,3 +39,20 @@ This manifest maps every requested launch requirement to its implementation. It 
 - Personal notes are private. Staff analytics do not include free-text notes, and authenticated clients cannot select participant email or consent columns directly.
 - `localStorage` is used only for a participant’s scoped, local-first note draft. It never controls event phase, timer, host lease, trivia status or permissions.
 - Mobile app packaging is intentionally absent.
+
+## Feature-gated Tea Lab extension
+
+Tea Lab adds an authenticated, private Solo Tasting Session MVP behind the server-only `TEA_LAB_ENABLED` flag. It uses additive customer-owned tables rather than rewriting live-event records.
+
+| Requirement | Implementation evidence |
+|---|---|
+| Solo tasting flow | `TeaLabWorkspace`, stable device UUIDs, rating-gated four-step flow |
+| Offline recovery | IndexedDB owner namespaces, autosave and idempotent operation outbox |
+| Unified Journal | Live and solo adapters with source-qualified identities and private-note boundaries |
+| Tea Library | Grouped saved canonical references plus private reusable personal teas |
+| Passport | Derived Live Event Verified and Documented Tasting seals; no award ledger |
+| Lifecycle | Revision-checked archive/restore, guarded cascade deletion and device cleanup |
+| Privacy | Owner RLS, protected RPCs, no direct authenticated writes and safe operational logs |
+| Release control | Generic fail-closed handling for required-read failures, flag-off regression tests and timestamp-gated preflight |
+
+The code gate does not authorize production activation. Follow `docs/tea-lab/TEA_LAB_RELEASE_RUNBOOK.md` and retain the flag-off rollback path.

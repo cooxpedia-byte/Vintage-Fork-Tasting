@@ -1,72 +1,89 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { parseCustomerDashboardSection, type CustomerDashboardSection } from "@/lib/customer-dashboard";
+import { useRouter, useSearchParams } from "next/navigation";
+import { JournalSessionCard } from "@/components/dashboard/JournalSessionCard";
+import { TeaLabWorkspace } from "@/components/tea-lab/TeaLabWorkspace";
+import { TeaLibrary } from "@/components/tea-lab/TeaLibrary";
+import { TeaPassport } from "@/components/tea-lab/TeaPassport";
+import { formatCustomerEventDate, formatCustomerEventDateTime, parseCustomerDashboardSection, summarizeCustomerResponses, type CustomerDashboardSection } from "@/lib/customer-dashboard";
+import type { JournalSession, LiveJournalEventRow } from "@/lib/tea-lab/journal";
+import type { TeaLabDescriptorOption, TeaLabTeaOption } from "@/lib/tea-lab/lab";
+import type { TeaLabSoloDraft } from "@/lib/tea-lab/offline";
+import type { TeaLibraryItem } from "@/lib/tea-lab/library";
+import type { PassportSeal } from "@/lib/tea-lab/passport";
 
-type EventRow = {
-  id: string;
-  title: string;
-  starts_at: string;
-  location_mode: string;
-  participant_id: string;
-  responses: Array<{
-    id: string;
-    rating: number | null;
-    first_impression: string | null;
-    personal_notes: string | null;
-    descriptors: string[];
-    intensity: string | null;
-    saved: boolean;
-    completed_at: string | null;
-    flight: { id: string; reveal_title: string; position: number; tea: { name: string; origin: string | null } | null } | null;
-  }>;
+type EventRow = LiveJournalEventRow;
+
+type Upcoming = { id: string; title: string; starts_at: string; timezone?: string | null; location_mode: string; invite_code: string | null };
+
+type CustomerDashboardProps = {
+  name: string;
+  ownerUserId?: string;
+  events: EventRow[];
+  upcoming: Upcoming[];
+  initialTab: CustomerDashboardSection;
+  teaLabEnabled?: boolean;
+  journalSessions?: JournalSession[];
+  archivedJournalSessions?: JournalSession[];
+  libraryItems?: TeaLibraryItem[];
+  passportSeals?: PassportSeal[];
+  teaOptions?: TeaLabTeaOption[];
+  descriptorOptions?: TeaLabDescriptorOption[];
+  serverDrafts?: TeaLabSoloDraft[];
 };
 
-type Upcoming = { id: string; title: string; starts_at: string; location_mode: string; invite_code: string | null };
-
-export function CustomerDashboard({ name, events, upcoming, initialTab }: { name: string; events: EventRow[]; upcoming: Upcoming[]; initialTab: CustomerDashboardSection }) {
-  const [tab, setTab] = useState<CustomerDashboardSection>(initialTab);
+export function CustomerDashboard({ name, ownerUserId, events, upcoming, initialTab, teaLabEnabled = false, journalSessions = [], archivedJournalSessions = [], libraryItems = [], passportSeals = [], teaOptions = [], descriptorOptions = [], serverDrafts = [] }: CustomerDashboardProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [showArchivedJournal, setShowArchivedJournal] = useState(false);
   const allResponses = useMemo(() => events.flatMap(e => e.responses.map(r => ({ ...r, event: e }))), [events]);
-  const completed = allResponses.filter(r => r.completed_at);
-  const saved = allResponses.filter(r => r.saved);
-  const average = completed.filter(r => r.rating).length ? completed.reduce((sum, r) => sum + (r.rating ?? 0), 0) / completed.filter(r => r.rating).length : 0;
-
-  useEffect(() => {
-    function syncTabFromHistory() {
-      const section = new URL(window.location.href).searchParams.get("section") ?? undefined;
-      setTab(parseCustomerDashboardSection(section));
-    }
-    window.addEventListener("popstate", syncTabFromHistory);
-    return () => window.removeEventListener("popstate", syncTabFromHistory);
-  }, []);
+  const { completed, saved, average } = useMemo(() => summarizeCustomerResponses(allResponses), [allResponses]);
+  const routeSection = searchParams.get("section");
+  const tab = routeSection === null ? initialTab : parseCustomerDashboardSection(routeSection);
 
   function selectTab(nextTab: CustomerDashboardSection) {
-    setTab(nextTab);
-    const url = new URL(window.location.href);
-    if (nextTab === "home") url.searchParams.delete("section");
-    else url.searchParams.set("section", nextTab);
-    window.history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    if (nextTab === "home") nextSearchParams.delete("section");
+    else nextSearchParams.set("section", nextTab);
+    const query = nextSearchParams.toString();
+    router.push(query ? `/dashboard?${query}` : "/dashboard", { scroll: false });
   }
 
   return (
     <div className="dashboard-shell">
       <aside className="sidebar" aria-label="Customer dashboard">
         <nav>
-          <button className={`btn btn-quiet ${tab === "home" ? "active" : ""}`} aria-pressed={tab === "home"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span> Home</button>
-          <button className={`btn btn-quiet ${tab === "journal" ? "active" : ""}`} aria-pressed={tab === "journal"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span> Tastings</button>
-          <button className={`btn btn-quiet ${tab === "passport" ? "active" : ""}`} aria-pressed={tab === "passport"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span> Passport</button>
-          <button className={`btn btn-quiet ${tab === "saved" ? "active" : ""}`} aria-pressed={tab === "saved"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span> Saved teas</button>
+          {teaLabEnabled ? <>
+            <button className={`btn btn-quiet ${tab === "home" ? "active" : ""}`} aria-pressed={tab === "home"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span> Lab</button>
+            <button className={`btn btn-quiet ${tab === "journal" ? "active" : ""}`} aria-pressed={tab === "journal"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span> Journal</button>
+            <button className={`btn btn-quiet ${tab === "saved" ? "active" : ""}`} aria-pressed={tab === "saved"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span> Library</button>
+            <button className={`btn btn-quiet ${tab === "passport" ? "active" : ""}`} aria-pressed={tab === "passport"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span> Passport</button>
+          </> : <>
+            <button className={`btn btn-quiet ${tab === "home" ? "active" : ""}`} aria-pressed={tab === "home"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span> Home</button>
+            <button className={`btn btn-quiet ${tab === "journal" ? "active" : ""}`} aria-pressed={tab === "journal"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span> Tastings</button>
+            <button className={`btn btn-quiet ${tab === "passport" ? "active" : ""}`} aria-pressed={tab === "passport"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span> Passport</button>
+            <button className={`btn btn-quiet ${tab === "saved" ? "active" : ""}`} aria-pressed={tab === "saved"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span> Saved teas</button>
+          </>}
         </nav>
       </aside>
       <nav className="customer-mobile-nav" aria-label="Customer dashboard mobile">
-        <button className={tab === "home" ? "active" : ""} aria-pressed={tab === "home"} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span><small>Home</small></button>
-        <button className={tab === "journal" ? "active" : ""} aria-pressed={tab === "journal"} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span><small>Tastings</small></button>
-        <button className={tab === "passport" ? "active" : ""} aria-pressed={tab === "passport"} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span><small>Passport</small></button>
-        <button className={tab === "saved" ? "active" : ""} aria-pressed={tab === "saved"} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span><small>Saved</small></button>
+        {teaLabEnabled ? <>
+          <button className={tab === "home" ? "active" : ""} aria-pressed={tab === "home"} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span><small>Lab</small></button>
+          <button className={tab === "journal" ? "active" : ""} aria-pressed={tab === "journal"} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span><small>Journal</small></button>
+          <button className={tab === "saved" ? "active" : ""} aria-pressed={tab === "saved"} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span><small>Library</small></button>
+          <button className={tab === "passport" ? "active" : ""} aria-pressed={tab === "passport"} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span><small>Passport</small></button>
+        </> : <>
+          <button className={tab === "home" ? "active" : ""} aria-pressed={tab === "home"} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span><small>Home</small></button>
+          <button className={tab === "journal" ? "active" : ""} aria-pressed={tab === "journal"} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span><small>Tastings</small></button>
+          <button className={tab === "passport" ? "active" : ""} aria-pressed={tab === "passport"} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span><small>Passport</small></button>
+          <button className={tab === "saved" ? "active" : ""} aria-pressed={tab === "saved"} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span><small>Saved</small></button>
+        </>}
       </nav>
       <main className="dashboard-content" id="main-content">
-        {tab === "home" && <>
+        {tab === "home" && teaLabEnabled && ownerUserId && <TeaLabWorkspace ownerUserId={ownerUserId} name={name} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} upcoming={upcoming} onOpenJournal={() => selectTab("journal")} />}
+        {tab === "home" && (!teaLabEnabled || !ownerUserId) && <>
           <section className="card" style={{ borderLeft: "5px solid var(--vf-gold)" }}>
             <p className="eyebrow">Your personal tea cellar</p>
             <h1 className="display">Welcome back, {name}.</h1>
@@ -80,7 +97,7 @@ export function CustomerDashboard({ name, events, upcoming, initialTab }: { name
           </div>
           <div className="section-label"><span>Next at the table</span></div>
           {upcoming.length ? upcoming.map(event => <article className="card" key={event.id}>
-            <div className="card-header"><div><h2 className="card-title">{event.title}</h2><p className="card-meta">{new Date(event.starts_at).toLocaleString("en-CA", { dateStyle: "full", timeStyle: "short" })} · {event.location_mode === "remote" ? "Remote" : "In person"}</p></div><span className="chip chip-success">Booked</span></div>
+            <div className="card-header"><div><h2 className="card-title">{event.title}</h2><p className="card-meta">{formatCustomerEventDateTime(event.starts_at, event.timezone)} · {event.location_mode === "remote" ? "Remote" : "In person"}</p></div><span className="chip chip-success">Booked</span></div>
             <div className="notice">{event.location_mode === "remote" ? "Join the video call on a computer or tablet, and keep the tasting open on your phone." : "Your in-person seat is linked. Open the event on the day for the latest tasting details."}</div>
             <div className="card-footer"><span>Your seat is linked to this account.</span>{event.invite_code && <Link className="btn btn-primary" href={`/event/${event.invite_code}`}>Open event</Link>}</div>
           </article>) : <div className="empty-state"><h2>No upcoming tastings yet.</h2><p>Events linked to your verified email will appear here.</p><a className="btn btn-secondary" href="https://vintagefork.ca/" target="_blank" rel="noreferrer">Browse Vintage Fork tastings</a></div>}
@@ -89,14 +106,23 @@ export function CustomerDashboard({ name, events, upcoming, initialTab }: { name
         </>}
         {tab === "journal" && <>
           <h1 className="page-title">Your Tasting Journal</h1><p className="page-lede">Historical notes are private to you.</p>
-          <div className="stack" style={{ marginTop: 20 }}>{events.length ? events.map(event => <EventCard event={event} key={event.id} />) : <div className="empty-state"><h2>No tasting history yet.</h2></div>}</div>
+          <div className="stack" style={{ marginTop: 20 }}>{teaLabEnabled
+            ? journalSessions.length ? journalSessions.map(session => <JournalSessionCard session={session} ownerUserId={ownerUserId} key={session.id} />) : <div className="empty-state"><h2>No tasting history yet.</h2></div>
+            : events.length ? events.map(event => <EventCard event={event} key={event.id} />) : <div className="empty-state"><h2>No tasting history yet.</h2></div>}
+          </div>
+          {teaLabEnabled && archivedJournalSessions.length > 0 && <section className="archived-journal">
+            <button className="btn btn-quiet" type="button" aria-expanded={showArchivedJournal} onClick={() => setShowArchivedJournal(value => !value)}>{showArchivedJournal ? "Hide archived tastings" : `Show archived tastings (${archivedJournalSessions.length})`}</button>
+            {showArchivedJournal && <div className="stack" style={{ marginTop: 12 }}>{archivedJournalSessions.map(session => <JournalSessionCard session={session} ownerUserId={ownerUserId} key={session.id} />)}</div>}
+          </section>}
         </>}
-        {tab === "passport" && <>
+        {tab === "passport" && teaLabEnabled && <TeaPassport seals={passportSeals} />}
+        {tab === "passport" && !teaLabEnabled && <>
           <h1 className="page-title">Your Passport</h1><p className="page-lede">One stamp for every tea you completed.</p>
           <div className="grid grid-4" style={{ marginTop: 20 }}>{completed.map(r => <article key={r.id} className="card" style={{ textAlign: "center", background: "var(--vf-plum-aged)", color: "var(--vf-ivory)", borderColor: "var(--vf-gold-light)" }}><div style={{ fontSize: 28, color: "var(--vf-gold-light)" }}>✦</div><strong>{r.flight?.tea?.name ?? r.flight?.reveal_title}</strong><small style={{ display: "block", opacity: .75 }}>{r.flight?.tea?.origin}</small></article>)}</div>
           {!completed.length && <div className="empty-state"><h2>No stamps yet.</h2><p>Finish a tea during a live tasting to earn its stamp.</p></div>}
         </>}
-        {tab === "saved" && <>
+        {tab === "saved" && teaLabEnabled && <TeaLibrary items={libraryItems} onOpenLab={() => selectTab("home")} />}
+        {tab === "saved" && !teaLabEnabled && <>
           <h1 className="page-title">Saved to Remember</h1><p className="page-lede">Saving never adds a product to a cart or charges you.</p>
           <div className="stack" style={{ marginTop: 20 }}>{saved.map(r => <article className="card" key={r.id}><div className="card-header"><div><h2 className="card-title">{r.flight?.tea?.name ?? r.flight?.reveal_title}</h2><p className="card-meta">{r.flight?.tea?.origin}</p></div><span className="chip chip-success">Saved</span></div><p>{r.descriptors.join(" · ") || "No descriptors recorded"}</p><div className="card-footer"><span>{r.rating ? `${"★".repeat(r.rating)}${"☆".repeat(5-r.rating)}` : "Not rated"}</span><a className="btn btn-primary" href="https://vintagefork.ca/" target="_blank" rel="noreferrer">Visit the tea shop</a></div></article>)}</div>
           {!saved.length && <div className="empty-state"><h2>Nothing saved yet.</h2><p>Use “Save This Tea” during a tasting to keep it here.</p></div>}
@@ -107,7 +133,7 @@ export function CustomerDashboard({ name, events, upcoming, initialTab }: { name
 }
 
 function EventCard({ event }: { event: EventRow }) {
-  return <article className="card"><div className="card-header"><div><h2 className="card-title">{event.title}</h2><p className="card-meta">{new Date(event.starts_at).toLocaleDateString("en-CA", { dateStyle: "long" })} · {event.location_mode === "remote" ? "Remote" : "In person"}</p></div><span className="chip chip-success">Completed</span></div>
+  return <article className="card"><div className="card-header"><div><h2 className="card-title">{event.title}</h2><p className="card-meta">{formatCustomerEventDate(event.starts_at, event.timezone)} · {event.location_mode === "remote" ? "Remote" : "In person"}</p></div><span className="chip chip-success">Completed</span></div>
     <div className="table-wrap"><table><thead><tr><th>Tea</th><th>Rating</th><th>Intensity</th><th>Your descriptors</th></tr></thead><tbody>{[...event.responses].sort((a,b) => (a.flight?.position ?? 0) - (b.flight?.position ?? 0)).map(r => <tr key={r.id}><td>{r.flight?.tea?.name ?? r.flight?.reveal_title}</td><td>{r.rating ? `${"★".repeat(r.rating)}${"☆".repeat(5-r.rating)}` : "—"}</td><td>{r.intensity ?? "—"}</td><td>{r.descriptors.join(", ") || "—"}</td></tr>)}</tbody></table></div>
     {event.responses.some(r => r.first_impression || r.personal_notes) && <div><div className="section-label"><span>Your private notes</span></div><div className="stack">{event.responses.filter(r => r.first_impression || r.personal_notes).map(r => <article key={`note-${r.id}`} className="notice"><strong>{r.flight?.tea?.name ?? r.flight?.reveal_title}</strong>{r.first_impression && <p style={{ marginTop: 6 }}>“{r.first_impression}”</p>}{r.personal_notes && <p className="muted" style={{ marginTop: 6 }}>{r.personal_notes}</p>}</article>)}</div></div>}
     <div className="card-footer"><span className="muted">Your words are never shown to other guests.</span><span>{event.responses.filter(r => r.saved).length} saved</span></div>

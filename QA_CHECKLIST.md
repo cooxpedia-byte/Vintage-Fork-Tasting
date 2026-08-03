@@ -73,6 +73,23 @@ Test with one host, one backup/observer and at least three guest browsers.
 - Historical first impressions and personal notes render only for the linked customer and remain private under RLS.
 - Logout and session recovery are reliable.
 
+## Tea Lab MVP
+
+Run the complete [Tea Lab release runbook](docs/tea-lab/TEA_LAB_RELEASE_RUNBOOK.md) on a migrated staging project before setting `TEA_LAB_ENABLED=true` anywhere.
+
+- With the flag off, the shipped Home, Tastings, Passport and Saved Teas experience is unchanged and Tea Lab tables are not queried.
+- With the flag on but a critical Tea Lab read unavailable, the dashboard shows the generic safe error state, logs only safe source/error codes and never renders a partial Tea Lab view.
+- Complete known and manually entered teas and verify exactly one Journal card and source-qualified Passport seal each.
+- Refresh offline at every solo step, complete offline, reconnect and verify exactly one server card.
+- Expire authentication with a completed device draft, sign in again and verify no data loss.
+- Reuse, archive and restore a private personal tea without adding it to the permanent catalogue.
+- Archive and restore a solo tasting; its seal remains. Permanently delete it; its Journal entry and seal disappear.
+- Edit the same solo session in two tabs and verify an explicit revision conflict.
+- Verify a second customer and ordinary staff client cannot read the session, brew or private prose.
+- Add at least two camera/library photos, complete the tasting, open the same private card from Journal and Passport, test the slider, and verify a second customer cannot read the metadata or objects.
+- Confirm logs contain safe IDs/codes and never first impressions, private notes or manual tea prose.
+- Complete the flow with keyboard and screen reader; verify rating arrow keys, deletion-confirmation focus, 200%/400% zoom and reduced motion.
+
 ## Accessibility
 
 - Complete all critical flows with keyboard only.
