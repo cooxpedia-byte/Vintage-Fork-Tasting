@@ -1,7 +1,8 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { TasteStep, TeaLabWorkspace, teaLabDraftTeaName } from "@/components/tea-lab/TeaLabWorkspace";
+import { BrewStep, TasteStep, TeaLabWorkspace, teaLabDraftTeaName } from "@/components/tea-lab/TeaLabWorkspace";
+import { createDefaultTeaLabBrewStages } from "@/lib/tea-lab/brewing";
 import { createSoloTeaDraft } from "@/lib/tea-lab/offline";
 
 vi.mock("next/navigation", () => ({
@@ -98,5 +99,27 @@ describe("Tea Lab workspace", () => {
     expect(html).toContain("Take photo");
     expect(html).toContain('capture="environment"');
     expect(html).toContain("Add from library");
+  });
+
+  it("offers grouped brewing methods and a Gongfu wash-by-wash flow", () => {
+    const draft = {
+      ...createSoloTeaDraft("owner-1", (() => {
+        const ids = ["session-1", "card-1"];
+        return () => ids.shift() ?? "unused";
+      })()),
+      brewing: { style: "gongfu" as const, stages: createDefaultTeaLabBrewStages("gongfu") }
+    };
+    const shared = { draft, update: vi.fn(), back: vi.fn(), next: vi.fn() };
+    const brewHtml = renderToStaticMarkup(createElement(BrewStep, shared));
+    const tasteHtml = renderToStaticMarkup(createElement(TasteStep, { ...shared, descriptors: [] }));
+
+    expect(brewHtml).toContain("Chinese &amp; Taiwanese methods");
+    expect(brewHtml).toContain("Gongfu");
+    expect(brewHtml).toContain("Hong Kong–style milk tea");
+    expect(brewHtml).toContain("Custom method");
+    expect(tasteHtml).toContain("Gongfu wash / infusion notes");
+    expect(tasteHtml).toContain("Rinse (optional)");
+    expect(tasteHtml).toContain("Infusion 3");
+    expect(tasteHtml).toContain("What changed?");
   });
 });

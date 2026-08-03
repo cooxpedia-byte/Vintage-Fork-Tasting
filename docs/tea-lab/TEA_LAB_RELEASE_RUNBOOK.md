@@ -6,7 +6,7 @@
 | Code gate | Complete locally |
 | Environment gate | Pending on a migrated staging project |
 | Default release state | `TEA_LAB_ENABLED=false` |
-| Required migrations | `0018`, `0019`, `0020`, `0021`, then `0022` |
+| Required migrations | `0018`, `0019`, `0020`, `0021`, `0022`, then `0023` |
 
 Tea Lab must remain disabled until both the automated code gate and the staging acceptance gate have passed. A successful build is not evidence that a remote database has the required schema.
 
@@ -27,7 +27,7 @@ The gate covers feature-off regression behavior, schema and RLS contracts, prote
 1. Confirm staging uses a non-production Supabase project.
 2. Set `TEA_LAB_ENABLED=false`.
 3. Verify a current database backup or disposable staging reset point.
-4. Apply migrations `0018_tea_lab_foundation.sql`, `0019_tea_lab_protected_operations.sql`, `0020_tea_lab_library_operations.sql`, `0021_tea_lab_digest_schema.sql`, and `0022_tea_lab_tasting_photos.sql` in order. `0021` makes the protected save function compatible with Supabase's trusted `extensions` schema; `0022` adds owner-private tasting photo metadata and the private photo bucket.
+4. Apply migrations `0018_tea_lab_foundation.sql`, `0019_tea_lab_protected_operations.sql`, `0020_tea_lab_library_operations.sql`, `0021_tea_lab_digest_schema.sql`, `0022_tea_lab_tasting_photos.sql`, and `0023_tea_lab_brewing_styles.sql` in order. `0021` makes the protected save function compatible with Supabase's trusted `extensions` schema; `0022` adds owner-private tasting photo metadata and the private photo bucket; `0023` adds brewing styles and owner-private ordered stage notes.
 5. Confirm the migration history and inspect the new tables, policies, grants, seeded descriptors, and protected functions.
 6. Deploy the application while the flag remains false and rerun the shipped live-event regression checklist.
 
@@ -50,12 +50,13 @@ Use at least two customer accounts, one ordinary staff account, two browser tabs
 | 9 | Existing live completion/deletion semantics remain unchanged | Guest deletion and customer-dashboard regression tests | Complete and delete a staging live tasting with the flag off and on |
 | 10 | Keyboard, screen reader, 200%/400% zoom, and reduced motion remain usable | Semantic render, rating-keyboard, focus, CSS, and browser checks | Complete the full workflow with assistive technology and supported browsers |
 | 11 | Active-tasting camera/library photos become a private slider in the same card opened by Journal and Passport | Photo migration, route, card adapter, and slider render tests | Add at least two photos, complete, open from both surfaces, test the slider, and attempt a cross-customer read |
+| 12 | Brewing style selection loads the appropriate editable stage flow and preserves private notes in the Journal | Brewing definition, migration, route, adapter, and rendered-workspace tests | Complete one Gongfu wash-by-wash tasting and one non-infusion method, then verify ordered stages after refresh |
 
 Record the tester, environment, deployed commit, browser/device matrix, timestamps, and evidence links for every scenario. A failure keeps the feature disabled.
 
 ## 4. Record release evidence
 
-After all five migrations and all eleven scenarios pass, set these deployment-secret timestamps to the actual verification time:
+After all six migrations and all twelve scenarios pass, set these deployment-secret timestamps to the actual verification time:
 
 ```text
 TEA_LAB_MIGRATIONS_VERIFIED_AT=<ISO-8601 timestamp>

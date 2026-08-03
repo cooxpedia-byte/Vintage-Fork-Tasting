@@ -1,4 +1,4 @@
-import type { TeaLabSoloDraft, TeaLabTeaSelection } from "@/lib/tea-lab/offline";
+import type { TeaLabBrewingStyle, TeaLabSoloDraft, TeaLabTeaSelection } from "@/lib/tea-lab/offline";
 
 type OneOrMany<T> = T | T[] | null;
 
@@ -41,13 +41,22 @@ export type TeaLabServerDraftRow = {
     rating: number | null;
     intensity: "subtle" | "clear" | "dominant" | null;
     brewing: OneOrMany<{
+      brewing_style?: TeaLabBrewingStyle | null;
       leaf_grams: number | null;
       water_ml: number | null;
       water_temperature_c: number | null;
       water_source: string | null;
       vessel: string | null;
       initial_steep_seconds: number | null;
+      preparation_notes?: string | null;
     }>;
+    brew_stages?: Array<{
+      stage_number: number;
+      label: string;
+      duration_seconds: number | null;
+      temperature_c: number | null;
+      notes: string | null;
+    }> | null;
     private_notes: OneOrMany<{
       first_impression: string | null;
       personal_notes: string | null;
@@ -95,12 +104,22 @@ export function mapServerDraftToOfflineDraft(ownerUserId: string, row: TeaLabSer
     archived: row.archived_at !== null,
     tea: selection,
     brewing: {
+      style: brewing?.brewing_style ?? null,
       leafGrams: brewing?.leaf_grams ?? null,
       waterMl: brewing?.water_ml ?? null,
       waterTemperatureC: brewing?.water_temperature_c ?? null,
       waterSource: brewing?.water_source ?? null,
       vessel: brewing?.vessel ?? null,
-      initialSteepSeconds: brewing?.initial_steep_seconds ?? null
+      initialSteepSeconds: brewing?.initial_steep_seconds ?? null,
+      preparationNotes: brewing?.preparation_notes ?? null,
+      stages: [...(card.brew_stages ?? [])]
+        .sort((left, right) => left.stage_number - right.stage_number)
+        .map(stage => ({
+          label: stage.label,
+          durationSeconds: stage.duration_seconds,
+          temperatureC: stage.temperature_c,
+          notes: stage.notes
+        }))
     },
     tasting: {
       firstImpression: notes?.first_impression ?? null,

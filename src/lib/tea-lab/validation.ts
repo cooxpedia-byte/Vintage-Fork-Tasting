@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TEA_LAB_BREWING_STYLE_IDS } from "@/lib/tea-lab/offline";
 
 const optionalText = (maximum: number) => z.string().trim().min(1).max(maximum).nullable().optional();
 
@@ -20,18 +21,28 @@ const personalTeaSchema = z.object({
   lotCode: optionalText(160)
 }).strict();
 
+const brewStageSchema = z.object({
+  label: z.string().trim().min(1).max(80),
+  durationSeconds: z.number().int().min(1).max(86400).nullable().optional(),
+  temperatureC: z.number().finite().min(0).max(100).nullable().optional(),
+  notes: optionalText(600)
+}).strict();
+
 export const soloSessionSaveSchema = z.object({
   operationId: z.string().uuid(),
   cardId: z.string().uuid(),
   expectedRevision: z.number().int().min(0),
   tea: z.discriminatedUnion("kind", [canonicalTeaSchema, personalTeaSchema]),
   brewing: z.object({
+    style: z.enum(TEA_LAB_BREWING_STYLE_IDS).nullable().optional(),
     leafGrams: z.number().finite().positive().max(1000).nullable().optional(),
     waterMl: z.number().int().min(1).max(10000).nullable().optional(),
     waterTemperatureC: z.number().finite().min(0).max(100).nullable().optional(),
     waterSource: optionalText(160),
     vessel: optionalText(160),
-    initialSteepSeconds: z.number().int().min(1).max(86400).nullable().optional()
+    initialSteepSeconds: z.number().int().min(1).max(86400).nullable().optional(),
+    preparationNotes: optionalText(1200),
+    stages: z.array(brewStageSchema).max(20).optional()
   }).strict().default({}),
   tasting: z.object({
     firstImpression: z.string().max(600).nullable().default(null),

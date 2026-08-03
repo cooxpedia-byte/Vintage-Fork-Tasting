@@ -78,7 +78,7 @@ Enter SMTP credentials directly in the deployment secret store—never in source
 
 Run `npm run preflight` as a deployment check before `next build` or in CI. Use `npm ci` after the lockfile is committed. Deploy a preview, complete QA, then promote the approved commit.
 
-Tea Lab remains off until migrations `0018`, `0019`, `0020`, `0021` and `0022` have been applied and all eleven staging scenarios in `docs/tea-lab/TEA_LAB_RELEASE_RUNBOOK.md` pass. Only then record the real verification timestamps and set `TEA_LAB_ENABLED=true`. Preflight rejects a flag-on deployment when either Tea Lab evidence timestamp is missing, invalid or older than 30 days.
+Tea Lab remains off until migrations `0018`, `0019`, `0020`, `0021`, `0022` and `0023` have been applied and all twelve staging scenarios in `docs/tea-lab/TEA_LAB_RELEASE_RUNBOOK.md` pass. Only then record the real verification timestamps and set `TEA_LAB_ENABLED=true`. Preflight rejects a flag-on deployment when either Tea Lab evidence timestamp is missing, invalid or older than 30 days.
 
 ## 5. Configure the hostname and HTTPS
 

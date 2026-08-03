@@ -40,7 +40,14 @@ function savePayload() {
       name: "Moonlight White",
       origin: "Yunnan"
     },
-    brewing: { leafGrams: 5, waterMl: 100, waterTemperatureC: 85 },
+    brewing: {
+      style: "gongfu",
+      leafGrams: 5,
+      waterMl: 100,
+      waterTemperatureC: 85,
+      preparationNotes: "Porcelain gaiwan",
+      stages: [{ label: "Infusion 1", durationSeconds: 10, temperatureC: 85, notes: "Soft apricot" }]
+    },
     tasting: {
       firstImpression: "Soft apricot",
       descriptorIds: [descriptorId],
@@ -118,7 +125,7 @@ describe("Tea Lab solo-session routes", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(rpc).toHaveBeenCalledWith("save_solo_tasting_session", {
+    expect(rpc).toHaveBeenCalledWith("save_solo_tasting_session_v2", {
       p_session_id: sessionId,
       p_card_id: cardId,
       p_operation_id: operationId,
@@ -130,7 +137,14 @@ describe("Tea Lab solo-session routes", () => {
         origin: "Yunnan"
       },
       p_card: { rating: 4, intensity: "clear" },
-      p_brewing: { leafGrams: 5, waterMl: 100, waterTemperatureC: 85 },
+      p_brewing: {
+        style: "gongfu",
+        leafGrams: 5,
+        waterMl: 100,
+        waterTemperatureC: 85,
+        preparationNotes: "Porcelain gaiwan",
+        stages: [{ label: "Infusion 1", durationSeconds: 10, temperatureC: 85, notes: "Soft apricot" }]
+      },
       p_private_notes: {
         firstImpression: "Soft apricot",
         personalNotes: "Keep this private"
@@ -147,6 +161,22 @@ describe("Tea Lab solo-session routes", () => {
       }
     });
     expect(JSON.stringify(body)).not.toContain("owner_user_id");
+  });
+
+  it("rejects oversized or malformed private brewing stages before the RPC", async () => {
+    const rpc = authenticatedRpc({ data: null, error: null });
+    const payload = savePayload();
+    payload.brewing.stages = Array.from({ length: 21 }, (_, index) => ({
+      label: `Infusion ${index + 1}`,
+      durationSeconds: 10,
+      temperatureC: 85,
+      notes: "Private"
+    }));
+
+    const response = await PUT(request("PUT", payload), context);
+
+    expect(response.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("returns a privacy-safe revision conflict without logging private error details", async () => {

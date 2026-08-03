@@ -59,6 +59,11 @@ function soloSession(overrides: Partial<SoloJournalSessionRow> = {}): SoloJourna
       rating: 4,
       intensity: "clear",
       completed_at: "2026-08-02T10:30:00.000Z",
+      brewing: [{ brewing_style: "gongfu", leaf_grams: 5, water_ml: 100, water_temperature_c: 85, water_source: "Filtered", vessel: "Gaiwan", initial_steep_seconds: 10, preparation_notes: "Warm vessel" }],
+      brew_stages: [
+        { stage_number: 2, label: "Infusion 2", duration_seconds: 15, temperature_c: 85, notes: "Floral" },
+        { stage_number: 1, label: "Infusion 1", duration_seconds: 10, temperature_c: 85, notes: "Apricot" }
+      ],
       private_notes: [{ first_impression: "Soft apricot", personal_notes: "Excellent on steep three" }],
       descriptor_links: [
         {
@@ -137,7 +142,15 @@ describe("Tea Lab Journal adapters", () => {
       origin: "Yunnan",
       firstImpression: "Soft apricot",
       personalNotes: "Excellent on steep three",
-      sealClass: "documented_tasting"
+      sealClass: "documented_tasting",
+      brewing: {
+        style: "gongfu",
+        preparationNotes: "Warm vessel",
+        stages: [
+          { label: "Infusion 1", durationSeconds: 10, temperatureC: 85, notes: "Apricot" },
+          { label: "Infusion 2", durationSeconds: 15, temperatureC: 85, notes: "Floral" }
+        ]
+      }
     });
     expect(session.cards[0].descriptors).toEqual([
       { stableId: "descriptor-1", label: "Honeyed", mapped: true },

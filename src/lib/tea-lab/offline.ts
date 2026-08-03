@@ -18,13 +18,31 @@ export type TeaLabPersonalTeaSelection = {
 
 export type TeaLabTeaSelection = TeaLabCanonicalTeaSelection | TeaLabPersonalTeaSelection;
 
+export const TEA_LAB_BREWING_STYLE_IDS = [
+  "western", "tea_bag", "grandpa", "bowl", "gongfu", "chaozhou_gongfu", "sencha_kyusu", "gyokuro",
+  "matcha_usucha", "matcha_koicha", "cold_brew", "flash_chilled", "koridashi", "masala_chai", "karak_chai",
+  "turkish_cay", "moroccan_mint", "samovar", "kashmiri_kahwa", "hong_kong_milk_tea", "herbal_decoction", "custom"
+] as const;
+
+export type TeaLabBrewingStyle = typeof TEA_LAB_BREWING_STYLE_IDS[number];
+
+export type TeaLabBrewStageDraft = {
+  label: string;
+  durationSeconds?: number | null;
+  temperatureC?: number | null;
+  notes?: string | null;
+};
+
 export type TeaLabBrewingDraft = {
+  style?: TeaLabBrewingStyle | null;
   leafGrams?: number | null;
   waterMl?: number | null;
   waterTemperatureC?: number | null;
   waterSource?: string | null;
   vessel?: string | null;
   initialSteepSeconds?: number | null;
+  preparationNotes?: string | null;
+  stages?: TeaLabBrewStageDraft[];
 };
 
 export type TeaLabTastingDraft = {

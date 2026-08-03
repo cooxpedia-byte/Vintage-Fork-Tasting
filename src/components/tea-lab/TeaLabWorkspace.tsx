@@ -7,6 +7,16 @@ import { TeaLabPhotoCapture } from "@/components/tea-lab/TeaLabPhotoCapture";
 import { formatCustomerEventDateTime } from "@/lib/customer-dashboard";
 import { IndexedDbTeaLabOfflineStore } from "@/lib/tea-lab/indexed-db";
 import {
+  createDefaultTeaLabBrewStages,
+  durationInputToSeconds,
+  durationSecondsToInput,
+  getTeaLabBrewingStyle,
+  nextTeaLabBrewStageLabel,
+  TEA_LAB_BREWING_STYLE_GROUPS,
+  TEA_LAB_BREWING_STYLES,
+  teaLabBrewingStyleLabel
+} from "@/lib/tea-lab/brewing";
+import {
   inferTeaLabFlowStep,
   isTeaSelectionReady,
   nextTeaLabRating,
@@ -15,7 +25,7 @@ import {
   type TeaLabFlowStep
 } from "@/lib/tea-lab/lab-flow";
 import { chooseDraftForHydration, type TeaLabDescriptorOption, type TeaLabTeaOption } from "@/lib/tea-lab/lab";
-import { createSoloTeaDraft, resolveTeaLabSaveIndicator, type TeaLabOutboxOperation, type TeaLabSoloDraft } from "@/lib/tea-lab/offline";
+import { createSoloTeaDraft, resolveTeaLabSaveIndicator, type TeaLabBrewStageDraft, type TeaLabBrewingStyle, type TeaLabOutboxOperation, type TeaLabSoloDraft } from "@/lib/tea-lab/offline";
 import type { TeaLabOfflineStore } from "@/lib/tea-lab/offline-store";
 import {
   createTeaLabDraftAutosave,
@@ -209,8 +219,8 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
   async function completeTasting() {
     const store = storeRef.current;
     if (!store || !draft || blocked || photoBusy) return;
-    if (!isTeaSelectionReady(draft) || !draft.tasting.rating) {
-      setFormError("Choose a tea and add a rating before completing this tasting.");
+    if (!isTeaSelectionReady(draft) || !draft.brewing.style || !draft.tasting.rating) {
+      setFormError("Choose a tea and brewing style, then add a rating before completing this tasting.");
       return;
     }
     setCompleting(true);
@@ -389,20 +399,94 @@ function ChooseTeaStep({ draft, options, update, next }: { draft: TeaLabSoloDraf
   </section>;
 }
 
-function BrewStep({ draft, update, back, next }: { draft: TeaLabSoloDraft; update: (recipe: (draft: TeaLabSoloDraft) => TeaLabSoloDraft) => void; back: () => void; next: () => void }) {
+export function BrewStep({ draft, update, back, next }: { draft: TeaLabSoloDraft; update: (recipe: (draft: TeaLabSoloDraft) => TeaLabSoloDraft) => void; back: () => void; next: () => void }) {
   const setBrewing = (field: keyof TeaLabSoloDraft["brewing"], value: string, numeric = false) => update(current => ({ ...current, brewing: { ...current.brewing, [field]: numeric ? parseOptionalNumber(value) : value || null } }));
+  const style = getTeaLabBrewingStyle(draft.brewing.style);
+
+  function selectStyle(value: string) {
+    if (value !== draft.brewing.style
+      && draft.brewing.stages?.some(stage => Boolean(stage.notes?.trim()))
+      && !window.confirm("Changing the brewing style will replace your stage plan and its notes. Continue?")) return;
+    if (!value) {
+      update(current => ({ ...current, brewing: { ...current.brewing, style: null, stages: [] } }));
+      return;
+    }
+    const selected = value as TeaLabBrewingStyle;
+    const definition = getTeaLabBrewingStyle(selected);
+    if (!definition) return;
+    const stages = createDefaultTeaLabBrewStages(selected);
+    update(current => ({
+      ...current,
+      brewing: {
+        ...current.brewing,
+        style: selected,
+        initialSteepSeconds: current.brewing.initialSteepSeconds || stages.find(stage => stage.durationSeconds)?.durationSeconds || null,
+        stages
+      }
+    }));
+  }
+
   return <section className="card tea-lab-step">
-    <p className="eyebrow">Step 2</p><h1 className="page-title">Set up the brew</h1><p className="page-lede">Everything here is optional. Record only what will help you repeat or compare this tea.</p>
+    <p className="eyebrow">Step 2</p><h1 className="page-title">Choose how you’re brewing</h1><p className="page-lede">Select a method to get an editable stage-by-stage flow. The starting points are guides, not rules.</p>
+    <div className="field"><label htmlFor="brewing-style">Brewing style</label><select className="select" id="brewing-style" required value={draft.brewing.style ?? ""} onChange={event => selectStyle(event.target.value)}>
+      <option value="">Select a brewing style…</option>
+      {TEA_LAB_BREWING_STYLE_GROUPS.map(group => <optgroup label={group.label} key={group.id}>{TEA_LAB_BREWING_STYLES.filter(candidate => candidate.group === group.id).map(candidate => <option value={candidate.id} key={candidate.id}>{candidate.label}</option>)}</optgroup>)}
+    </select></div>
+    {style && <aside className="tea-lab-method-guide" aria-live="polite">
+      <div><p className="eyebrow">Your flow</p><h2>{style.label}</h2><p>{style.summary}</p><p className="muted"><strong>Suggested vessel:</strong> {style.vesselSuggestion}</p></div>
+      <ul>{style.setupGuidance.map(item => <li key={item}>{item}</li>)}</ul>
+    </aside>}
+    <p className="help">Changing the style replaces the stage plan. Your leaf, water, and setup notes stay in place.</p>
     <div className="grid grid-3">
       <div className="field"><label htmlFor="leaf-grams">Leaf weight (g)</label><input className="input" id="leaf-grams" type="number" min="0.01" max="1000" step="0.1" value={numericValue(draft.brewing.leafGrams)} onChange={event => setBrewing("leafGrams", event.target.value, true)} /></div>
       <div className="field"><label htmlFor="water-ml">Water (ml)</label><input className="input" id="water-ml" type="number" min="1" max="10000" step="1" value={numericValue(draft.brewing.waterMl)} onChange={event => setBrewing("waterMl", event.target.value, true)} /></div>
       <div className="field"><label htmlFor="water-temperature">Temperature (°C)</label><input className="input" id="water-temperature" type="number" min="0" max="100" step="1" value={numericValue(draft.brewing.waterTemperatureC)} onChange={event => setBrewing("waterTemperatureC", event.target.value, true)} /></div>
-      <div className="field"><label htmlFor="vessel">Vessel</label><input className="input" id="vessel" maxLength={160} value={draft.brewing.vessel ?? ""} onChange={event => setBrewing("vessel", event.target.value)} /></div>
+      <div className="field"><label htmlFor="vessel">Vessel</label><input className="input" id="vessel" maxLength={160} value={draft.brewing.vessel ?? ""} onChange={event => setBrewing("vessel", event.target.value)} placeholder={style?.vesselSuggestion} /></div>
       <div className="field"><label htmlFor="water-source">Water source</label><input className="input" id="water-source" maxLength={160} value={draft.brewing.waterSource ?? ""} onChange={event => setBrewing("waterSource", event.target.value)} /></div>
       <div className="field"><label htmlFor="steep-seconds">Initial steep (seconds)</label><input className="input" id="steep-seconds" type="number" min="1" max="86400" step="1" value={numericValue(draft.brewing.initialSteepSeconds)} onChange={event => setBrewing("initialSteepSeconds", event.target.value, true)} /></div>
     </div>
-    <div className="card-footer"><button className="btn btn-secondary" type="button" onClick={back}>Back</button><button className="btn btn-primary btn-attention" type="button" onClick={next}>Continue to taste</button></div>
+    <div className="field"><label htmlFor="preparation-notes">Setup notes</label><textarea className="textarea" id="preparation-notes" maxLength={1200} value={draft.brewing.preparationNotes ?? ""} onChange={event => setBrewing("preparationNotes", event.target.value)} placeholder="Leaf arrangement, rinse, ice amount, spice mix, milk ratio…" /></div>
+    <div className="card-footer"><button className="btn btn-secondary" type="button" onClick={back}>Back</button><button className="btn btn-primary btn-attention" type="button" disabled={!draft.brewing.style} onClick={next}>Continue to brew notes</button></div>
   </section>;
+}
+
+function BrewStageNotes({ draft, update }: { draft: TeaLabSoloDraft; update: (recipe: (draft: TeaLabSoloDraft) => TeaLabSoloDraft) => void }) {
+  const style = getTeaLabBrewingStyle(draft.brewing.style);
+  if (!style || !draft.brewing.style) return null;
+  const stages = draft.brewing.stages ?? [];
+  const updateStages = (recipe: (stages: TeaLabBrewStageDraft[]) => TeaLabBrewStageDraft[]) => update(current => ({
+    ...current,
+    brewing: { ...current.brewing, stages: recipe(current.brewing.stages ?? []) }
+  }));
+  const updateStage = (index: number, field: keyof TeaLabBrewStageDraft, value: string) => updateStages(current => current.map((stage, stageIndex) => stageIndex === index ? {
+    ...stage,
+    [field]: field === "durationSeconds"
+      ? durationInputToSeconds(value, style.durationUnit)
+      : field === "temperatureC" ? parseOptionalNumber(value) : value || null
+  } : stage));
+  const addStage = () => updateStages(current => current.length >= 20 ? current : [...current, {
+    label: nextTeaLabBrewStageLabel(draft.brewing.style as TeaLabBrewingStyle, current),
+    durationSeconds: null,
+    temperatureC: null,
+    notes: null
+  }]);
+
+  return <fieldset className="tea-lab-fieldset tea-lab-brew-stages">
+    <legend>{style.label} {style.stageNoun} notes <span className="muted">Optional, private, up to 20</span></legend>
+    <p className="help">Capture each stage while you brew. Edit the guide to match this tea and your own practice.</p>
+    <div className="tea-lab-stage-list">{stages.map((stage, index) => {
+      const prompt = style.stages[index]?.notePrompt ?? `What did you notice during this ${style.stageNoun}?`;
+      return <article className="tea-lab-stage" key={index}>
+        <div className="tea-lab-stage-heading"><span>{index + 1}</span><div className="field"><label htmlFor={`brew-stage-label-${index}`}>Stage name</label><input className="input" id={`brew-stage-label-${index}`} maxLength={80} value={stage.label} onChange={event => { if (event.target.value.trim()) updateStage(index, "label", event.target.value); }} /></div>{stages.length > 1 && <button className="btn btn-quiet danger" type="button" aria-label={`Remove ${stage.label}`} onClick={() => updateStages(current => current.filter((_, stageIndex) => stageIndex !== index))}>Remove</button>}</div>
+        <div className="grid grid-2">
+          <div className="field"><label htmlFor={`brew-stage-duration-${index}`}>Time ({style.durationUnit})</label><input className="input" id={`brew-stage-duration-${index}`} type="number" min={style.durationUnit === "seconds" ? 1 : 0.01} max={style.durationUnit === "hours" ? 24 : style.durationUnit === "minutes" ? 1440 : 86400} step={style.durationUnit === "seconds" ? 1 : 0.1} value={durationSecondsToInput(stage.durationSeconds, style.durationUnit)} onChange={event => updateStage(index, "durationSeconds", event.target.value)} /></div>
+          <div className="field"><label htmlFor={`brew-stage-temperature-${index}`}>Temperature (°C)</label><input className="input" id={`brew-stage-temperature-${index}`} type="number" min="0" max="100" step="1" value={numericValue(stage.temperatureC)} onChange={event => updateStage(index, "temperatureC", event.target.value)} /></div>
+        </div>
+        <div className="field"><label htmlFor={`brew-stage-notes-${index}`}>What changed?</label><textarea className="textarea" id={`brew-stage-notes-${index}`} maxLength={600} value={stage.notes ?? ""} onChange={event => updateStage(index, "notes", event.target.value)} placeholder={prompt} /></div>
+      </article>;
+    })}</div>
+    {stages.length < 20 && <button className="btn btn-secondary" type="button" onClick={addStage}>Add {style.nextStageLabel?.toLocaleLowerCase("en-CA") ?? style.stageNoun}</button>}
+  </fieldset>;
 }
 
 export function TasteStep({ draft, descriptors, update, back, next, online = true, photoBusy = false, preparePhotoCard, onPhotoBusyChange }: { draft: TeaLabSoloDraft; descriptors: TeaLabDescriptorOption[]; update: (recipe: (draft: TeaLabSoloDraft) => TeaLabSoloDraft) => void; back: () => void; next: () => void; online?: boolean; photoBusy?: boolean; preparePhotoCard?: () => Promise<void>; onPhotoBusyChange?: (busy: boolean) => void }) {
@@ -415,7 +499,8 @@ export function TasteStep({ draft, descriptors, update, back, next, online = tru
     event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`[data-rating="${rating}"]`)?.focus();
   }
   return <section className="card tea-lab-step">
-    <p className="eyebrow">Step 3</p><h1 className="page-title">What did you notice?</h1><p className="page-lede">There are no wrong answers. Your prose stays private.</p>
+    <p className="eyebrow">Step 3</p><h1 className="page-title">Brew and notice</h1><p className="page-lede">Follow your {teaLabBrewingStyleLabel(draft.brewing.style) ?? "chosen"} flow, then capture the cup as a whole. Your prose stays private.</p>
+    <BrewStageNotes draft={draft} update={update} />
     <div className="field"><label htmlFor="first-impression">First impression</label><textarea className="textarea" id="first-impression" maxLength={600} value={draft.tasting.firstImpression ?? ""} onChange={event => setTasting("firstImpression", event.target.value || null)} /></div>
     <fieldset className="tea-lab-fieldset"><legend>Flavor descriptors <span className="muted">Choose up to three</span></legend><div className="descriptor-grid">{descriptors.map(descriptor => {
       const selected = draft.tasting.descriptorIds.includes(descriptor.id);
@@ -436,6 +521,7 @@ function ReviewStep({ draft, teaOptions, descriptors, back, complete, busy, bloc
     <p className="eyebrow">Step 4</p><h1 className="page-title">Review your tasting</h1><p className="page-lede">Completion adds one private card to your Journal and one Documented Tasting seal.</p>
     <dl className="tea-lab-review">
       <div><dt>Tea</dt><dd>{teaLabDraftTeaName(draft, teaOptions)}</dd></div>
+      <div><dt>Brewing style</dt><dd>{teaLabBrewingStyleLabel(draft.brewing.style) ?? "Not recorded"}</dd></div>
       <div><dt>Rating</dt><dd>{draft.tasting.rating ? `${draft.tasting.rating} of 5` : "Required"}</dd></div>
       <div><dt>Intensity</dt><dd>{draft.tasting.intensity ?? "Not recorded"}</dd></div>
       <div><dt>Descriptors</dt><dd>{labels.join(" · ") || "Not recorded"}</dd></div>
@@ -445,8 +531,9 @@ function ReviewStep({ draft, teaOptions, descriptors, back, complete, busy, bloc
         draft.brewing.waterTemperatureC !== null && draft.brewing.waterTemperatureC !== undefined ? `${draft.brewing.waterTemperatureC} °C` : null,
         draft.brewing.initialSteepSeconds ? `${draft.brewing.initialSteepSeconds} sec` : null
       ].filter(Boolean).join(" · ") || "Not recorded"}</dd></div>
+      <div><dt>Stages</dt><dd>{draft.brewing.stages?.length ? `${draft.brewing.stages.length} recorded` : "Not recorded"}</dd></div>
     </dl>
     <div className="notice"><strong>Private by default.</strong><p style={{ margin: "6px 0 0" }}>Your first impression, brewing record, rating and notes are visible only to you.</p></div>
-    <div className="card-footer"><button className="btn btn-secondary" type="button" disabled={busy} onClick={back}>Back</button><button className="btn btn-gold btn-attention" type="button" disabled={busy || blocked || !draft.tasting.rating} onClick={complete}>{busy ? "Completing…" : "Complete Tasting"}</button></div>
+    <div className="card-footer"><button className="btn btn-secondary" type="button" disabled={busy} onClick={back}>Back</button><button className="btn btn-gold btn-attention" type="button" disabled={busy || blocked || !draft.brewing.style || !draft.tasting.rating} onClick={complete}>{busy ? "Completing…" : "Complete Tasting"}</button></div>
   </section>;
 }

@@ -93,7 +93,7 @@ cp .env.example .env.local
 
 Use the current Supabase **publishable key** in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the server-only **secret key** in `SUPABASE_SECRET_KEY`. Never expose the secret key to the browser.
 
-`TEA_LAB_ENABLED` is a server-side release flag. It is disabled when missing or set to `false`; only the exact value `true` enables Tea Lab. Keep it `false` until migrations `0018`–`0022` and the [Tea Lab release runbook](docs/tea-lab/TEA_LAB_RELEASE_RUNBOOK.md) have passed. Flag-on preflight also requires recent `TEA_LAB_MIGRATIONS_VERIFIED_AT` and `TEA_LAB_ACCEPTANCE_VERIFIED_AT` evidence.
+`TEA_LAB_ENABLED` is a server-side release flag. It is disabled when missing or set to `false`; only the exact value `true` enables Tea Lab. Keep it `false` until migrations `0018`–`0023` and the [Tea Lab release runbook](docs/tea-lab/TEA_LAB_RELEASE_RUNBOOK.md) have passed. Flag-on preflight also requires recent `TEA_LAB_MIGRATIONS_VERIFIED_AT` and `TEA_LAB_ACCEPTANCE_VERIFIED_AT` evidence.
 
 Guest recap delivery uses Brevo SMTP. Configure `BREVO_SMTP_USER`, `BREVO_SMTP_KEY` and a Brevo-verified sender in `RECAP_EMAIL_FROM`; keep all three server-only. The default relay is `smtp-relay.brevo.com:587`.
 

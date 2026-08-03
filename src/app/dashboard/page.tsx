@@ -91,7 +91,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           tea_name_snapshot,producer_snapshot,origin_snapshot,tea_type_snapshot,
           cultivar_snapshot,harvest_snapshot,product_identifier_snapshot,lot_code_snapshot,
           rating,intensity,completed_at,
-          brewing:brewing_setups(leaf_grams,water_ml,water_temperature_c,water_source,vessel,initial_steep_seconds),
+          brewing:brewing_setups(brewing_style,leaf_grams,water_ml,water_temperature_c,water_source,vessel,initial_steep_seconds,preparation_notes),
+          brew_stages:tasting_card_brew_stages(stage_number,label,duration_seconds,temperature_c,notes),
           photos:tasting_card_photos(id,storage_path,alt_text,created_at,upload_status),
           private_notes:tasting_card_private_notes(first_impression,personal_notes),
           descriptor_links:tasting_card_descriptors(
@@ -107,7 +108,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           tea_name_snapshot,producer_snapshot,origin_snapshot,tea_type_snapshot,
           cultivar_snapshot,harvest_snapshot,product_identifier_snapshot,lot_code_snapshot,
           rating,intensity,
-          brewing:brewing_setups(leaf_grams,water_ml,water_temperature_c,water_source,vessel,initial_steep_seconds),
+          brewing:brewing_setups(brewing_style,leaf_grams,water_ml,water_temperature_c,water_source,vessel,initial_steep_seconds,preparation_notes),
+          brew_stages:tasting_card_brew_stages(stage_number,label,duration_seconds,temperature_c,notes),
           private_notes:tasting_card_private_notes(first_impression,personal_notes),
           descriptor_links:tasting_card_descriptors(descriptor_id,position)
         )

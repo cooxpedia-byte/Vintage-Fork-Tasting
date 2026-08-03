@@ -235,6 +235,17 @@ tr:last-child td { border-bottom: 0; }
 .tea-lab-fieldset { min-width: 0; margin: 0 0 1.25rem; padding: 1rem; border: 1px solid var(--vf-line); border-radius: var(--radius-md); }
 .tea-lab-fieldset legend { padding: 0 .4rem; color: var(--vf-walnut); font-size: .82rem; font-weight: 800; }
 .tea-lab-fieldset legend .muted { font-weight: 500; }
+.tea-lab-method-guide { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(220px,.8fr); gap: 1rem; margin: 0 0 1rem; padding: 1rem; border: 1px solid var(--vf-line-gold); border-radius: var(--radius-md); background: rgba(201,162,39,.08); }
+.tea-lab-method-guide h2, .tea-lab-method-guide p { margin: 0 0 .45rem; }
+.tea-lab-method-guide ul { margin: 0; padding-left: 1.15rem; color: var(--vf-walnut); }
+.tea-lab-method-guide li + li { margin-top: .4rem; }
+.tea-lab-brew-stages { background: rgba(251,247,236,.5); }
+.tea-lab-stage-list { display: grid; gap: .85rem; margin: 1rem 0; }
+.tea-lab-stage { padding: 1rem; border: 1px solid var(--vf-line); border-radius: var(--radius-md); background: var(--vf-ivory); }
+.tea-lab-stage .field { margin-bottom: .75rem; }
+.tea-lab-stage-heading { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; align-items: start; gap: .75rem; }
+.tea-lab-stage-heading > span { width: 32px; height: 32px; display: grid; place-items: center; margin-top: 1.35rem; border-radius: 50%; color: var(--vf-plum-aged); background: var(--vf-gold); font-weight: 900; }
+.tea-lab-stage-heading > .btn { margin-top: 1.2rem; }
 .tea-lab-review { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0; margin: 1.25rem 0; border: 1px solid var(--vf-line); border-radius: var(--radius-md); overflow: hidden; }
 .tea-lab-review div { padding: .9rem 1rem; border-bottom: 1px solid var(--vf-line); }
 .tea-lab-review div:nth-child(odd) { border-right: 1px solid var(--vf-line); }
@@ -243,6 +254,10 @@ tr:last-child td { border-bottom: 0; }
 .tea-lab-complete { max-width: 760px; text-align: center; margin-inline: auto; padding: clamp(1.5rem,5vw,3rem); border-top: 5px solid var(--vf-gold); }
 .tea-lab-complete .page-lede { margin-inline: auto; }
 .tea-lab-complete .row { justify-content: center; }
+.tasting-card-brew-stages { display: grid; gap: .65rem; margin-top: .75rem; }
+.tasting-card-brew-stages article { display: grid; gap: .18rem; padding: .75rem; border: 1px solid var(--vf-line); border-radius: var(--radius-sm); background: rgba(251,247,236,.7); }
+.tasting-card-brew-stages small { color: var(--vf-fog); font-weight: 700; }
+.tasting-card-brew-stages p { margin: .25rem 0 0; white-space: pre-wrap; }
 .page-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; }
 .page-heading-row > div { min-width: 0; }
 .page-heading-row > .btn { flex: 0 0 auto; }
@@ -356,6 +371,10 @@ tr:last-child td { border-bottom: 0; }
   .tea-lab-progress { gap: .3rem; }
   .tea-lab-progress li { min-width: 0; display: grid; gap: .1rem; padding: .4rem .2rem; text-align: center; font-size: .66rem; }
   .tea-lab-progress li span { margin-inline: auto; }
+  .tea-lab-method-guide { grid-template-columns: 1fr; }
+  .tea-lab-stage-heading { grid-template-columns: 28px minmax(0,1fr); }
+  .tea-lab-stage-heading > span { width: 28px; height: 28px; }
+  .tea-lab-stage-heading > .btn { grid-column: 2; justify-self: start; margin-top: -.35rem; }
   .tea-lab-review { grid-template-columns: 1fr; }
   .tea-lab-review div:nth-child(odd) { border-right: 0; }
   .page-heading-row { align-items: stretch; flex-direction: column; }

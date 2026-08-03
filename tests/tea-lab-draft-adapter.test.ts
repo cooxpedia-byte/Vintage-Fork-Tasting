@@ -22,7 +22,11 @@ const serverRow: TeaLabServerDraftRow = {
     lot_code_snapshot: "Lot 7",
     rating: 4,
     intensity: "clear",
-    brewing: [{ leaf_grams: 5, water_ml: 100, water_temperature_c: 85, water_source: "Filtered", vessel: "Gaiwan", initial_steep_seconds: 20 }],
+    brewing: [{ brewing_style: "gongfu", leaf_grams: 5, water_ml: 100, water_temperature_c: 85, water_source: "Filtered", vessel: "Gaiwan", initial_steep_seconds: 20, preparation_notes: "Warm the vessel" }],
+    brew_stages: [
+      { stage_number: 2, label: "Infusion 2", duration_seconds: 15, temperature_c: 85, notes: "More floral" },
+      { stage_number: 1, label: "Infusion 1", duration_seconds: 10, temperature_c: 85, notes: "Apricot" }
+    ],
     private_notes: { first_impression: "Apricot", personal_notes: "Private" },
     descriptor_links: [{ descriptor_id: "descriptor-2", position: 2 }, { descriptor_id: "descriptor-1", position: 1 }]
   }]
@@ -39,7 +43,17 @@ describe("Tea Lab server draft hydration", () => {
       serverRevision: 3,
       status: "in_progress",
       tea: { kind: "personal", personalTeaId: "personal-1", name: "Moonlight White", lotCode: "Lot 7" },
-      brewing: { leafGrams: 5, waterMl: 100, vessel: "Gaiwan" },
+      brewing: {
+        style: "gongfu",
+        leafGrams: 5,
+        waterMl: 100,
+        vessel: "Gaiwan",
+        preparationNotes: "Warm the vessel",
+        stages: [
+          { label: "Infusion 1", durationSeconds: 10, temperatureC: 85, notes: "Apricot" },
+          { label: "Infusion 2", durationSeconds: 15, temperatureC: 85, notes: "More floral" }
+        ]
+      },
       tasting: { firstImpression: "Apricot", personalNotes: "Private", descriptorIds: ["descriptor-1", "descriptor-2"] }
     });
   });

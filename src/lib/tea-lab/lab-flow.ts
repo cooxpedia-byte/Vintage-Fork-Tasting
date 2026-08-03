@@ -12,7 +12,8 @@ export function inferTeaLabFlowStep(draft: TeaLabSoloDraft): TeaLabFlowStep {
     || draft.tasting.firstImpression
     || draft.tasting.personalNotes
     || draft.tasting.descriptorIds.length > 0
-    || draft.tasting.intensity) return "taste";
+    || draft.tasting.intensity
+    || draft.brewing.stages?.some(stage => Boolean(stage.notes))) return "taste";
   return "brew";
 }
 

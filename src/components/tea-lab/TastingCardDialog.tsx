@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { JournalCard, JournalPhoto } from "@/lib/tea-lab/journal";
+import { teaLabBrewingStyleLabel } from "@/lib/tea-lab/brewing";
 
 const SEAL_LABELS = {
   live_event_verified: "Live Event Verified",
@@ -78,6 +79,13 @@ function makeOutsideModalBranchesInert(modal: HTMLElement): () => void {
 
 function value(value: number | string | null | undefined, suffix = ""): string | null {
   return value === null || value === undefined || value === "" ? null : `${value}${suffix}`;
+}
+
+function brewDuration(seconds: number | null): string | null {
+  if (seconds === null) return null;
+  if (seconds >= 3600 && seconds % 3600 === 0) return `${seconds / 3600} hr`;
+  if (seconds >= 60 && seconds % 60 === 0) return `${seconds / 60} min`;
+  return `${seconds} sec`;
 }
 
 export function PhotoSlider({ photos, teaName }: { photos: JournalPhoto[]; teaName: string }) {
@@ -170,6 +178,7 @@ export function TastingCardDialog({
 
   const brewing = card.brewing;
   const brewItems = brewing ? [
+    teaLabBrewingStyleLabel(brewing.style),
     value(brewing.leafGrams, " g leaf"),
     value(brewing.waterMl, " ml water"),
     value(brewing.waterTemperatureC, " °C"),
@@ -222,8 +231,21 @@ export function TastingCardDialog({
             <p className="eyebrow">Brewing record</p>
             <p>{brewItems.join(" · ") || "Not recorded"}</p>
             {brewing?.instructions && <p className="muted">{brewing.instructions}</p>}
+            {brewing?.preparationNotes && <p className="muted">{brewing.preparationNotes}</p>}
           </section>
         </div>
+
+        {brewing?.stages.length ? <section className="tasting-card-notes">
+          <p className="eyebrow">Brew stages</p>
+          <div className="tasting-card-brew-stages">{brewing.stages.map((stage, index) => <article key={`${stage.label}-${index}`}>
+            <strong>{stage.label}</strong>
+            <small>{[
+              brewDuration(stage.durationSeconds),
+              stage.temperatureC !== null ? `${stage.temperatureC} °C` : null
+            ].filter(Boolean).join(" · ") || "Timing not recorded"}</small>
+            {stage.notes && <p>{stage.notes}</p>}
+          </article>)}</div>
+        </section> : null}
 
         {(card.firstImpression || card.personalNotes) && <section className="tasting-card-notes">
           <p className="eyebrow">Your private journal</p>

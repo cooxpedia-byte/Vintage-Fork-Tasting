@@ -86,7 +86,10 @@ function snapshotSavePayload(draft: TeaLabSoloDraft): TeaLabSaveOperation["paylo
   return {
     cardId: draft.cardId,
     tea: { ...draft.tea },
-    brewing: { ...draft.brewing },
+    brewing: {
+      ...draft.brewing,
+      stages: draft.brewing.stages?.map(stage => ({ ...stage }))
+    },
     tasting: { ...draft.tasting, descriptorIds: [...draft.tasting.descriptorIds] }
   };
 }

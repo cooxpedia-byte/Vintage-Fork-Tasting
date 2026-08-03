@@ -37,7 +37,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
     const parsed = soloSessionSaveSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return invalidTeaLabRequest(parsed.error.issues[0]?.message);
     const { operationId, cardId, expectedRevision, tea, brewing, tasting } = parsed.data;
-    const { data, error } = await callRpc(client, "save_solo_tasting_session", {
+    const { data, error } = await callRpc(client, "save_solo_tasting_session_v2", {
       p_session_id: sessionId,
       p_card_id: cardId,
       p_operation_id: operationId,

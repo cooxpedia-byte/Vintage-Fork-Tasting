@@ -1,3 +1,5 @@
+import type { TeaLabBrewingStyle } from "@/lib/tea-lab/offline";
+
 export type JournalSource = "live" | "solo";
 export type JournalSealClass = "live_event_verified" | "documented_tasting";
 export type JournalSessionStatus = "draft" | "in_progress" | "completed";
@@ -9,6 +11,7 @@ export type JournalDescriptor = {
 };
 
 export type JournalBrewing = {
+  style: TeaLabBrewingStyle | null;
   leafGrams: number | null;
   waterMl: number | null;
   waterTemperatureC: number | null;
@@ -16,6 +19,13 @@ export type JournalBrewing = {
   vessel: string | null;
   initialSteepSeconds: number | null;
   instructions: string | null;
+  preparationNotes: string | null;
+  stages: Array<{
+    label: string;
+    durationSeconds: number | null;
+    temperatureC: number | null;
+    notes: string | null;
+  }>;
 };
 
 export type JournalPhoto = {
@@ -130,13 +140,22 @@ export type SoloJournalSessionRow = {
     intensity: string | null;
     completed_at: string | null;
     brewing?: OneOrMany<{
+      brewing_style?: TeaLabBrewingStyle | null;
       leaf_grams: number | null;
       water_ml: number | null;
       water_temperature_c: number | null;
       water_source: string | null;
       vessel: string | null;
       initial_steep_seconds: number | null;
+      preparation_notes?: string | null;
     }>;
+    brew_stages?: Array<{
+      stage_number: number;
+      label: string;
+      duration_seconds: number | null;
+      temperature_c: number | null;
+      notes: string | null;
+    }> | null;
     photos?: Array<{
       id: string;
       storage_path: string;
@@ -214,13 +233,16 @@ export function mapLiveEventToJournalSession(event: LiveJournalEventRow): Journa
     position: response.flight?.position ?? 0,
     sealClass: response.completed_at ? "live_event_verified" as const : null,
     brewing: response.flight ? {
+      style: null,
       leafGrams: response.flight.leaf_grams ?? null,
       waterMl: response.flight.water_ml ?? null,
       waterTemperatureC: response.flight.temperature_c ?? null,
       waterSource: null,
       vessel: null,
       initialSteepSeconds: response.flight.steep_seconds ?? null,
-      instructions: response.flight.brewing_instructions ?? null
+      instructions: response.flight.brewing_instructions ?? null,
+      preparationNotes: null,
+      stages: []
     } : null,
     photos: []
   }))).sort((left, right) => left.position - right.position);
@@ -278,13 +300,23 @@ export function mapSoloSessionToJournalSession(row: SoloJournalSessionRow): Jour
       position: card.position,
       sealClass: card.completed_at ? "documented_tasting" as const : null,
       brewing: brewing ? {
+        style: brewing.brewing_style ?? null,
         leafGrams: brewing.leaf_grams,
         waterMl: brewing.water_ml,
         waterTemperatureC: brewing.water_temperature_c,
         waterSource: brewing.water_source,
         vessel: brewing.vessel,
         initialSteepSeconds: brewing.initial_steep_seconds,
-        instructions: null
+        instructions: null,
+        preparationNotes: brewing.preparation_notes ?? null,
+        stages: [...(card.brew_stages ?? [])]
+          .sort((left, right) => left.stage_number - right.stage_number)
+          .map(stage => ({
+            label: stage.label,
+            durationSeconds: stage.duration_seconds,
+            temperatureC: stage.temperature_c,
+            notes: stage.notes
+          }))
       } : null,
       photos: (card.photos ?? []).flatMap(photo => photo.upload_status === "ready" && photo.signed_url ? [{
         id: photo.id,
