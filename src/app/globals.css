@@ -183,6 +183,8 @@ tr:last-child td { border-bottom: 0; }
 .rating { display: flex; justify-content: center; gap: .35rem; }
 .rating button { width: 52px; height: 52px; border: 0; background: transparent; color: rgba(74,53,36,.25); font-size: 2.1rem; cursor: pointer; }
 .rating button.active { color: var(--vf-gold); }
+.guest-shell .descriptor, .guest-shell .rating button { transition: transform 120ms var(--ease), background 160ms var(--ease), color 160ms var(--ease); }
+.guest-shell .descriptor:active, .guest-shell .rating button:active { transform: scale(.97); }
 
 .empty-state { text-align: center; padding: clamp(2rem, 6vw, 4rem) 1rem; border: 1px dashed rgba(74,53,36,.35); border-radius: var(--radius-md); background: rgba(251,247,236,.55); }
 .skeleton { position: relative; overflow: hidden; min-height: 1rem; border-radius: var(--radius-sm); background: rgba(140,133,120,.12); }

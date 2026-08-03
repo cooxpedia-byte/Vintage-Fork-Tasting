@@ -62,6 +62,7 @@ export function GuestExperience({ preview, initialParticipant, joinRequest = per
   const [triviaChoice, setTriviaChoice] = useState<number | null>(null);
   const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [roundTripMs, setRoundTripMs] = useState(0);
+  const soundRef = useRef(false);
   const sequenceRef = useRef(-1);
   const currentItemRef = useRef<string | null>(null);
   const clockOffsetRef = useRef(0);
@@ -213,11 +214,29 @@ export function GuestExperience({ preview, initialParticipant, joinRequest = per
     const timer = window.setTimeout(() => {
       try {
         const saved = localStorage.getItem("vf:interface-sound");
-        if (saved === "on" || saved === "off") { setSound(saved === "on"); setSoundChosen(true); }
+        if (saved === "on" || saved === "off") { soundRef.current = saved === "on"; setSound(saved === "on"); setSoundChosen(true); }
       } catch { /* Preferences are optional. */ }
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!soundChosen || !sound) return;
+
+    const handleInterfaceClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      const control = event.target.closest<HTMLButtonElement | HTMLAnchorElement>("button, a.btn");
+      if (!control || !control.closest(".guest-shell, .ceremony")) return;
+      if (control instanceof HTMLButtonElement && control.disabled) return;
+      if (control.getAttribute("aria-disabled") === "true") return;
+
+      const isSelection = control.matches(".descriptor, [role='radio'], [aria-pressed]");
+      playInterfaceFeedback(isSelection ? "selection" : "tap");
+    };
+
+    document.addEventListener("click", handleInterfaceClick, true);
+    return () => document.removeEventListener("click", handleInterfaceClick, true);
+  }, [sound, soundChosen]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void refresh(); }, 0);
@@ -328,8 +347,10 @@ export function GuestExperience({ preview, initialParticipant, joinRequest = per
   },[preview.id]);
 
   function chooseSound(enabled: boolean) {
+    soundRef.current = enabled;
     setSound(enabled); setSoundChosen(true);
     try { localStorage.setItem("vf:interface-sound", enabled ? "on" : "off"); } catch { /* Preferences are optional. */ }
+    if (enabled) playInterfaceFeedback("confirm");
   }
 
   function toggleSound() { chooseSound(!sound); }
@@ -370,7 +391,7 @@ export function GuestExperience({ preview, initialParticipant, joinRequest = per
         if (activeFlightIdRef.current === state.currentItem.id) setNotesSyncStatus("saved");
       }
       setDraft(d => ({ ...d, ...patch, completed: completed || d.completed }));
-      if (sound) ceramicClink();
+      if (soundRef.current) playInterfaceSound("confirm");
       return true;
     } catch {
       reportConnectionIssue(source);
@@ -387,7 +408,7 @@ export function GuestExperience({ preview, initialParticipant, joinRequest = per
     savePendingTrivia(pending);
     setTriviaChoice(index);
     const delivered=await pendingDeliveryRef.current(pending);
-    if (delivered&&sound) ceramicClink();
+    if (delivered&&soundRef.current) playInterfaceSound("confirm");
   }
 
   const stateParticipantId=state?.participant.id;
@@ -452,7 +473,7 @@ function persistGuestJoin(payload: GuestJoinPayload) {
 function Registration({ preview, name, setName, email, setEmail, marketing, setMarketing, error, busy, join }: { preview: EventPreview; name: string; setName: (x:string)=>void; email:string; setEmail:(x:string)=>void; marketing:boolean; setMarketing:(x:boolean)=>void; error:string; busy:boolean; join:(e:React.FormEvent)=>void }) {
   return <main className="guest-shell" id="main-content"><div className="guest-pane enter"><Brand href="https://vintagefork.ca/" /><div style={{ textAlign: "center", margin: "1.5rem 0" }}><p className="eyebrow">{preview.title}</p><h1 className="page-title">What should we call you tonight?</h1><p className="page-lede">A first name or nickname is plenty.</p></div><GuestError message={error} /><form onSubmit={join} className="stack"><div className="field"><label htmlFor="guest-name">Your name</label><input className="input" id="guest-name" maxLength={40} required value={name} onChange={e => setName(e.target.value)} /></div><div className="field"><label htmlFor="guest-email">Email (optional)</label><input className="input" id="guest-email" type="email" value={email} onChange={e => setEmail(e.target.value)} /><span className="help">Add your email to save this evening to your customer dashboard.</span></div>{email && <label className="row"><input type="checkbox" checked={marketing} onChange={e => setMarketing(e.target.checked)} /> Send me occasional notes about new teas and tastings.</label>}<div className="guest-actions"><button className="btn btn-primary" disabled={busy}>{busy ? "Saving your seat…" : "Save My Seat"}</button></div></form></div></main>;
 }
-function SoundEntry({ onChoose }: { onChoose:(x:boolean)=>void }) { return <main className="guest-shell" id="main-content"><div className="guest-pane" style={{ justifyContent: "center", textAlign: "center" }}><Brand /><h1 className="page-title">Would you like sound?</h1><p className="page-lede">A little room tone and small confirmations. Your host’s voice comes through Zoom or Meet either way.</p><div className="guest-actions"><button className="btn btn-primary" onClick={() => onChoose(true)}>Yes, with sound</button><button className="btn btn-secondary" onClick={() => onChoose(false)}>No, keep it quiet</button></div></div></main>; }
+function SoundEntry({ onChoose }: { onChoose:(x:boolean)=>void }) { return <main className="guest-shell" id="main-content"><div className="guest-pane" style={{ justifyContent: "center", textAlign: "center" }}><Brand /><h1 className="page-title">A little feedback?</h1><p className="page-lede">Soft button sounds and gentle taps on supported phones, designed to stay behind the tasting. Your host’s voice still comes through Zoom or Meet.</p><div className="guest-actions"><button className="btn btn-primary" onClick={() => onChoose(true)}>Yes, keep it subtle</button><button className="btn btn-secondary" onClick={() => onChoose(false)}>No, keep it quiet</button></div></div></main>; }
 function LoadingRoom() { return <main className="guest-shell"><div className="guest-pane" style={{ justifyContent: "center", textAlign: "center" }}><Brand /><div className="skeleton" style={{ height: 4, marginTop: 30 }} /><p>Getting the room…</p></div></main>; }
 function WaitingRoom({ state, count }: { state: StatePayload; count: number }) { return <main className="guest-shell"><div className="guest-pane" style={{ textAlign: "center" }}><Brand /><h1 className="page-title">You’re in. Your host will open the room shortly.</h1><p className="page-lede">{Math.max(0,count-1)} other{count===2?" is":"s are"} here.</p><section className="card" style={{ marginTop: 20 }}><h2>{state.event.title}</h2><p>{new Date(state.event.starts_at).toLocaleString("en-CA", { dateStyle: "full", timeStyle: "short" })}</p>{state.event.location_mode === "remote" && <div className="notice"><strong>Your host’s voice and captions are in the video call, not here.</strong><br />Keep the call on your computer or tablet and this tasting on your phone.{state.event.video_call_url && <div style={{ marginTop: 12 }}><a className="btn btn-secondary" href={state.event.video_call_url} target="_blank" rel="noreferrer">Open video call ↗</a></div>}</div>}{state.event.location_mode === "in_person" && (state.event.venue_name || state.event.venue_address) && <div className="notice"><strong>{state.event.venue_name}</strong><br />{state.event.venue_address}</div>}</section><div className="guest-actions"><p className="muted">Waiting for your host…</p></div></div></main>; }
 function BetweenTeas({ state }: { state: StatePayload }) { return <main className="guest-shell" id="main-content"><div className="guest-pane" style={{ textAlign:"center", justifyContent:"center" }}><Brand /><p className="eyebrow">{Math.max(0,state.flightCount-state.currentPosition+1)} tea{state.flightCount-state.currentPosition+1===1?"":"s"} to go</p><h1 className="page-title">Rinse your cup and settle in.</h1><p className="page-lede">Your host will reveal the next tea shortly.</p></div></main>; }
@@ -481,7 +502,7 @@ function GuestFrame({ state, draft, setDraft, sound, toggleSound, notesSyncStatu
   const composing = useRef(false);
   const reportActivity = () => onNotesActiveChange(focused.current || composing.current);
   const syncCopy = notesSyncStatus === "saved" ? "Saved." : notesSyncStatus === "saving" ? "Saving…" : "Saved on this device. We’ll sync when you’re connected.";
-  return <main className="guest-shell" id="main-content"><header className="guest-header"><Brand compact /><strong>{state.currentItem?.reveal_title}</strong><span className="spacer" /><span className="chip">Tea {state.currentPosition} of {state.flightCount}</span><button className="btn btn-quiet" aria-pressed={sound} aria-label={`Interface sounds ${sound ? "on" : "off"}`} onClick={toggleSound}>{sound ? "♪ On" : "♪ Off"}</button></header><div className="guest-pane"><details className="card" style={{ marginBottom: 16 }}><summary>Your notes</summary><textarea className="textarea" aria-label="Personal notes" maxLength={3000} value={draft.personalNotes} onFocus={() => { focused.current = true; reportActivity(); }} onBlur={() => { focused.current = false; reportActivity(); onNotesBlur(); }} onCompositionStart={() => { composing.current = true; reportActivity(); }} onCompositionEnd={() => { composing.current = false; reportActivity(); }} onChange={e => setDraft(d => ({ ...d, personalNotes: e.target.value }))} placeholder="Anything you want to remember…" /><p className="help" role="status" aria-live="polite">{syncCopy}</p></details>{transitionNotice && <div className="notice guest-transition-notice" role="status" aria-live="polite"><strong>{transitionNotice}</strong><button className="btn btn-secondary" onClick={onShowTransition}>View now</button></div>}{children}</div></main>;
+  return <main className="guest-shell" id="main-content"><header className="guest-header"><Brand compact /><strong>{state.currentItem?.reveal_title}</strong><span className="spacer" /><span className="chip">Tea {state.currentPosition} of {state.flightCount}</span><button className="btn btn-quiet" aria-pressed={sound} aria-label={`Button sound and haptic feedback ${sound ? "on" : "off"}`} onClick={toggleSound}>{sound ? "Feedback on" : "Feedback off"}</button></header><div className="guest-pane"><details className="card" style={{ marginBottom: 16 }}><summary>Your notes</summary><textarea className="textarea" aria-label="Personal notes" maxLength={3000} value={draft.personalNotes} onFocus={() => { focused.current = true; reportActivity(); }} onBlur={() => { focused.current = false; reportActivity(); onNotesBlur(); }} onCompositionStart={() => { composing.current = true; reportActivity(); }} onCompositionEnd={() => { composing.current = false; reportActivity(); }} onChange={e => setDraft(d => ({ ...d, personalNotes: e.target.value }))} placeholder="Anything you want to remember…" /><p className="help" role="status" aria-live="polite">{syncCopy}</p></details>{transitionNotice && <div className="notice guest-transition-notice" role="status" aria-live="polite"><strong>{transitionNotice}</strong><button className="btn btn-secondary" onClick={onShowTransition}>View now</button></div>}{children}</div></main>;
 }
 function Brewing({ item, endsAt, clockOffsetMs }: { item: CurrentItem; endsAt:string|null; clockOffsetMs:number }) { const [now,setNow]=useState<number|null>(null); useEffect(()=>{const tick=()=>setNow(correctedNow(Date.now(),clockOffsetMs));tick();const t=window.setInterval(tick,250);return()=>window.clearInterval(t)},[clockOffsetMs]); const remaining=endsAt&&now!==null?Math.max(0,new Date(endsAt).getTime()-now):item.steep_seconds*1000; return <><p className="eyebrow">Brewing</p><h1 className="page-title">Brew it like this</h1><p>{item.temperature_c ? `${item.temperature_c}°C` : "Hot water"} · {item.leaf_grams ? `${item.leaf_grams}g` : ""} {item.water_ml ? `per ${item.water_ml}ml` : ""}</p><BrewingTimer remainingMs={remaining} /><section className="card"><p>{item.brewing_instructions}</p></section></>; }
 function TastingSteps({ step, setStep, draft, setDraft, busy, error, submit }: { step:number; setStep:(x:number)=>void; draft:Draft; setDraft:(x:Draft|((d:Draft)=>Draft))=>void; busy:boolean; error:string; submit:()=>void }) { return <><GuestError message={error} />{step===1&&<><p className="eyebrow">Step 1 of 4</p><h1 className="page-title">What did you notice first?</h1><p className="muted">Optional. No wrong answers.</p><textarea className="textarea" aria-label="First impression" value={draft.firstImpression} onChange={e=>setDraft(d=>({...d,firstImpression:e.target.value}))}/><div className="guest-actions"><button className="btn btn-primary" onClick={()=>setStep(2)}>Continue</button><button className="btn btn-quiet" onClick={()=>setStep(2)}>Skip</button></div></>}{step===2&&<><p className="eyebrow">Step 2 of 4</p><h1 className="page-title">What do you notice?</h1><p className="muted">Pick up to three.</p><div className="descriptor-grid">{DESCRIPTORS.map(label=><button className="descriptor" aria-pressed={draft.descriptors.includes(label)} key={label} onClick={()=>setDraft(d=>({ ...d, descriptors:d.descriptors.includes(label)?d.descriptors.filter(x=>x!==label):d.descriptors.length<3?[...d.descriptors,label]:d.descriptors }))}>{label}</button>)}</div><div className="guest-actions"><button className="btn btn-primary" onClick={()=>setStep(3)}>Continue</button></div></>}{step===3&&<><p className="eyebrow">Step 3 of 4</p><h1 className="page-title">How strong was this tea overall?</h1><div className="grid grid-3">{(["subtle","clear","dominant"] as const).map(x=><button className={`btn ${draft.intensity===x?"btn-gold":"btn-secondary"}`} key={x} onClick={()=>setDraft(d=>({...d,intensity:x}))}>{x}</button>)}</div><div className="guest-actions"><button className="btn btn-primary" onClick={()=>setStep(4)}>Continue</button></div></>}{step===4&&<><p className="eyebrow">Step 4 of 4</p><h1 className="page-title">Rate this tea overall</h1><div className="rating" role="radiogroup">{[1,2,3,4,5].map(n=><button className={draft.rating>=n?"active":""} role="radio" aria-checked={draft.rating===n} aria-label={`${n} stars`} key={n} onClick={()=>setDraft(d=>({...d,rating:n}))}>★</button>)}</div><div className="guest-actions"><button className="btn btn-primary" disabled={busy||draft.rating<1} onClick={submit}>{busy?"Saving…":"Submit My Notes"}</button></div></>}</>; }
@@ -639,4 +660,43 @@ function saveLocalDraft(eventId:string,participantId:string,flightId:string,draf
 function loadPendingTrivia():PendingTriviaAnswer|null{try{const raw=sessionStorage.getItem("pending_trivia_answer");return raw?JSON.parse(raw) as PendingTriviaAnswer:null}catch{return null}}
 function savePendingTrivia(pending:PendingTriviaAnswer){try{sessionStorage.setItem("pending_trivia_answer",JSON.stringify(pending))}catch{}}
 function clearPendingTrivia(){try{sessionStorage.removeItem("pending_trivia_answer")}catch{}}
-function ceramicClink(){try{const C=window.AudioContext||(window as unknown as {webkitAudioContext:typeof AudioContext}).webkitAudioContext;const ctx=new C();const o=ctx.createOscillator();const g=ctx.createGain();o.frequency.value=1180;g.gain.setValueAtTime(.0001,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.045,ctx.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.16);o.connect(g).connect(ctx.destination);o.start();o.stop(ctx.currentTime+.18)}catch{}}
+type InterfaceFeedbackKind = "tap" | "selection" | "confirm";
+type AudioWindow = Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
+let interfaceAudioContext: AudioContext | null = null;
+
+function playInterfaceFeedback(kind: InterfaceFeedbackKind) {
+  playInterfaceSound(kind);
+  try {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reducedMotion && typeof navigator.vibrate === "function") {
+      navigator.vibrate(kind === "confirm" ? 10 : kind === "selection" ? 7 : 6);
+    }
+  } catch { /* Haptics are an optional enhancement. */ }
+}
+
+function playInterfaceSound(kind: InterfaceFeedbackKind) {
+  try {
+    const AudioContextConstructor = window.AudioContext || (window as AudioWindow).webkitAudioContext;
+    if (!AudioContextConstructor) return;
+    if (!interfaceAudioContext || interfaceAudioContext.state === "closed") interfaceAudioContext = new AudioContextConstructor();
+    const context = interfaceAudioContext;
+    const play = () => {
+      const now = context.currentTime;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const duration = kind === "confirm" ? .11 : kind === "selection" ? .055 : .04;
+      const peak = kind === "confirm" ? .018 : kind === "selection" ? .009 : .006;
+      oscillator.type = kind === "confirm" ? "triangle" : "sine";
+      oscillator.frequency.setValueAtTime(kind === "confirm" ? 980 : kind === "selection" ? 720 : 560, now);
+      oscillator.frequency.exponentialRampToValueAtTime(kind === "confirm" ? 1320 : kind === "selection" ? 620 : 470, now + duration);
+      gain.gain.setValueAtTime(.0001, now);
+      gain.gain.exponentialRampToValueAtTime(peak, now + .005);
+      gain.gain.exponentialRampToValueAtTime(.0001, now + duration);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(now);
+      oscillator.stop(now + duration + .01);
+    };
+    if (context.state === "suspended") void context.resume().then(play).catch(() => undefined);
+    else play();
+  } catch { /* Interface sound is an optional enhancement. */ }
+}
