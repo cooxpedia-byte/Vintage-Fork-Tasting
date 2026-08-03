@@ -80,6 +80,7 @@ Test with one host, one backup/observer and at least three guest browsers.
 - Screen reader announces errors and phase changes.
 - Guest registration, tasting, trivia, saved-tea, recap, claim and privacy failures are exposed as atomic alerts.
 - Guest lobby, welcome, reveal, brewing, tasting, trivia, between-tea, recap, ended and removal changes are announced once through the persistent phase live region.
+- Brewing time remains readable on demand, while automatic announcements occur only at 10 seconds, 5 seconds and completion.
 - 200% and 400% zoom remain usable.
 - Tap targets are at least 44px; guest primary targets are at least 48px.
 - `prefers-reduced-motion` suppresses ceremonial motion.
