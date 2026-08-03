@@ -7,6 +7,9 @@ import { correctedNow, estimateClockOffset, TRIVIA_GRACE_MS } from "@/lib/live-t
 import { shouldHoldGuestTransition } from "@/lib/guest-notes";
 import { clearGuestDeviceData } from "@/lib/guest-privacy";
 import { GuestError } from "@/components/guest/GuestError";
+import { GuestPhaseAnnouncer } from "@/components/guest/GuestPhaseAnnouncer";
+import { getGuestPhaseAnnouncement } from "@/lib/guest-announcements";
+import type { SessionPhase } from "@/types/domain";
 import {
   listenForConnectionRetry,
   reportConnectionHealthy,
@@ -18,7 +21,7 @@ type CurrentItem = { id: string; position: number; reveal_title: string; reveal_
 export type StatePayload = {
   serverReceivedTime: string;
   serverTime: string;
-  event: { id: string; title: string; status: string; phase: string; sequence_number: number; current_flight_item_id: string | null; tasting_opened_flight_item_id: string | null; reveal_at: string | null; timer_ends_at: string | null; trivia_closes_at: string | null; starts_at: string; location_mode: string; video_call_url: string | null; venue_name: string | null; venue_address: string | null };
+  event: { id: string; title: string; status: string; phase: SessionPhase; sequence_number: number; current_flight_item_id: string | null; tasting_opened_flight_item_id: string | null; reveal_at: string | null; timer_ends_at: string | null; trivia_closes_at: string | null; starts_at: string; location_mode: string; video_call_url: string | null; venue_name: string | null; venue_address: string | null };
   participant: { id: string; displayName: string; status: string; linkedToAccount: boolean; hasEmail: boolean; maskedEmail: string | null };
   flightCount: number; currentItem: CurrentItem | null; currentPosition: number; betweenTeas: boolean;
   trivia: null | { id: string; flightItemId: string; question: string; options: string[]; answerWindowSeconds: number; deadlineAt: string | null; deadlineToken: string | null; selectedIndex: number | null; closed: boolean; correctIndex?: number; explanation?: string };
@@ -399,9 +402,19 @@ export function GuestExperience({ preview, initialParticipant, joinRequest = per
   },[joined,preview.id,state?.event.sequence_number,stateParticipantId,stateTriviaId]);
 
   if (!joined) return <Registration preview={preview} name={name} setName={setName} email={email} setEmail={setEmail} marketing={marketing} setMarketing={setMarketing} error={error} busy={busy} join={join} />;
-  if (!soundChosen) return <SoundEntry onChoose={chooseSound} />;
-  if (!state) return <LoadingRoom />;
-  if (state.participant.status === "removed") return <Terminal title="You’ve been removed from this tasting." copy="Your notes remain yours and are still available in your recap." />;
+  const phaseAnnouncement = soundChosen && state ? getGuestPhaseAnnouncement({
+    phase: state.event.phase,
+    teaTitle: state.currentItem?.reveal_title ?? null,
+    position: state.currentPosition,
+    flightCount: state.flightCount,
+    betweenTeas: state.betweenTeas,
+    triviaClosed: Boolean(state.trivia?.closed),
+    participantRemoved: state.participant.status === "removed"
+  }) : "";
+  const withPhaseAnnouncement = (content: React.ReactNode) => <><GuestPhaseAnnouncer message={phaseAnnouncement} />{content}</>;
+  if (!soundChosen) return withPhaseAnnouncement(<SoundEntry onChoose={chooseSound} />);
+  if (!state) return withPhaseAnnouncement(<LoadingRoom />);
+  if (state.participant.status === "removed") return withPhaseAnnouncement(<Terminal title="You’ve been removed from this tasting." copy="Your notes remain yours and are still available in your recap." />);
 
   const phase = state.event.phase;
   const frameProps = {
@@ -416,15 +429,15 @@ export function GuestExperience({ preview, initialParticipant, joinRequest = per
     onNotesActiveChange: (active: boolean) => { notesProtectedRef.current = active; },
     onNotesBlur: () => { if (state.currentItem) void queuePersonalNotes(state.currentItem.id, draftRef.current.personalNotes); }
   };
-  if (phase === "lobby") return <WaitingRoom state={state} count={presenceCount} />;
-  if (phase === "welcome") return <Ceremony eyebrow={`with your Vintage Fork host`} title="Welcome to the table." subtitle={state.event.title} />;
-  if (phase === "reveal" && state.currentItem) return <ScheduledReveal state={state} clockOffsetMs={clockOffsetMs} roundTripMs={roundTripMs} />;
-  if (phase === "brewing" && state.currentItem) return <GuestFrame {...frameProps}><Brewing item={state.currentItem} endsAt={state.event.timer_ends_at} clockOffsetMs={clockOffsetMs} /></GuestFrame>;
-  if (phase === "trivia" && state.currentItem && state.trivia) return <GuestFrame {...frameProps}><Trivia trivia={state.trivia} choice={triviaChoice} answer={answerTrivia} error={error} saved={draft.saved} toggleSaved={async () => { const next = !draft.saved; if (await submitResponse(false, { saved: next })) setDraft(d => ({ ...d, saved: next })); }} /></GuestFrame>;
-  if (["recap","ended"].includes(phase) || state.event.status === "completed") return <GuestRecap state={state} />;
-  if (state.betweenTeas) return <BetweenTeas state={state} />;
-  if (phase === "tasting" && state.currentItem) return <GuestFrame {...frameProps}>{draft.completed || step === 5 ? <TeaComplete item={state.currentItem} saved={draft.saved} onToggle={async () => { const next = !draft.saved; if (await submitResponse(false, { saved: next })) setDraft(d => ({ ...d, saved: next })); }} /> : <TastingSteps step={step} setStep={setStep} draft={draft} setDraft={setDraft} busy={busy} error={error} submit={async () => { if (await submitResponse(true)) setStep(5); }} />}</GuestFrame>;
-  return <LoadingRoom />;
+  if (phase === "lobby") return withPhaseAnnouncement(<WaitingRoom state={state} count={presenceCount} />);
+  if (phase === "welcome") return withPhaseAnnouncement(<Ceremony eyebrow={`with your Vintage Fork host`} title="Welcome to the table." subtitle={state.event.title} />);
+  if (phase === "reveal" && state.currentItem) return withPhaseAnnouncement(<ScheduledReveal state={state} clockOffsetMs={clockOffsetMs} roundTripMs={roundTripMs} />);
+  if (phase === "brewing" && state.currentItem) return withPhaseAnnouncement(<GuestFrame {...frameProps}><Brewing item={state.currentItem} endsAt={state.event.timer_ends_at} clockOffsetMs={clockOffsetMs} /></GuestFrame>);
+  if (phase === "trivia" && state.currentItem && state.trivia) return withPhaseAnnouncement(<GuestFrame {...frameProps}><Trivia trivia={state.trivia} choice={triviaChoice} answer={answerTrivia} error={error} saved={draft.saved} toggleSaved={async () => { const next = !draft.saved; if (await submitResponse(false, { saved: next })) setDraft(d => ({ ...d, saved: next })); }} /></GuestFrame>);
+  if (["recap","ended"].includes(phase) || state.event.status === "completed") return withPhaseAnnouncement(<GuestRecap state={state} />);
+  if (state.betweenTeas) return withPhaseAnnouncement(<BetweenTeas state={state} />);
+  if (phase === "tasting" && state.currentItem) return withPhaseAnnouncement(<GuestFrame {...frameProps}>{draft.completed || step === 5 ? <TeaComplete item={state.currentItem} saved={draft.saved} onToggle={async () => { const next = !draft.saved; if (await submitResponse(false, { saved: next })) setDraft(d => ({ ...d, saved: next })); }} /> : <TastingSteps step={step} setStep={setStep} draft={draft} setDraft={setDraft} busy={busy} error={error} submit={async () => { if (await submitResponse(true)) setStep(5); }} />}</GuestFrame>);
+  return withPhaseAnnouncement(<LoadingRoom />);
 }
 
 function persistGuestJoin(payload: GuestJoinPayload) {
