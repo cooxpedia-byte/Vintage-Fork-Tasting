@@ -54,7 +54,7 @@ Test with one host, one backup/observer and at least three guest browsers.
 - Server rejects a response for the wrong flight item.
 - Trivia accepts only one answer per participant.
 - Correct answer is hidden until close/deadline.
-- Leaderboard does not expose email or private notes.
+- Guest state never includes participant rankings or room-wide descriptor frequencies.
 
 ## Customer dashboard
 

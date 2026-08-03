@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireParticipant } from "@/lib/guest-token";
+import { protectGuestState } from "@/lib/guest-privacy";
 import { createTriviaDeadlineToken } from "@/lib/trivia-token";
 
 export async function GET(_: Request, { params }: { params: Promise<{ eventId: string }> }) {
@@ -61,29 +62,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
     trivia_answers: number | null;
     trivia_correct: number | null;
   } | null = null;
-  let leaderboard: Array<{ name: string; score: number }> = [];
-  let descriptorLeaders: Array<{ label: string; count: number }> = [];
   if (includeResults) {
     const { data: aggregate } = await admin.from("event_analytics").select("participants,completed_participants,average_rating,tea_saves,trivia_answers,trivia_correct").eq("event_id", eventId).maybeSingle();
     analytics = aggregate;
-    const { data: answerRows } = await admin.from("trivia_answers").select("is_correct,participant:participants!inner(id,display_name,event_id)").eq("participant.event_id", eventId).eq("on_time", true);
-    const scores = new Map<string, { name: string; score: number }>();
-    for (const row of answerRows ?? []) {
-      const person = Array.isArray(row.participant) ? row.participant[0] : row.participant;
-      if (!person) continue;
-      const entry = scores.get(person.id) ?? { name: person.display_name, score: 0 };
-      if (row.is_correct) entry.score += 1;
-      scores.set(person.id, entry);
-    }
-    leaderboard = [...scores.values()].sort((a,b) => b.score-a.score || a.name.localeCompare(b.name)).slice(0,10);
-
-    const { data: responseRows } = await admin.from("tea_responses").select("descriptors,participant:participants!inner(event_id)").eq("participant.event_id", eventId);
-    const counts = new Map<string, number>();
-    for (const row of responseRows ?? []) for (const label of row.descriptors ?? []) counts.set(label, (counts.get(label) ?? 0) + 1);
-    descriptorLeaders = [...counts.entries()].map(([label,count]) => ({ label,count })).sort((a,b) => b.count-a.count).slice(0,8);
   }
 
-  return NextResponse.json({
+  return NextResponse.json(protectGuestState({
     serverReceivedTime,
     serverTime: new Date().toISOString(),
     event,
@@ -95,8 +79,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
     trivia,
     responses: responses ?? [],
     allItems: includeResults ? flight : undefined,
-    analytics,
-    leaderboard,
-    descriptorLeaders
-  }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
+    analytics
+  }), { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }

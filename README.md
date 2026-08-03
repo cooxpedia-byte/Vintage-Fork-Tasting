@@ -31,7 +31,7 @@ The central rule is: **the database is authoritative**. Host commands execute th
 - Server-authoritative phase transitions, scheduled tea reveals, reveal ceremony gate and timer end timestamps
 - Aroma/flavour capture, intensity, rating, private notes and saved teas
 - Trivia locking and scoring
-- Recap, leaderboard, room descriptors, Passport and customer tasting history
+- Participant-private recap, Passport and customer tasting history
 - Privacy-safe event analytics (data export remains Phase 2, as specified)
 - RLS policies, protected RPCs, storage policies, retention cleanup and structured logs
 - Responsive, keyboard accessible, reduced-motion aware interfaces
