@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Brand } from "@/components/Brand";
+import { GuestError } from "@/components/guest/GuestError";
 
 export function DeleteTastingData() {
   const [credential, setCredential] = useState<{ eventId: string; deletionToken: string } | null>(null);
@@ -56,5 +57,5 @@ export function DeleteTastingData() {
     return <main className="guest-shell" id="main-content"><div className="guest-pane" style={{ justifyContent: "center", textAlign: "center" }}><Brand href="https://vintagefork.ca/" /><h1 className="page-title">This deletion link is incomplete.</h1><p>Open the original link in your recap email, or delete your data from the tasting recap while your guest session is active.</p><a className="btn btn-secondary" href="https://vintagefork.ca/">Return to Vintage Fork</a></div></main>;
   }
 
-  return <main className="guest-shell" id="main-content"><div className="guest-pane" style={{ justifyContent: "center" }}><div style={{ textAlign: "center" }}><Brand href="https://vintagefork.ca/" /><p className="eyebrow" style={{ marginTop: 28 }}>Privacy control</p><h1 className="page-title">Delete my tasting data?</h1></div><section className="notice error" style={{ marginTop: 24 }}><strong>This cannot be undone.</strong><p style={{ margin: "8px 0 0" }}>We’ll permanently delete your notes, descriptors, ratings, trivia answers, stamps and saved teas from this tasting. Your Vintage Fork account, if you have one, will not be deleted.</p></section>{error && <div className="form-error" role="alert">{error}</div>}<div className="guest-actions"><button className="btn btn-danger" disabled={busy} onClick={deleteData}>{busy ? "Deleting…" : "Delete my tasting data"}</button><a className="btn btn-secondary" href="https://vintagefork.ca/">Keep my data</a></div></div></main>;
+  return <main className="guest-shell" id="main-content"><div className="guest-pane" style={{ justifyContent: "center" }}><div style={{ textAlign: "center" }}><Brand href="https://vintagefork.ca/" /><p className="eyebrow" style={{ marginTop: 28 }}>Privacy control</p><h1 className="page-title">Delete my tasting data?</h1></div><section className="notice error" style={{ marginTop: 24 }}><strong>This cannot be undone.</strong><p style={{ margin: "8px 0 0" }}>We’ll permanently delete your notes, descriptors, ratings, trivia answers, stamps and saved teas from this tasting. Your Vintage Fork account, if you have one, will not be deleted.</p></section><GuestError message={error} /><div className="guest-actions"><button className="btn btn-danger" disabled={busy} onClick={deleteData}>{busy ? "Deleting…" : "Delete my tasting data"}</button><a className="btn btn-secondary" href="https://vintagefork.ca/">Keep my data</a></div></div></main>;
 }

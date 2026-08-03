@@ -78,6 +78,7 @@ Test with one host, one backup/observer and at least three guest browsers.
 - Complete all critical flows with keyboard only.
 - Focus is visible and logical.
 - Screen reader announces errors and phase changes.
+- Guest registration, tasting, trivia, saved-tea, recap, claim and privacy failures are exposed as atomic alerts.
 - 200% and 400% zoom remain usable.
 - Tap targets are at least 44px; guest primary targets are at least 48px.
 - `prefers-reduced-motion` suppresses ceremonial motion.
