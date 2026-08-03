@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { Brand } from "@/components/Brand";
 import { correctedNow, estimateClockOffset, TRIVIA_GRACE_MS } from "@/lib/live-timing";
+import { shouldHoldGuestTransition } from "@/lib/guest-notes";
 
 type EventPreview = { id: string; title: string; invite_code: string; status: string; starts_at: string; location_mode: string; capacity: number };
 type CurrentItem = { id: string; position: number; reveal_title: string; reveal_description: string; brewing_instructions: string; steep_seconds: number; temperature_c: number | null; leaf_grams: number | null; water_ml: number | null; tea: { name: string; origin: string | null; producer: string | null; tea_type: string | null } | null };
@@ -22,6 +23,9 @@ type StatePayload = {
 type PendingTriviaAnswer = { eventId:string; participantId:string; flightItemId:string; questionId:string; selectedIndex:number; deadlineAt:string; deadlineToken:string; answeredAt:string; idempotencyKey:string };
 
 type Draft = { firstImpression: string; descriptors: string[]; intensity: "subtle" | "clear" | "dominant" | null; rating: number; personalNotes: string; saved: boolean; completed: boolean };
+type DraftUpdate = Draft | ((draft: Draft) => Draft);
+type PendingNoteSave = { flightItemId: string; personalNotes: string };
+type NotesSyncStatus = "device" | "saving" | "saved";
 const DESCRIPTORS = ["honeyed","orchid","buttery","toasted grain","stone fruit","cream","green bean","jasmine","caramel","mineral","citrus peel","sweet hay"];
 const blankDraft: Draft = { firstImpression: "", descriptors: [], intensity: null, rating: 0, personalNotes: "", saved: false, completed: false };
 
@@ -33,7 +37,9 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
   const [soundChosen, setSoundChosen] = useState(false);
   const [sound, setSound] = useState(false);
   const [state, setState] = useState<StatePayload | null>(null);
-  const [draft, setDraft] = useState<Draft>(blankDraft);
+  const [pendingState, setPendingState] = useState<StatePayload | null>(null);
+  const [draft, setDraftState] = useState<Draft>(blankDraft);
+  const [notesSyncStatus, setNotesSyncStatus] = useState<NotesSyncStatus>("device");
   const [step, setStep] = useState(1);
   const [presenceCount, setPresenceCount] = useState(1);
   const [error, setError] = useState("");
@@ -45,6 +51,90 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
   const currentItemRef = useRef<string | null>(null);
   const clockOffsetRef = useRef(0);
   const pendingDeliveryRef = useRef<(pending:PendingTriviaAnswer)=>Promise<boolean>>(async()=>false);
+  const stateRef = useRef<StatePayload | null>(null);
+  const pendingStateRef = useRef<StatePayload | null>(null);
+  const draftRef = useRef<Draft>(blankDraft);
+  const notesProtectedRef = useRef(false);
+  const activeFlightIdRef = useRef<string | null>(null);
+  const lastSavedNotesRef = useRef(new Map<string, string>());
+  const latestQueuedNotesRef = useRef(new Map<string, PendingNoteSave>());
+  const notesSaveChainRef = useRef<Promise<void>>(Promise.resolve());
+
+  const setDraft = useCallback((update: DraftUpdate) => {
+    setDraftState(current => {
+      const next = typeof update === "function" ? update(current) : update;
+      draftRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const queuePersonalNotes = useCallback((flightItemId: string, personalNotes: string) => {
+    if (lastSavedNotesRef.current.get(flightItemId) === personalNotes) {
+      if (activeFlightIdRef.current === flightItemId) setNotesSyncStatus("saved");
+      return notesSaveChainRef.current;
+    }
+
+    const pending = { flightItemId, personalNotes };
+    latestQueuedNotesRef.current.set(flightItemId, pending);
+    if (activeFlightIdRef.current === flightItemId) setNotesSyncStatus("saving");
+
+    const save = notesSaveChainRef.current.catch(() => undefined).then(async () => {
+      if (latestQueuedNotesRef.current.get(flightItemId) !== pending) return;
+      try {
+        const response = await fetch(`/api/events/${preview.id}/notes`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(pending),
+          keepalive: true
+        });
+        if (!response.ok) throw new Error("Notes save rejected.");
+        lastSavedNotesRef.current.set(flightItemId, personalNotes);
+        if (latestQueuedNotesRef.current.get(flightItemId) === pending) {
+          latestQueuedNotesRef.current.delete(flightItemId);
+          if (activeFlightIdRef.current === flightItemId) setNotesSyncStatus("saved");
+        }
+      } catch {
+        if (latestQueuedNotesRef.current.get(flightItemId) === pending && activeFlightIdRef.current === flightItemId) {
+          setNotesSyncStatus("device");
+        }
+      }
+    });
+    notesSaveChainRef.current = save;
+    return save;
+  }, [preview.id]);
+
+  const applySnapshot = useCallback((next: StatePayload) => {
+    stateRef.current = next;
+    activeFlightIdRef.current = next.currentItem?.id ?? null;
+    setState(next);
+    if (next.trivia?.selectedIndex !== null && next.trivia?.selectedIndex !== undefined) setTriviaChoice(next.trivia.selectedIndex);
+    else if (next.event.phase !== "trivia") setTriviaChoice(null);
+    if (!next.currentItem) return;
+
+    const changedTea = currentItemRef.current !== next.currentItem.id;
+    const stored = next.responses.find(response => response.event_flight_item_id === next.currentItem?.id);
+    const local = loadDraft(preview.id, next.participant.id, next.currentItem.id);
+    const storedNotes = stored?.personal_notes ?? "";
+    const serverDraft = stored ? {
+      firstImpression: stored.first_impression ?? "",
+      descriptors: stored.descriptors ?? [],
+      intensity: stored.intensity as Draft["intensity"],
+      rating: stored.rating ?? 0,
+      personalNotes: stored.personal_notes ?? local.personalNotes,
+      saved: stored.saved,
+      completed: Boolean(stored.completed_at)
+    } : local;
+    lastSavedNotesRef.current.set(next.currentItem.id, storedNotes);
+    if (changedTea) {
+      currentItemRef.current = next.currentItem.id;
+      draftRef.current = serverDraft;
+      setDraftState(serverDraft);
+      setNotesSyncStatus(serverDraft.personalNotes === storedNotes ? "saved" : "device");
+      setStep(stored?.completed_at ? 5 : 1);
+    } else if (storedNotes === draftRef.current.personalNotes) {
+      setNotesSyncStatus("saved");
+    }
+  }, [preview.id]);
 
   const refresh = useCallback(async () => {
     if (!joined) return;
@@ -60,24 +150,34 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
     setRoundTripMs(responseReceivedAt-requestStartedAt);
     if (next.event.sequence_number < sequenceRef.current) return;
     sequenceRef.current = next.event.sequence_number;
-    setState(next);
-    if (next.trivia?.selectedIndex !== null && next.trivia?.selectedIndex !== undefined) setTriviaChoice(next.trivia.selectedIndex);
-    else if (next.event.phase !== "trivia") setTriviaChoice(null);
-    if (next.currentItem) {
-      const changedTea = currentItemRef.current !== next.currentItem.id;
-      const stored = next.responses.find(r => r.event_flight_item_id === next.currentItem?.id);
-      const local = loadDraft(preview.id, next.participant.id, next.currentItem.id);
-      const serverDraft = stored ? { firstImpression: stored.first_impression ?? "", descriptors: stored.descriptors ?? [], intensity: stored.intensity as Draft["intensity"], rating: stored.rating ?? 0, personalNotes: stored.personal_notes ?? local.personalNotes, saved: stored.saved, completed: Boolean(stored.completed_at) } : local;
-      if (changedTea) {
-        currentItemRef.current = next.currentItem.id;
-        setDraft(serverDraft);
-        setStep(stored?.completed_at ? 5 : 1);
-      } else if (stored?.completed_at) {
-        setDraft(serverDraft);
-        setStep(5);
-      }
+    const current = stateRef.current;
+    if (current && next.event.sequence_number > current.event.sequence_number && current.currentItem) {
+      void queuePersonalNotes(current.currentItem.id, draftRef.current.personalNotes);
     }
-  }, [joined, preview.id]);
+    if (shouldHoldGuestTransition({
+      currentSequence: current?.event.sequence_number ?? null,
+      nextSequence: next.event.sequence_number,
+      notesActive: notesProtectedRef.current,
+      alreadyHolding: Boolean(pendingStateRef.current)
+    })) {
+      pendingStateRef.current = next;
+      setPendingState(next);
+      return;
+    }
+    pendingStateRef.current = null;
+    setPendingState(null);
+    applySnapshot(next);
+  }, [applySnapshot, joined, preview.id, queuePersonalNotes]);
+
+  const showPendingTransition = useCallback(() => {
+    const next = pendingStateRef.current;
+    if (!next) return;
+    const currentFlightId = stateRef.current?.currentItem?.id;
+    if (currentFlightId) void queuePersonalNotes(currentFlightId, draftRef.current.personalNotes);
+    pendingStateRef.current = null;
+    setPendingState(null);
+    applySnapshot(next);
+  }, [applySnapshot, queuePersonalNotes]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -132,6 +232,26 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
   }, [draft, preview.id, state?.participant.id, state?.currentItem]);
 
   useEffect(() => {
+    const flightItemId = state?.currentItem?.id;
+    if (!flightItemId || lastSavedNotesRef.current.get(flightItemId) === draft.personalNotes) return;
+    setNotesSyncStatus("device");
+    const timer = window.setTimeout(() => {
+      void queuePersonalNotes(flightItemId, draft.personalNotes);
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [draft.personalNotes, queuePersonalNotes, state?.currentItem?.id]);
+
+  useEffect(() => {
+    const retryNotes = () => {
+      for (const pending of latestQueuedNotesRef.current.values()) {
+        void queuePersonalNotes(pending.flightItemId, pending.personalNotes);
+      }
+    };
+    window.addEventListener("online", retryNotes);
+    return () => window.removeEventListener("online", retryNotes);
+  }, [queuePersonalNotes]);
+
+  useEffect(() => {
     const closesAt = state?.event.trivia_closes_at;
     if (!closesAt || state?.event.phase !== "trivia") return;
     const delay = Math.max(0, new Date(closesAt).getTime() - correctedNow(Date.now(),clockOffsetRef.current)) + 75;
@@ -172,11 +292,19 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
 
   async function submitResponse(completed = false, patch: Partial<Draft> = {}) {
     if (!state?.currentItem) return false;
-    const payload = { ...draft, ...patch, flightItemId: state.currentItem.id, completed: completed || draft.completed };
     setBusy(true); setError("");
+    await queuePersonalNotes(state.currentItem.id, draftRef.current.personalNotes);
+    const latestDraft = draftRef.current;
+    const payload = { ...latestDraft, ...patch, flightItemId: state.currentItem.id, completed: completed || latestDraft.completed };
     const response = await fetch(`/api/events/${preview.id}/response`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
     const result = await response.json().catch(() => ({})); setBusy(false);
     if (!response.ok) { setError(result.error ?? "We could not save that just now."); return false; }
+    if (draftRef.current.personalNotes === payload.personalNotes) {
+      lastSavedNotesRef.current.set(state.currentItem.id, payload.personalNotes);
+      const queued = latestQueuedNotesRef.current.get(state.currentItem.id);
+      if (queued?.personalNotes === payload.personalNotes) latestQueuedNotesRef.current.delete(state.currentItem.id);
+      if (activeFlightIdRef.current === state.currentItem.id) setNotesSyncStatus("saved");
+    }
     setDraft(d => ({ ...d, ...patch, completed: completed || d.completed }));
     if (sound) ceramicClink();
     return true;
@@ -209,14 +337,26 @@ export function GuestExperience({ preview, initialParticipant }: { preview: Even
   if (state.participant.status === "removed") return <Terminal title="You’ve been removed from this tasting." copy="Your notes remain yours and are still available in your recap." />;
 
   const phase = state.event.phase;
+  const frameProps = {
+    state,
+    draft,
+    setDraft,
+    sound,
+    toggleSound,
+    notesSyncStatus,
+    transitionNotice: pendingState ? (pendingState.event.phase === "reveal" ? "New reveal — tap to view" : "The tasting has moved on — tap to view") : null,
+    onShowTransition: showPendingTransition,
+    onNotesActiveChange: (active: boolean) => { notesProtectedRef.current = active; },
+    onNotesBlur: () => { if (state.currentItem) void queuePersonalNotes(state.currentItem.id, draftRef.current.personalNotes); }
+  };
   if (phase === "lobby") return <WaitingRoom state={state} count={presenceCount} />;
   if (phase === "welcome") return <Ceremony eyebrow={`with your Vintage Fork host`} title="Welcome to the table." subtitle={state.event.title} />;
   if (phase === "reveal" && state.currentItem) return <ScheduledReveal state={state} clockOffsetMs={clockOffsetMs} roundTripMs={roundTripMs} />;
-  if (phase === "brewing" && state.currentItem) return <GuestFrame state={state} draft={draft} setDraft={setDraft} sound={sound} toggleSound={toggleSound}><Brewing item={state.currentItem} endsAt={state.event.timer_ends_at} clockOffsetMs={clockOffsetMs} /></GuestFrame>;
-  if (phase === "trivia" && state.currentItem && state.trivia) return <GuestFrame state={state} draft={draft} setDraft={setDraft} sound={sound} toggleSound={toggleSound}><Trivia trivia={state.trivia} choice={triviaChoice} answer={answerTrivia} error={error} saved={draft.saved} toggleSaved={async () => { const next = !draft.saved; if (await submitResponse(false, { saved: next })) setDraft(d => ({ ...d, saved: next })); }} /></GuestFrame>;
+  if (phase === "brewing" && state.currentItem) return <GuestFrame {...frameProps}><Brewing item={state.currentItem} endsAt={state.event.timer_ends_at} clockOffsetMs={clockOffsetMs} /></GuestFrame>;
+  if (phase === "trivia" && state.currentItem && state.trivia) return <GuestFrame {...frameProps}><Trivia trivia={state.trivia} choice={triviaChoice} answer={answerTrivia} error={error} saved={draft.saved} toggleSaved={async () => { const next = !draft.saved; if (await submitResponse(false, { saved: next })) setDraft(d => ({ ...d, saved: next })); }} /></GuestFrame>;
   if (["recap","ended"].includes(phase) || state.event.status === "completed") return <Recap state={state} />;
   if (state.betweenTeas) return <BetweenTeas state={state} />;
-  if (phase === "tasting" && state.currentItem) return <GuestFrame state={state} draft={draft} setDraft={setDraft} sound={sound} toggleSound={toggleSound}>{draft.completed || step === 5 ? <TeaComplete item={state.currentItem} saved={draft.saved} onToggle={async () => { const next = !draft.saved; if (await submitResponse(false, { saved: next })) setDraft(d => ({ ...d, saved: next })); }} /> : <TastingSteps step={step} setStep={setStep} draft={draft} setDraft={setDraft} busy={busy} error={error} submit={async () => { if (await submitResponse(true)) setStep(5); }} />}</GuestFrame>;
+  if (phase === "tasting" && state.currentItem) return <GuestFrame {...frameProps}>{draft.completed || step === 5 ? <TeaComplete item={state.currentItem} saved={draft.saved} onToggle={async () => { const next = !draft.saved; if (await submitResponse(false, { saved: next })) setDraft(d => ({ ...d, saved: next })); }} /> : <TastingSteps step={step} setStep={setStep} draft={draft} setDraft={setDraft} busy={busy} error={error} submit={async () => { if (await submitResponse(true)) setStep(5); }} />}</GuestFrame>;
   return <LoadingRoom />;
 }
 
@@ -247,7 +387,13 @@ function ScheduledReveal({ state, clockOffsetMs, roundTripMs }: { state: StatePa
   const revealed=!revealAt||(now!==null&&now>=revealAt);
   return revealed&&state.currentItem?<Ceremony eyebrow={`Tea ${state.currentPosition} of ${state.flightCount}`} title={state.currentItem.reveal_title} subtitle={`${state.currentItem.tea?.origin ?? ""} · ${state.currentItem.reveal_description}`} />:<Ceremony eyebrow={`Tea ${state.currentPosition} of ${state.flightCount}`} title="Ready at the table." subtitle="Your host is revealing the next tea." />;
 }
-function GuestFrame({ state, draft, setDraft, sound, toggleSound, children }: { state: StatePayload; draft: Draft; setDraft:(x:Draft|((d:Draft)=>Draft))=>void; sound:boolean; toggleSound:()=>void; children:React.ReactNode }) { return <main className="guest-shell" id="main-content"><header className="guest-header"><Brand compact /><strong>{state.currentItem?.reveal_title}</strong><span className="spacer" /><span className="chip">Tea {state.currentPosition} of {state.flightCount}</span><button className="btn btn-quiet" aria-pressed={sound} aria-label={`Interface sounds ${sound ? "on" : "off"}`} onClick={toggleSound}>{sound ? "♪ On" : "♪ Off"}</button></header><div className="guest-pane"><details className="card" style={{ marginBottom: 16 }}><summary>Your notes</summary><textarea className="textarea" aria-label="Personal notes" value={draft.personalNotes} onChange={e => setDraft(d => ({ ...d, personalNotes: e.target.value }))} placeholder="Anything you want to remember…" /><p className="help">Saved on this device first, then synced with your next response.</p></details>{children}</div></main>; }
+function GuestFrame({ state, draft, setDraft, sound, toggleSound, notesSyncStatus, transitionNotice, onShowTransition, onNotesActiveChange, onNotesBlur, children }: { state: StatePayload; draft: Draft; setDraft:(update:DraftUpdate)=>void; sound:boolean; toggleSound:()=>void; notesSyncStatus:NotesSyncStatus; transitionNotice:string|null; onShowTransition:()=>void; onNotesActiveChange:(active:boolean)=>void; onNotesBlur:()=>void; children:React.ReactNode }) {
+  const focused = useRef(false);
+  const composing = useRef(false);
+  const reportActivity = () => onNotesActiveChange(focused.current || composing.current);
+  const syncCopy = notesSyncStatus === "saved" ? "Saved." : notesSyncStatus === "saving" ? "Saving…" : "Saved on this device. We’ll sync when you’re connected.";
+  return <main className="guest-shell" id="main-content"><header className="guest-header"><Brand compact /><strong>{state.currentItem?.reveal_title}</strong><span className="spacer" /><span className="chip">Tea {state.currentPosition} of {state.flightCount}</span><button className="btn btn-quiet" aria-pressed={sound} aria-label={`Interface sounds ${sound ? "on" : "off"}`} onClick={toggleSound}>{sound ? "♪ On" : "♪ Off"}</button></header><div className="guest-pane"><details className="card" style={{ marginBottom: 16 }}><summary>Your notes</summary><textarea className="textarea" aria-label="Personal notes" maxLength={3000} value={draft.personalNotes} onFocus={() => { focused.current = true; reportActivity(); }} onBlur={() => { focused.current = false; reportActivity(); onNotesBlur(); }} onCompositionStart={() => { composing.current = true; reportActivity(); }} onCompositionEnd={() => { composing.current = false; reportActivity(); }} onChange={e => setDraft(d => ({ ...d, personalNotes: e.target.value }))} placeholder="Anything you want to remember…" /><p className="help" role="status" aria-live="polite">{syncCopy}</p></details>{transitionNotice && <div className="notice guest-transition-notice" role="status" aria-live="polite"><strong>{transitionNotice}</strong><button className="btn btn-secondary" onClick={onShowTransition}>View now</button></div>}{children}</div></main>;
+}
 function Brewing({ item, endsAt, clockOffsetMs }: { item: CurrentItem; endsAt:string|null; clockOffsetMs:number }) { const [now,setNow]=useState<number|null>(null); useEffect(()=>{const tick=()=>setNow(correctedNow(Date.now(),clockOffsetMs));tick();const t=window.setInterval(tick,250);return()=>window.clearInterval(t)},[clockOffsetMs]); const remaining=endsAt&&now!==null?Math.max(0,new Date(endsAt).getTime()-now):item.steep_seconds*1000; return <><p className="eyebrow">Brewing</p><h1 className="page-title">Brew it like this</h1><p>{item.temperature_c ? `${item.temperature_c}°C` : "Hot water"} · {item.leaf_grams ? `${item.leaf_grams}g` : ""} {item.water_ml ? `per ${item.water_ml}ml` : ""}</p><div className="timer-ring" role="timer" aria-live={remaining<=10_000?"polite":"off"}><div><div className="timer-readout">{formatClock(remaining)}</div><small className="muted">host controlled</small></div></div><section className="card"><p>{item.brewing_instructions}</p></section></>; }
 function TastingSteps({ step, setStep, draft, setDraft, busy, error, submit }: { step:number; setStep:(x:number)=>void; draft:Draft; setDraft:(x:Draft|((d:Draft)=>Draft))=>void; busy:boolean; error:string; submit:()=>void }) { return <>{error && <div className="form-error">{error}</div>}{step===1&&<><p className="eyebrow">Step 1 of 4</p><h1 className="page-title">What did you notice first?</h1><p className="muted">Optional. No wrong answers.</p><textarea className="textarea" aria-label="First impression" value={draft.firstImpression} onChange={e=>setDraft(d=>({...d,firstImpression:e.target.value}))}/><div className="guest-actions"><button className="btn btn-primary" onClick={()=>setStep(2)}>Continue</button><button className="btn btn-quiet" onClick={()=>setStep(2)}>Skip</button></div></>}{step===2&&<><p className="eyebrow">Step 2 of 4</p><h1 className="page-title">What do you notice?</h1><p className="muted">Pick up to three.</p><div className="descriptor-grid">{DESCRIPTORS.map(label=><button className="descriptor" aria-pressed={draft.descriptors.includes(label)} key={label} onClick={()=>setDraft(d=>({ ...d, descriptors:d.descriptors.includes(label)?d.descriptors.filter(x=>x!==label):d.descriptors.length<3?[...d.descriptors,label]:d.descriptors }))}>{label}</button>)}</div><div className="guest-actions"><button className="btn btn-primary" onClick={()=>setStep(3)}>Continue</button></div></>}{step===3&&<><p className="eyebrow">Step 3 of 4</p><h1 className="page-title">How strong was this tea overall?</h1><div className="grid grid-3">{(["subtle","clear","dominant"] as const).map(x=><button className={`btn ${draft.intensity===x?"btn-gold":"btn-secondary"}`} key={x} onClick={()=>setDraft(d=>({...d,intensity:x}))}>{x}</button>)}</div><div className="guest-actions"><button className="btn btn-primary" onClick={()=>setStep(4)}>Continue</button></div></>}{step===4&&<><p className="eyebrow">Step 4 of 4</p><h1 className="page-title">Rate this tea overall</h1><div className="rating" role="radiogroup">{[1,2,3,4,5].map(n=><button className={draft.rating>=n?"active":""} role="radio" aria-checked={draft.rating===n} aria-label={`${n} stars`} key={n} onClick={()=>setDraft(d=>({...d,rating:n}))}>★</button>)}</div><div className="guest-actions"><button className="btn btn-primary" disabled={busy||draft.rating<1} onClick={submit}>{busy?"Saving…":"Submit My Notes"}</button></div></>}</>; }
 function TeaComplete({ item, saved, onToggle }: { item:CurrentItem; saved:boolean; onToggle:()=>void }) { return <div style={{ textAlign:"center" }}><div style={{ width:168,height:168,border:"2px solid var(--vf-gold)",borderRadius:"50%",display:"grid",placeItems:"center",margin:"1rem auto" }}><div><strong>{item.reveal_title.toUpperCase()}</strong><br /><span style={{ fontSize:32 }}>✦</span></div></div><h1 className="page-title">Stamped. Tea {item.position}.</h1><section className="card" style={{ marginTop:20 }}><h2>Save This Tea</h2><p>Save it to include it in your customer dashboard.</p><button className={`btn ${saved?"btn-secondary":"btn-primary"}`} onClick={onToggle}>{saved?"Remove from Saved":"Save This Tea"}</button></section><div className="guest-actions"><p className="muted">Your host will introduce the next step.</p></div></div>; }

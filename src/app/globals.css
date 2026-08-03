@@ -168,6 +168,8 @@ tr:last-child td { border-bottom: 0; }
 .guest-pane { width: min(100%, 600px); min-height: calc(100vh - 60px); margin: auto; padding: 2rem 1rem 7rem; display: flex; flex-direction: column; }
 .guest-actions { margin-top: auto; padding-top: 2rem; display: grid; gap: .75rem; }
 .guest-actions .btn { min-height: 52px; font-size: 1rem; }
+.guest-transition-notice { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.guest-transition-notice .btn { flex: 0 0 auto; }
 .ceremony { min-height: 100vh; display: grid; place-items: center; text-align: center; padding: 2rem 1rem; background: radial-gradient(120% 90% at 50% 30%, var(--vf-plum), var(--vf-plum-aged)); color: var(--vf-parchment); }
 .ceremony h1, .ceremony h2, .ceremony .eyebrow { color: var(--vf-parchment); }
 .ceremony-rule { width: 120px; height: 1px; background: var(--vf-gold); margin: 1.2rem auto; }

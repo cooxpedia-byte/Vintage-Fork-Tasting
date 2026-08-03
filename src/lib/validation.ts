@@ -39,3 +39,8 @@ export const responseSchema = z.object({
   saved: z.boolean().optional(),
   completed: z.boolean().optional()
 });
+
+export const guestNotesSchema = z.object({
+  flightItemId: z.string().uuid(),
+  personalNotes: z.string().max(3000)
+});
