@@ -11,6 +11,7 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const callbackError = params.get("authError") ? "That email link is invalid or has expired. Request a fresh one." : "";
@@ -58,7 +59,22 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
         {(error||callbackError) && <div className={error.startsWith("If") ? "notice success" : "form-error"} role="status">{error||callbackError}</div>}
         <form onSubmit={submit} style={{ marginTop: 20 }}>
           <div className="field"><label htmlFor="email">Email</label><input className="input" id="email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} /></div>
-          <div className="field"><label htmlFor="password">Password</label><input className="input" id="password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} /></div>
+          <div className="field">
+            <label htmlFor="password">Password</label>
+            <div className="password-control">
+              <input className="input" id="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} />
+              <button
+                aria-controls="password"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="password-visibility-toggle"
+                type="button"
+                onClick={() => setShowPassword(current => !current)}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
           <button className="btn btn-primary" style={{ width: "100%" }} disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
         </form>
         <button className="btn btn-quiet" type="button" disabled={busy} onClick={resetPassword}>Forgot your password?</button>
