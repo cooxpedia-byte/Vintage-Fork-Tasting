@@ -55,6 +55,10 @@ Test with one host, one backup/observer and at least three guest browsers.
 - Trivia accepts only one answer per participant.
 - Correct answer is hidden until close/deadline.
 - Guest state never includes participant rankings or room-wide descriptor frequencies.
+- Completed guest can send a participant-only recap to the stored email or a corrected address; one initial send and no more than three retries are allowed per 24 hours.
+- Recap email contains a 90-day deletion link and does not include another guest's name, responses or descriptors.
+- Active guest and accountless email-link flows both require confirmation before deleting tasting data.
+- Deletion removes only that participant's notes, ratings, trivia answers, stamps, saved teas, guest token and recap records; any customer/staff account remains intact.
 
 ## Customer dashboard
 

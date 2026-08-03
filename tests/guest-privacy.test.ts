@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { GuestRecap, type StatePayload } from "@/components/guest/GuestExperience";
-import { protectGuestState } from "@/lib/guest-privacy";
+import { clearGuestDeviceData, protectGuestState } from "@/lib/guest-privacy";
 
 describe("guest state privacy boundary", () => {
   it("removes cross-guest rankings and descriptor frequencies", () => {
@@ -51,5 +51,28 @@ describe("guest state privacy boundary", () => {
     expect(html).not.toContain("Leaderboard");
     expect(html).not.toContain("The room noticed");
     expect(html).not.toContain("Another guest");
+    expect(html).toContain("Email me my recap");
+    expect(html).toContain("Delete my tasting data");
+  });
+
+  it("clears only this participant's device drafts and pending trivia", () => {
+    const values = new Map([
+      ["vf:draft:event-1:participant-1:tea-1", "mine"],
+      ["vf:draft:event-1:participant-2:tea-1", "someone else"],
+      ["vf:interface-sound", "on"]
+    ]);
+    const localStore = {
+      get length() { return values.size; },
+      key(index: number) { return [...values.keys()][index] ?? null; },
+      removeItem(key: string) { values.delete(key); }
+    };
+    const removedFromSession: string[] = [];
+
+    clearGuestDeviceData(localStore, { removeItem: key => removedFromSession.push(key) }, "event-1", "participant-1");
+
+    expect(values.has("vf:draft:event-1:participant-1:tea-1")).toBe(false);
+    expect(values.has("vf:draft:event-1:participant-2:tea-1")).toBe(true);
+    expect(values.has("vf:interface-sound")).toBe(true);
+    expect(removedFromSession).toEqual(["pending_trivia_answer"]);
   });
 });

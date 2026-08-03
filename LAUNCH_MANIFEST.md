@@ -17,7 +17,7 @@ This manifest maps every requested launch requirement to its implementation. It 
 | 11 | Synchronized brewing timer | Server stores `timer_started_at`/`timer_ends_at`; clients derive remaining time from the committed end timestamp |
 | 12 | Aroma and flavour response collection | First impression, max-three descriptors, intensity, rating and local-first personal notes |
 | 13 | Trivia questions and scoring | Time-bounded answer API, one-answer uniqueness, server-calculated correctness, delayed answer reveal |
-| 14 | Results and recap | Participant-private guest recap plus staff-only `/admin/events/[event-id]/results` and event aggregates |
+| 14 | Results and recap | Participant-private guest recap, rate-limited recap email with accountless deletion link, self-service participant-data deletion, plus staff-only `/admin/events/[event-id]/results` and event aggregates |
 | 15 | Completed Tea Passport | Every completed tea response becomes a Passport stamp in guest recap and customer dashboard |
 | 16 | Saved customer tasting history | Participant claim flow links an event to a verified account; `/dashboard` reads history under RLS |
 | 17 | Basic event analytics | `event_analytics` view and results route; export is intentionally absent from the Pilot and remains Phase 2 |

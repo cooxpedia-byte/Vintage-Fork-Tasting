@@ -17,8 +17,25 @@ export async function GET() {
     logger.error("retention_cleanup_failed", error);
     return NextResponse.json({ error: "Cleanup failed" }, { status: 500 });
   }
-  const { error:auditError }=await admin.from("operational_job_runs").insert({ job_name:"retention",status:"succeeded",started_at:startedAt,details:{ deleted:data?.length??0 } });
+  const emailCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  const [tokenCleanup, deliveryCleanup] = await Promise.all([
+    admin.from("participant_deletion_tokens").delete().lt("expires_at", cutoff).select("id"),
+    admin.from("recap_email_deliveries").delete().lt("requested_at", emailCutoff).select("id")
+  ]);
+  if (tokenCleanup.error || deliveryCleanup.error) {
+    const cleanupError = tokenCleanup.error ?? deliveryCleanup.error;
+    const { error: auditError } = await admin.from("operational_job_runs").insert({ job_name: "retention", status: "failed", started_at: startedAt, details: { code: cleanupError?.code } });
+    if (auditError) logger.error("retention_audit_failed", auditError);
+    logger.error("guest_privacy_retention_failed", cleanupError);
+    return NextResponse.json({ error: "Guest privacy cleanup failed" }, { status: 500 });
+  }
+  const details = {
+    deleted: data?.length ?? 0,
+    expired_deletion_tokens: tokenCleanup.data?.length ?? 0,
+    expired_recap_deliveries: deliveryCleanup.data?.length ?? 0
+  };
+  const { error:auditError }=await admin.from("operational_job_runs").insert({ job_name:"retention",status:"succeeded",started_at:startedAt,details });
   if(auditError){logger.error("retention_audit_failed",auditError);return NextResponse.json({error:"Cleanup completed but audit evidence failed"},{status:500})}
-  logger.info("retention_cleanup_complete", { deleted: data?.length ?? 0 });
-  return NextResponse.json({ deleted: data?.length ?? 0 });
+  logger.info("retention_cleanup_complete", details);
+  return NextResponse.json(details);
 }

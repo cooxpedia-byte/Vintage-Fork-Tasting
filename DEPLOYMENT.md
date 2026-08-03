@@ -66,7 +66,12 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 SUPABASE_SECRET_KEY=...
 SUPABASE_DATABASE_URL=...
 CRON_SECRET=<at least 32 random characters>
+BREVO_SMTP_USER=<Brevo SMTP login>
+BREVO_SMTP_KEY=<Brevo SMTP key>
+RECAP_EMAIL_FROM=<Brevo-verified sender address>
 ```
+
+Enter SMTP credentials directly in the deployment secret store—never in source control, logs or chat. Confirm the sender is verified in Brevo before testing recap delivery. The recap email route is unavailable by design when these values are absent; deletion from an active guest recap remains available.
 
 Run `npm run preflight` as a deployment check before `next build` or in CI. Use `npm ci` after the lockfile is committed. Deploy a preview, complete QA, then promote the approved commit.
 

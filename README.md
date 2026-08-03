@@ -32,6 +32,8 @@ The central rule is: **the database is authoritative**. Host commands execute th
 - Aroma/flavour capture, intensity, rating, private notes and saved teas
 - Trivia locking and scoring
 - Participant-private recap, Passport and customer tasting history
+- Guest recap email with a time-limited, accountless tasting-data deletion link
+- Self-service deletion of participant-scoped notes, ratings, trivia answers, stamps and saved teas without deleting an account
 - Privacy-safe event analytics (data export remains Phase 2, as specified)
 - RLS policies, protected RPCs, storage policies, retention cleanup and structured logs
 - Responsive, keyboard accessible, reduced-motion aware interfaces
@@ -88,6 +90,8 @@ cp .env.example .env.local
 ```
 
 Use the current Supabase **publishable key** in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the server-only **secret key** in `SUPABASE_SECRET_KEY`. Never expose the secret key to the browser.
+
+Guest recap delivery uses Brevo SMTP. Configure `BREVO_SMTP_USER`, `BREVO_SMTP_KEY` and a Brevo-verified sender in `RECAP_EMAIL_FROM`; keep all three server-only. The default relay is `smtp-relay.brevo.com:587`.
 
 ### 5. Run
 

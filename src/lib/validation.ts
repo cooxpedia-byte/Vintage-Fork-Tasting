@@ -44,3 +44,11 @@ export const guestNotesSchema = z.object({
   flightItemId: z.string().uuid(),
   personalNotes: z.string().max(3000)
 });
+
+export const recapEmailSchema = z.object({
+  email: z.string().trim().email().max(254).optional()
+});
+
+export const guestDeletionSchema = z.object({
+  deletionToken: z.string().min(32).max(256).optional()
+});

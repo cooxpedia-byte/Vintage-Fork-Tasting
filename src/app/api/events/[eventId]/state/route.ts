@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireParticipant } from "@/lib/guest-token";
-import { protectGuestState } from "@/lib/guest-privacy";
+import { maskEmail, protectGuestState } from "@/lib/guest-privacy";
 import { createTriviaDeadlineToken } from "@/lib/trivia-token";
 
 export async function GET(_: Request, { params }: { params: Promise<{ eventId: string }> }) {
@@ -71,7 +71,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
     serverReceivedTime,
     serverTime: new Date().toISOString(),
     event,
-    participant: { id: participant.id, displayName: participant.display_name, status: participant.status, linkedToAccount: Boolean(participant.user_id) },
+    participant: {
+      id: participant.id,
+      displayName: participant.display_name,
+      status: participant.status,
+      linkedToAccount: Boolean(participant.user_id),
+      hasEmail: Boolean(participant.email),
+      maskedEmail: participant.email ? maskEmail(participant.email) : null
+    },
     flightCount: flight?.length ?? 0,
     currentItem: current,
     currentPosition: rawCurrent?.position ?? 0,
