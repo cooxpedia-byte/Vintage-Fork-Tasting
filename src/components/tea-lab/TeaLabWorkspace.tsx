@@ -279,7 +279,7 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
           <h1 className="page-title">Tea Lab</h1>
           <p className="page-lede">Welcome, {name}. Brew one tea, capture what you notice, and keep the result in your Journal.</p>
         </div>
-        <button className="btn btn-gold" type="button" disabled={!ready || Boolean(storageError)} onClick={createTasting}>Create a Tasting Session</button>
+        <button className="btn btn-gold btn-attention" type="button" disabled={!ready || Boolean(storageError)} onClick={createTasting}>Create a Tasting Session</button>
       </section>
       {storageError && <div className="notice error" role="alert" style={{ marginTop: 16 }}>{storageError}</div>}
       {!ready && !storageError && <p className="help" role="status" style={{ marginTop: 12 }}>Loading your private drafts…</p>}
@@ -287,13 +287,13 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
         <div className="section-label"><span>Continue a draft</span></div>
         <div className="grid grid-2">{drafts.map(savedDraft => <article className="card" key={savedDraft.sessionId}>
           <div className="card-header"><div><h2 className="card-title">{teaLabDraftTeaName(savedDraft, teaOptions)}</h2><p className="card-meta">Updated {new Date(savedDraft.updatedAt).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })}</p></div><span className="chip chip-warning">Draft</span></div>
-          <button className="btn btn-primary" type="button" onClick={() => resumeTasting(savedDraft)}>Continue tasting</button>
+          <button className="btn btn-primary btn-attention" type="button" onClick={() => resumeTasting(savedDraft)}>Continue tasting</button>
         </article>)}</div>
       </>}
       <div className="section-label"><span>Next at the table</span></div>
       {upcoming.length ? upcoming.map(event => <article className="card" key={event.id}>
         <div className="card-header"><div><h2 className="card-title">{event.title}</h2><p className="card-meta">{formatCustomerEventDateTime(event.starts_at, event.timezone)} · {event.location_mode === "remote" ? "Remote" : "In person"}</p></div><span className="chip chip-success">Booked</span></div>
-        <div className="card-footer"><span>Your seat is linked to this account.</span>{event.invite_code && <Link className="btn btn-primary" href={`/event/${event.invite_code}`}>Open event</Link>}</div>
+        <div className="card-footer"><span>Your seat is linked to this account.</span>{event.invite_code && <Link className="btn btn-primary btn-attention" href={`/event/${event.invite_code}`}>Open event</Link>}</div>
       </article>) : <div className="empty-state"><h2>No upcoming live tastings.</h2><p>You can still document a tea at home.</p></div>}
     </div>;
   }
@@ -310,7 +310,7 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
       {blocked && <div className="notice error" role="alert"><p>This tasting conflicts with a newer server version. Your device copy has been retained for review.</p>{revisionConflict && <button className="btn btn-secondary" type="button" disabled={completing} onClick={retryDeviceCopy}>{canRetryDeviceCopy ? "Use this device copy" : "Check latest version"}</button>}</div>}
       {formError && <div className="notice error" role="alert">{formError}</div>}
       <div className="row" style={{ marginTop: 20 }}>
-        {completed && <button className="btn btn-primary" type="button" onClick={onOpenJournal}>Open Journal</button>}
+        {completed && <button className="btn btn-primary btn-attention" type="button" onClick={onOpenJournal}>Open Journal</button>}
         <button className="btn btn-secondary" type="button" onClick={leaveTasting}>Back to Lab</button>
       </div>
     </section>;
@@ -385,7 +385,7 @@ function ChooseTeaStep({ draft, options, update, next }: { draft: TeaLabSoloDraf
       <div className="field"><label htmlFor="tea-harvest">Harvest</label><input className="input" id="tea-harvest" maxLength={120} value={draft.tea.harvest ?? ""} onChange={event => updatePersonal("harvest", event.target.value)} /></div>
       <div className="field"><label htmlFor="tea-lot">Lot or batch <span className="muted">(unverified)</span></label><input className="input" id="tea-lot" maxLength={160} value={draft.tea.lotCode ?? ""} onChange={event => updatePersonal("lotCode", event.target.value)} /></div>
     </div>}
-    <div className="card-footer"><span className="muted">Manual tea details remain private to you.</span><button className="btn btn-primary" type="button" disabled={!isTeaSelectionReady(draft)} onClick={next}>Continue to brew</button></div>
+    <div className="card-footer"><span className="muted">Manual tea details remain private to you.</span><button className="btn btn-primary btn-attention" type="button" disabled={!isTeaSelectionReady(draft)} onClick={next}>Continue to brew</button></div>
   </section>;
 }
 
@@ -401,7 +401,7 @@ function BrewStep({ draft, update, back, next }: { draft: TeaLabSoloDraft; updat
       <div className="field"><label htmlFor="water-source">Water source</label><input className="input" id="water-source" maxLength={160} value={draft.brewing.waterSource ?? ""} onChange={event => setBrewing("waterSource", event.target.value)} /></div>
       <div className="field"><label htmlFor="steep-seconds">Initial steep (seconds)</label><input className="input" id="steep-seconds" type="number" min="1" max="86400" step="1" value={numericValue(draft.brewing.initialSteepSeconds)} onChange={event => setBrewing("initialSteepSeconds", event.target.value, true)} /></div>
     </div>
-    <div className="card-footer"><button className="btn btn-secondary" type="button" onClick={back}>Back</button><button className="btn btn-primary" type="button" onClick={next}>Continue to taste</button></div>
+    <div className="card-footer"><button className="btn btn-secondary" type="button" onClick={back}>Back</button><button className="btn btn-primary btn-attention" type="button" onClick={next}>Continue to taste</button></div>
   </section>;
 }
 
@@ -426,7 +426,7 @@ export function TasteStep({ draft, descriptors, update, back, next, online = tru
     <fieldset className="tea-lab-fieldset"><legend>Overall rating <span className="muted">Required to complete</span></legend><div className="rating" role="radiogroup" aria-label="Overall rating">{[1, 2, 3, 4, 5].map(value => <button className={(draft.tasting.rating ?? 0) >= value ? "active" : ""} type="button" role="radio" aria-checked={draft.tasting.rating === value} aria-label={`${value} star${value === 1 ? "" : "s"}`} data-rating={value} tabIndex={draft.tasting.rating === value || (draft.tasting.rating === null && value === 1) ? 0 : -1} key={value} onKeyDown={event => moveRating(event, value)} onClick={() => setTasting("rating", value)}>★</button>)}</div></fieldset>
     <div className="field"><label htmlFor="personal-notes">Private notes</label><textarea className="textarea" id="personal-notes" maxLength={3000} value={draft.tasting.personalNotes ?? ""} onChange={event => setTasting("personalNotes", event.target.value || null)} placeholder="Anything you want to remember…" /></div>
     {preparePhotoCard && onPhotoBusyChange && <TeaLabPhotoCapture cardId={draft.cardId} online={online} prepareCard={preparePhotoCard} onBusyChange={onPhotoBusyChange} />}
-    <div className="card-footer"><button className="btn btn-secondary" type="button" disabled={photoBusy} onClick={back}>Back</button><button className="btn btn-primary" type="button" disabled={!draft.tasting.rating || photoBusy} onClick={next}>Review tasting</button></div>
+    <div className="card-footer"><button className="btn btn-secondary" type="button" disabled={photoBusy} onClick={back}>Back</button><button className="btn btn-primary btn-attention" type="button" disabled={!draft.tasting.rating || photoBusy} onClick={next}>Review tasting</button></div>
   </section>;
 }
 
@@ -447,6 +447,6 @@ function ReviewStep({ draft, teaOptions, descriptors, back, complete, busy, bloc
       ].filter(Boolean).join(" · ") || "Not recorded"}</dd></div>
     </dl>
     <div className="notice"><strong>Private by default.</strong><p style={{ margin: "6px 0 0" }}>Your first impression, brewing record, rating and notes are visible only to you.</p></div>
-    <div className="card-footer"><button className="btn btn-secondary" type="button" disabled={busy} onClick={back}>Back</button><button className="btn btn-gold" type="button" disabled={busy || blocked || !draft.tasting.rating} onClick={complete}>{busy ? "Completing…" : "Complete Tasting"}</button></div>
+    <div className="card-footer"><button className="btn btn-secondary" type="button" disabled={busy} onClick={back}>Back</button><button className="btn btn-gold btn-attention" type="button" disabled={busy || blocked || !draft.tasting.rating} onClick={complete}>{busy ? "Completing…" : "Complete Tasting"}</button></div>
   </section>;
 }

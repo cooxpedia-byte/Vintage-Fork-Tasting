@@ -72,7 +72,7 @@ export function SignupForm() {
             <input className="input" id="signup-password" type="password" autoComplete="new-password" minLength={8} required value={password} onChange={event => setPassword(event.target.value)} />
             <span className="help">Use at least 8 characters.</span>
           </div>
-          <button className="btn btn-primary" style={{ width: "100%" }} disabled={busy || complete}>
+          <button className="btn btn-primary btn-attention" style={{ width: "100%" }} disabled={busy || complete}>
             {busy ? "Creating…" : complete ? "Check your email" : "Create My Account"}
           </button>
         </form>

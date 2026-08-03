@@ -112,7 +112,7 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
         <section className="card"><h2 className="card-title">Invite</h2><p>{existing?.invite_code ? <><strong>{existing.invite_code}</strong><br /><span className="help">{`${process.env.NEXT_PUBLIC_SITE_URL ?? "https://tasting.vintagefork.ca"}/event/${existing.invite_code}`}</span></> : "An invite code is generated when the draft is saved."}</p>{existing?.invite_code && <button type="button" className="btn btn-secondary" onClick={copyInvite}>{copied ? "Invite copied" : "Copy invite link"}</button>}</section>
       </aside>
     </div>
-    <div className="row" style={{ justifyContent: "flex-end", marginTop: 20 }}><button type="submit" className="btn btn-secondary" disabled={busy}>{busy ? "Saving…" : existing?.status === "scheduled" ? "Save changes" : "Save draft"}</button>{existing?.status !== "scheduled" && <button type="button" className="btn btn-primary" disabled={busy || readiness.some(x => !x[1])} onClick={e => save(e as unknown as React.FormEvent, "scheduled")}>Save as scheduled</button>}</div>
+    <div className="row" style={{ justifyContent: "flex-end", marginTop: 20 }}><button type="submit" className="btn btn-secondary" disabled={busy}>{busy ? "Saving…" : existing?.status === "scheduled" ? "Save changes" : "Save draft"}</button>{existing?.status !== "scheduled" && <button type="button" className="btn btn-primary btn-attention" disabled={busy || readiness.some(x => !x[1])} onClick={e => save(e as unknown as React.FormEvent, "scheduled")}>Save as scheduled</button>}</div>
   </form>;
 }
 

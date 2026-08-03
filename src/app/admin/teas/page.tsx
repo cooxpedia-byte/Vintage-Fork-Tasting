@@ -10,7 +10,7 @@ export default async function TeaLibraryPage() {
   const supabase = await createClient();
   const { data: teas } = await supabase.from("teas").select("id,name,producer,origin,tea_type,default_steep_seconds,retired_at,event_flight_items(count)").order("retired_at", { ascending: true, nullsFirst: true }).order("name");
   return <><SiteHeader /><main className="page-shell" id="main-content">
-    <div className="row"><div><p className="eyebrow">Permanent records</p><h1 className="page-title">Tea library</h1><p className="page-lede">Manage the defaults used when a tea is added to a future tasting.</p></div><span className="spacer" /><Link className="btn btn-primary" href="/admin/teas/new" prefetch={false}>+ Add a tea</Link></div>
+    <div className="row"><div><p className="eyebrow">Permanent records</p><h1 className="page-title">Tea library</h1><p className="page-lede">Manage the defaults used when a tea is added to a future tasting.</p></div><span className="spacer" /><Link className="btn btn-primary btn-attention" href="/admin/teas/new" prefetch={false}>+ Add a tea</Link></div>
     <div className="notice" style={{ marginTop: 20 }}>Changes here never rewrite an event already configured or a completed customer tasting record.</div>
     <div className="table-wrap desktop-admin-table" style={{ marginTop: 20 }}>
       <table>

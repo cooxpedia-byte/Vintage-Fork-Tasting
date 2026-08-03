@@ -37,7 +37,7 @@ export function TeaLibrary({ items, onOpenLab }: { items: TeaLibraryItem[]; onOp
   return <>
     <div className="page-heading-row">
       <div><h1 className="page-title">Your Tea Library</h1><p className="page-lede">Saved catalogue teas and private teas you entered yourself, together without changing their source.</p></div>
-      <button className="btn btn-gold" type="button" onClick={onOpenLab}>Start a tasting</button>
+      <button className="btn btn-gold btn-attention" type="button" onClick={onOpenLab}>Start a tasting</button>
     </div>
     <div className="stack" style={{ marginTop: 20 }}>{active.length
       ? active.map(item => <LibraryCard item={item} key={item.id} />)

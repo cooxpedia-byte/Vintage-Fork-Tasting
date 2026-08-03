@@ -75,7 +75,7 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
               </button>
             </div>
           </div>
-          <button className="btn btn-primary" style={{ width: "100%" }} disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
+          <button className="btn btn-primary btn-attention" style={{ width: "100%" }} disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
         </form>
         <button className="btn btn-quiet" type="button" disabled={busy} onClick={resetPassword}>Forgot your password?</button>
         {!staff && <p className="help">New to the tasting cellar? <Link href="/signup">Create a customer account</Link>.</p>}

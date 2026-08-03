@@ -171,7 +171,7 @@ export function TeaLabPhotoCapture({
       <button className="btn btn-quiet danger" type="button" disabled={busy} aria-label="Remove this tasting photo" onClick={() => void removePhoto(photo.id)}>Remove</button>
     </figure>)}</div>}
     <div className="tea-lab-photo-actions">
-      <label className={`btn btn-primary${busy || atLimit ? " disabled" : ""}`}>
+      <label className={`btn btn-primary btn-attention${busy || atLimit ? " disabled" : ""}`}>
         Take photo
         <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={busy || atLimit} onChange={event => { void uploadFiles(event.currentTarget.files); event.currentTarget.value = ""; }} />
       </label>

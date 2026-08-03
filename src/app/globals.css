@@ -120,6 +120,11 @@ h1, h2, h3, p { margin-top: 0; }
 .btn-danger { background: var(--vf-plum-aged); border-color: var(--vf-plum-aged); color: var(--vf-ivory); }
 .btn-quiet { background: transparent; border-color: transparent; color: var(--vf-plum); padding-inline: .4rem; }
 .btn-icon { width: 44px; min-width: 44px; padding-inline: 0; }
+.btn-attention:not(:disabled):not([aria-disabled="true"]):not(.disabled) {
+  animation: attention-wiggle 5.8s ease-in-out infinite;
+  transform-origin: 50% 55%;
+}
+.btn-attention:not(:disabled):not([aria-disabled="true"]):not(.disabled):is(:hover, :focus-visible, :active) { animation: none; }
 
 @media (hover: hover) and (pointer: fine) {
   .btn:not(:disabled):not([aria-disabled="true"]):hover { transform: translateY(-1px); }
@@ -312,6 +317,13 @@ tr:last-child td { border-bottom: 0; }
 .skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); animation: shimmer 1.4s infinite; }
 @keyframes shimmer { to { transform: translateX(100%); } }
 @keyframes enter { from { opacity: 0; transform: translateY(10px); } }
+@keyframes attention-wiggle {
+  0%, 10%, 18%, 100% { transform: rotate(0deg) scale(1); }
+  11.5% { transform: rotate(-2deg) scale(1.015); }
+  13% { transform: rotate(2deg) scale(1.015); }
+  14.5% { transform: rotate(-1.4deg) scale(1.01); }
+  16% { transform: rotate(1.4deg) scale(1.01); }
+}
 .enter { animation: enter 260ms var(--settle); }
 
 @media (max-width: 900px) {
@@ -447,4 +459,5 @@ tr:last-child td { border-bottom: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .001ms !important; }
+  .btn-attention { animation: none !important; }
 }

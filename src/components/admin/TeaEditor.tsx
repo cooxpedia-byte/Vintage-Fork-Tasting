@@ -79,6 +79,6 @@ export function TeaEditor({ existing }: { existing?: TeaRecord }) {
       </section>
       <aside className="card"><h2 className="card-title">Permanent tea record</h2><p className="page-lede">These values become defaults only when staff add this tea to a new event. Each event keeps its own reveal, brewing and steep settings.</p>{existing?.retired_at && <div className="notice" style={{ marginTop: 16 }}>This tea is retired and cannot be selected for new flights.</div>}</aside>
     </div>
-    <div className="row" style={{ justifyContent: "space-between", marginTop: 20 }}><div>{existing && !existing.retired_at && <button className="btn btn-danger" type="button" disabled={busy} onClick={() => setRetired(true)}>Retire this tea</button>}{existing?.retired_at && <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => setRetired(false)}>Restore this tea</button>}</div><button className="btn btn-primary" disabled={busy}>{busy ? "Saving…" : "Save permanent record"}</button></div>
+    <div className="row" style={{ justifyContent: "space-between", marginTop: 20 }}><div>{existing && !existing.retired_at && <button className="btn btn-danger" type="button" disabled={busy} onClick={() => setRetired(true)}>Retire this tea</button>}{existing?.retired_at && <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => setRetired(false)}>Restore this tea</button>}</div><button className="btn btn-primary btn-attention" disabled={busy}>{busy ? "Saving…" : "Save permanent record"}</button></div>
   </form>;
 }

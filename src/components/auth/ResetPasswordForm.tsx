@@ -37,7 +37,7 @@ export function ResetPasswordForm() {
     <form onSubmit={submit} style={{ marginTop:20 }}>
       <div className="field"><label htmlFor="new-password">New password</label><input className="input" id="new-password" type="password" minLength={minimumLength} autoComplete="new-password" required value={password} onChange={event => setPassword(event.target.value)} /></div>
       <div className="field"><label htmlFor="confirm-password">Confirm new password</label><input className="input" id="confirm-password" type="password" minLength={minimumLength} autoComplete="new-password" required value={confirmation} onChange={event => setConfirmation(event.target.value)} /></div>
-      <button className="btn btn-primary" style={{ width:"100%" }} disabled={busy}>{busy ? "Saving…" : "Save new password"}</button>
+      <button className="btn btn-primary btn-attention" style={{ width:"100%" }} disabled={busy}>{busy ? "Saving…" : "Save new password"}</button>
     </form>
   </section></main>;
 }
