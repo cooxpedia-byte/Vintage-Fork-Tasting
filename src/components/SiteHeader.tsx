@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Brand } from "@/components/Brand";
+import { FeedbackToggle } from "@/components/InterfaceFeedback";
 import { createClient } from "@/lib/supabase/server";
 
 export async function SiteHeader() {
@@ -13,6 +14,7 @@ export async function SiteHeader() {
     <nav className="site-nav" aria-label="Primary">
       <Link href="/dashboard">My cellar</Link>
       {staff && <><Link href="/admin" prefetch={false}>Events</Link><Link href="/admin/teas" prefetch={false}>Teas</Link></>}
+      <FeedbackToggle />
       {user ? <Link className="keep-mobile" href="/logout" prefetch={false}>Sign out</Link> : <Link className="keep-mobile" href="/login">Sign in</Link>}
     </nav>
   </div></header>;

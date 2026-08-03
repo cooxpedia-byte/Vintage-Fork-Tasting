@@ -9,6 +9,7 @@ import { clearGuestDeviceData } from "@/lib/guest-privacy";
 import { GuestError } from "@/components/guest/GuestError";
 import { GuestPhaseAnnouncer } from "@/components/guest/GuestPhaseAnnouncer";
 import { BrewingTimer } from "@/components/guest/BrewingTimer";
+import { playInterfaceSound, setInterfaceFeedbackPreference } from "@/components/InterfaceFeedback";
 import { getGuestPhaseAnnouncement } from "@/lib/guest-announcements";
 import type { SessionPhase } from "@/types/domain";
 import {
@@ -221,24 +222,6 @@ export function GuestExperience({ preview, initialParticipant, joinRequest = per
   }, []);
 
   useEffect(() => {
-    if (!soundChosen || !sound) return;
-
-    const handleInterfaceClick = (event: MouseEvent) => {
-      if (!(event.target instanceof Element)) return;
-      const control = event.target.closest<HTMLButtonElement | HTMLAnchorElement>("button, a.btn");
-      if (!control || !control.closest(".guest-shell, .ceremony")) return;
-      if (control instanceof HTMLButtonElement && control.disabled) return;
-      if (control.getAttribute("aria-disabled") === "true") return;
-
-      const isSelection = control.matches(".descriptor, [role='radio'], [aria-pressed]");
-      playInterfaceFeedback(isSelection ? "selection" : "tap");
-    };
-
-    document.addEventListener("click", handleInterfaceClick, true);
-    return () => document.removeEventListener("click", handleInterfaceClick, true);
-  }, [sound, soundChosen]);
-
-  useEffect(() => {
     const timer = window.setTimeout(() => { void refresh(); }, 0);
     return () => window.clearTimeout(timer);
   }, [refresh]);
@@ -349,8 +332,7 @@ export function GuestExperience({ preview, initialParticipant, joinRequest = per
   function chooseSound(enabled: boolean) {
     soundRef.current = enabled;
     setSound(enabled); setSoundChosen(true);
-    try { localStorage.setItem("vf:interface-sound", enabled ? "on" : "off"); } catch { /* Preferences are optional. */ }
-    if (enabled) playInterfaceFeedback("confirm");
+    setInterfaceFeedbackPreference(enabled);
   }
 
   function toggleSound() { chooseSound(!sound); }
@@ -660,43 +642,3 @@ function saveLocalDraft(eventId:string,participantId:string,flightId:string,draf
 function loadPendingTrivia():PendingTriviaAnswer|null{try{const raw=sessionStorage.getItem("pending_trivia_answer");return raw?JSON.parse(raw) as PendingTriviaAnswer:null}catch{return null}}
 function savePendingTrivia(pending:PendingTriviaAnswer){try{sessionStorage.setItem("pending_trivia_answer",JSON.stringify(pending))}catch{}}
 function clearPendingTrivia(){try{sessionStorage.removeItem("pending_trivia_answer")}catch{}}
-type InterfaceFeedbackKind = "tap" | "selection" | "confirm";
-type AudioWindow = Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
-let interfaceAudioContext: AudioContext | null = null;
-
-function playInterfaceFeedback(kind: InterfaceFeedbackKind) {
-  playInterfaceSound(kind);
-  try {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!reducedMotion && typeof navigator.vibrate === "function") {
-      navigator.vibrate(kind === "confirm" ? 10 : kind === "selection" ? 7 : 6);
-    }
-  } catch { /* Haptics are an optional enhancement. */ }
-}
-
-function playInterfaceSound(kind: InterfaceFeedbackKind) {
-  try {
-    const AudioContextConstructor = window.AudioContext || (window as AudioWindow).webkitAudioContext;
-    if (!AudioContextConstructor) return;
-    if (!interfaceAudioContext || interfaceAudioContext.state === "closed") interfaceAudioContext = new AudioContextConstructor();
-    const context = interfaceAudioContext;
-    const play = () => {
-      const now = context.currentTime;
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      const duration = kind === "confirm" ? .11 : kind === "selection" ? .055 : .04;
-      const peak = kind === "confirm" ? .018 : kind === "selection" ? .009 : .006;
-      oscillator.type = kind === "confirm" ? "triangle" : "sine";
-      oscillator.frequency.setValueAtTime(kind === "confirm" ? 980 : kind === "selection" ? 720 : 560, now);
-      oscillator.frequency.exponentialRampToValueAtTime(kind === "confirm" ? 1320 : kind === "selection" ? 620 : 470, now + duration);
-      gain.gain.setValueAtTime(.0001, now);
-      gain.gain.exponentialRampToValueAtTime(peak, now + .005);
-      gain.gain.exponentialRampToValueAtTime(.0001, now + duration);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start(now);
-      oscillator.stop(now + duration + .01);
-    };
-    if (context.state === "suspended") void context.resume().then(play).catch(() => undefined);
-    else play();
-  } catch { /* Interface sound is an optional enhancement. */ }
-}
