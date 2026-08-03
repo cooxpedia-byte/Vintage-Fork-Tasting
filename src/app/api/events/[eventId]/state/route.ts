@@ -54,17 +54,31 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
   }
 
   const { data: responses } = await admin.from("tea_responses").select("id,event_flight_item_id,first_impression,descriptors,intensity,rating,personal_notes,saved,completed_at").eq("participant_id", participant.id);
-  let analytics: {
-    participants: number | null;
-    completed_participants: number | null;
-    average_rating: number | null;
-    tea_saves: number | null;
-    trivia_answers: number | null;
-    trivia_correct: number | null;
-  } | null = null;
+  let analytics: { average_rating: number | null } | null = null;
+  let participantTrivia: { answered: number; correct: number; total: number } | null = null;
   if (includeResults) {
-    const { data: aggregate } = await admin.from("event_analytics").select("participants,completed_participants,average_rating,tea_saves,trivia_answers,trivia_correct").eq("event_id", eventId).maybeSingle();
-    analytics = aggregate;
+    const flightIds = (flight ?? []).map(item => item.id);
+    const [aggregateResult, questionResult] = await Promise.all([
+      admin.from("event_analytics").select("average_rating").eq("event_id", eventId).maybeSingle(),
+      flightIds.length
+        ? admin.from("trivia_questions").select("id").in("event_flight_item_id", flightIds)
+        : Promise.resolve({ data: [], error: null })
+    ]);
+    if (aggregateResult.error) throw aggregateResult.error;
+    if (questionResult.error) throw questionResult.error;
+    analytics = aggregateResult.data;
+    const questionIds = (questionResult.data ?? []).map(question => question.id);
+    const ownTriviaResult = questionIds.length
+      ? await admin.from("trivia_answers").select("is_correct,on_time").eq("participant_id", participant.id).in("trivia_question_id", questionIds)
+      : { data: [], error: null };
+    if (ownTriviaResult.error) throw ownTriviaResult.error;
+    const ownTriviaAnswers = ownTriviaResult.data;
+    const countedAnswers = (ownTriviaAnswers ?? []).filter(answer => answer.on_time);
+    participantTrivia = {
+      answered: countedAnswers.length,
+      correct: countedAnswers.filter(answer => answer.is_correct).length,
+      total: questionIds.length
+    };
   }
 
   return NextResponse.json(protectGuestState({
@@ -86,6 +100,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
     trivia,
     responses: responses ?? [],
     allItems: includeResults ? flight : undefined,
-    analytics
+    analytics,
+    participantTrivia
   }), { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }

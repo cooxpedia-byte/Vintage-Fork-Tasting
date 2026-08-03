@@ -17,7 +17,9 @@ export type StatePayload = {
   flightCount: number; currentItem: CurrentItem | null; currentPosition: number; betweenTeas: boolean;
   trivia: null | { id: string; flightItemId: string; question: string; options: string[]; answerWindowSeconds: number; deadlineAt: string | null; deadlineToken: string | null; selectedIndex: number | null; closed: boolean; correctIndex?: number; explanation?: string };
   responses: Array<{ event_flight_item_id: string; first_impression: string | null; descriptors: string[]; intensity: string | null; rating: number | null; personal_notes: string | null; saved: boolean; completed_at: string | null }>;
-  allItems?: CurrentItem[]; analytics?: { participants: number; completed_participants: number; average_rating: number | null; tea_saves: number; trivia_answers: number; trivia_correct: number } | null;
+  allItems?: CurrentItem[];
+  analytics?: { average_rating: number | null } | null;
+  participantTrivia?: { answered: number; correct: number; total: number } | null;
 };
 
 type PendingTriviaAnswer = { eventId:string; participantId:string; flightItemId:string; questionId:string; selectedIndex:number; deadlineAt:string; deadlineToken:string; answeredAt:string; idempotencyKey:string };
@@ -398,13 +400,55 @@ function Brewing({ item, endsAt, clockOffsetMs }: { item: CurrentItem; endsAt:st
 function TastingSteps({ step, setStep, draft, setDraft, busy, error, submit }: { step:number; setStep:(x:number)=>void; draft:Draft; setDraft:(x:Draft|((d:Draft)=>Draft))=>void; busy:boolean; error:string; submit:()=>void }) { return <>{error && <div className="form-error">{error}</div>}{step===1&&<><p className="eyebrow">Step 1 of 4</p><h1 className="page-title">What did you notice first?</h1><p className="muted">Optional. No wrong answers.</p><textarea className="textarea" aria-label="First impression" value={draft.firstImpression} onChange={e=>setDraft(d=>({...d,firstImpression:e.target.value}))}/><div className="guest-actions"><button className="btn btn-primary" onClick={()=>setStep(2)}>Continue</button><button className="btn btn-quiet" onClick={()=>setStep(2)}>Skip</button></div></>}{step===2&&<><p className="eyebrow">Step 2 of 4</p><h1 className="page-title">What do you notice?</h1><p className="muted">Pick up to three.</p><div className="descriptor-grid">{DESCRIPTORS.map(label=><button className="descriptor" aria-pressed={draft.descriptors.includes(label)} key={label} onClick={()=>setDraft(d=>({ ...d, descriptors:d.descriptors.includes(label)?d.descriptors.filter(x=>x!==label):d.descriptors.length<3?[...d.descriptors,label]:d.descriptors }))}>{label}</button>)}</div><div className="guest-actions"><button className="btn btn-primary" onClick={()=>setStep(3)}>Continue</button></div></>}{step===3&&<><p className="eyebrow">Step 3 of 4</p><h1 className="page-title">How strong was this tea overall?</h1><div className="grid grid-3">{(["subtle","clear","dominant"] as const).map(x=><button className={`btn ${draft.intensity===x?"btn-gold":"btn-secondary"}`} key={x} onClick={()=>setDraft(d=>({...d,intensity:x}))}>{x}</button>)}</div><div className="guest-actions"><button className="btn btn-primary" onClick={()=>setStep(4)}>Continue</button></div></>}{step===4&&<><p className="eyebrow">Step 4 of 4</p><h1 className="page-title">Rate this tea overall</h1><div className="rating" role="radiogroup">{[1,2,3,4,5].map(n=><button className={draft.rating>=n?"active":""} role="radio" aria-checked={draft.rating===n} aria-label={`${n} stars`} key={n} onClick={()=>setDraft(d=>({...d,rating:n}))}>★</button>)}</div><div className="guest-actions"><button className="btn btn-primary" disabled={busy||draft.rating<1} onClick={submit}>{busy?"Saving…":"Submit My Notes"}</button></div></>}</>; }
 function TeaComplete({ item, saved, onToggle }: { item:CurrentItem; saved:boolean; onToggle:()=>void }) { return <div style={{ textAlign:"center" }}><div style={{ width:168,height:168,border:"2px solid var(--vf-gold)",borderRadius:"50%",display:"grid",placeItems:"center",margin:"1rem auto" }}><div><strong>{item.reveal_title.toUpperCase()}</strong><br /><span style={{ fontSize:32 }}>✦</span></div></div><h1 className="page-title">Stamped. Tea {item.position}.</h1><section className="card" style={{ marginTop:20 }}><h2>Save This Tea</h2><p>Save it to include it in your customer dashboard.</p><button className={`btn ${saved?"btn-secondary":"btn-primary"}`} onClick={onToggle}>{saved?"Remove from Saved":"Save This Tea"}</button></section><div className="guest-actions"><p className="muted">Your host will introduce the next step.</p></div></div>; }
 function Trivia({ trivia, choice, answer, error, saved, toggleSaved }: { trivia:NonNullable<StatePayload["trivia"]>; choice:number|null; answer:(i:number)=>void; error:string; saved:boolean; toggleSaved:()=>void }) { return <><p className="eyebrow">Trivia</p><h1 className="page-title">{trivia.question}</h1>{error&&<div className="form-error">{error}</div>}<div className="stack">{trivia.options.map((x,i)=><button className={`btn ${choice===i?"btn-primary":"btn-secondary"}`} disabled={choice!==null||trivia.closed} key={x} onClick={()=>answer(i)}>{x}</button>)}</div>{choice!==null&&!trivia.closed&&<div className="notice" style={{ marginTop:16 }}>Answer locked in. Waiting for the host…</div>}{trivia.closed&&<section className={`notice ${choice===trivia.correctIndex?"success":""}`} style={{ marginTop:16 }}><strong>{choice===trivia.correctIndex?"That’s it.":`The answer was ${trivia.options[trivia.correctIndex ?? 0]}.`}</strong><br />{trivia.explanation}</section>}{trivia.closed&&<section className="card" style={{ marginTop:16 }}><h2>Your Passport</h2><p>This tea is stamped. Save it to keep it in your customer dashboard.</p><button className={`btn ${saved?"btn-secondary":"btn-primary"}`} onClick={toggleSaved}>{saved?"Remove from Saved":"Save This Tea"}</button></section>}</>; }
-export function GuestRecap({ state }: { state: StatePayload }) {
+type SaveTeaRequest = (eventId: string, flightItemId: string, saved: boolean) => Promise<{ saved: boolean }>;
+
+export function GuestRecap({ state, saveTeaRequest = persistGuestSavedTea }: { state: StatePayload; saveTeaRequest?: SaveTeaRequest }) {
   const [deleted, setDeleted] = useState(false);
+  const [savedByTea, setSavedByTea] = useState<Record<string, boolean>>(() => Object.fromEntries(
+    (state.allItems ?? []).map(item => [
+      item.id,
+      Boolean(state.responses.find(response => response.event_flight_item_id === item.id)?.saved)
+    ])
+  ));
+  const [savingTeaId, setSavingTeaId] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<{ teaId: string; text: string; error: boolean } | null>(null);
   if (deleted) return <Terminal title="Your tasting data has been deleted." copy="Your notes, ratings, answers, stamps and saved teas from this tasting are gone." />;
 
   const own = state.responses;
-  const triviaAccuracy = state.analytics?.trivia_answers ? `${Math.round((state.analytics.trivia_correct / state.analytics.trivia_answers) * 100)}%` : "—";
-  return <main className="guest-shell" id="main-content"><div className="guest-pane"><div style={{ textAlign: "center" }}><Brand /><h1 className="page-title">Your evening, {state.participant.displayName}</h1><p className="muted">{state.event.title}</p></div><div className="grid grid-3" style={{ marginTop: 20 }}><div className="card"><strong className="display" style={{ fontSize: 34 }}>{state.analytics?.average_rating ?? "—"}</strong><p>room average</p></div><div className="card"><strong className="display" style={{ fontSize: 34 }}>{state.analytics?.tea_saves ?? 0}</strong><p>teas saved</p></div><div className="card"><strong className="display" style={{ fontSize: 34 }}>{triviaAccuracy}</strong><p>trivia accuracy</p></div></div><div className="section-label"><span>Your teas</span></div><div className="stack">{(state.allItems ?? []).map(item => { const response = own.find(candidate => candidate.event_flight_item_id === item.id); return <article className="card" key={item.id}><div className="card-header"><div><h2 className="card-title">{item.reveal_title}</h2><p className="card-meta">{item.tea?.origin}</p></div><span aria-label={response?.rating ? `${response.rating} out of 5 stars` : "Not rated"}>{response?.rating ? `${"★".repeat(response.rating)}${"☆".repeat(5 - response.rating)}` : "Not rated"}</span></div><p>{response?.descriptors?.join(" · ") || "No descriptors"}</p>{response?.saved && <span className="chip chip-success">Saved to remember</span>}</article>; })}</div><div className="section-label"><span>Keep your recap</span></div><RecapPrivacyControls state={state} onDeleted={() => setDeleted(true)} /><div className="guest-actions"><ClaimButton eventId={state.event.id} linked={state.participant.linkedToAccount} /></div></div></main>;
+  const savedCount = Object.values(savedByTea).filter(Boolean).length;
+  const participantTrivia = state.participantTrivia ?? { answered: 0, correct: 0, total: 0 };
+
+  async function toggleSavedTea(teaId: string) {
+    const nextSaved = !savedByTea[teaId];
+    setSavingTeaId(teaId);
+    setSaveMessage(null);
+    try {
+      const result = await saveTeaRequest(state.event.id, teaId, nextSaved);
+      setSavedByTea(current => ({ ...current, [teaId]: result.saved }));
+      setSaveMessage({ teaId, text: result.saved ? "Saved to your evening." : "Removed from your saved teas.", error: false });
+    } catch (caught) {
+      setSaveMessage({
+        teaId,
+        text: caught instanceof Error ? caught.message : "We couldn’t update that saved tea.",
+        error: true
+      });
+    } finally {
+      setSavingTeaId(null);
+    }
+  }
+
+  return <main className="guest-shell" id="main-content"><div className="guest-pane"><div style={{ textAlign: "center" }}><Brand /><h1 className="page-title">Your evening, {state.participant.displayName}</h1><p className="muted">{state.event.title}</p></div><div className="grid grid-3" style={{ marginTop: 20 }}><div className="card"><strong className="display" style={{ fontSize: 34 }}>{state.analytics?.average_rating ?? "—"}</strong><p>room average</p></div><div className="card"><strong className="display" style={{ fontSize: 34 }}>{savedCount}</strong><p>you saved</p></div><div className="card"><strong className="display" style={{ fontSize: 34 }} aria-label={participantTrivia.total ? `${participantTrivia.correct} correct trivia answers` : "No trivia questions"}>{participantTrivia.total ? participantTrivia.correct : "—"}</strong><p>{participantTrivia.total ? `correct · answered ${participantTrivia.answered} of ${participantTrivia.total}` : "no trivia questions"}</p></div></div><div className="section-label"><span>Your teas</span></div><div className="stack">{(state.allItems ?? []).map(item => { const response = own.find(candidate => candidate.event_flight_item_id === item.id); const tasted = Boolean(response?.completed_at); const ratingLabel = !tasted ? "Not tasted" : response?.rating ? `${response.rating} out of 5 stars` : "Rating not recorded"; const isSaved = Boolean(savedByTea[item.id]); const isSaving = savingTeaId === item.id; return <article className="card" key={item.id}><div className="card-header"><div><h2 className="card-title">{item.reveal_title}</h2><p className="card-meta">{item.tea?.origin}</p></div><span aria-label={ratingLabel}>{tasted && response?.rating ? `${"★".repeat(response.rating)}${"☆".repeat(5 - response.rating)}` : ratingLabel}</span></div><p>{tasted ? response?.descriptors?.join(" · ") || "No descriptors recorded" : "This tea wasn’t tasted."}</p>{isSaved && <span className="chip chip-success">Saved to remember</span>}<div className="card-footer"><button className={`btn ${isSaved ? "btn-secondary" : "btn-primary"}`} type="button" disabled={isSaving || Boolean(savingTeaId && !isSaving)} aria-pressed={isSaved} onClick={() => toggleSavedTea(item.id)}>{isSaving ? "Saving…" : isSaved ? "Remove from saved teas" : "Save this tea"}</button></div>{saveMessage?.teaId === item.id && <div className={saveMessage.error ? "form-error" : "notice success"} role={saveMessage.error ? "alert" : "status"}>{saveMessage.text}</div>}</article>; })}</div><div className="section-label"><span>Keep your recap</span></div><RecapPrivacyControls state={state} onDeleted={() => setDeleted(true)} /><div className="guest-actions"><ClaimButton eventId={state.event.id} linked={state.participant.linkedToAccount} /></div></div></main>;
+}
+
+async function persistGuestSavedTea(eventId: string, flightItemId: string, saved: boolean) {
+  const response = await fetch(`/api/events/${eventId}/saved-tea`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ flightItemId, saved })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error ?? "We couldn’t update that saved tea.");
+  return { saved: Boolean(result.saved) };
 }
 
 function RecapPrivacyControls({ state, onDeleted }: { state: StatePayload; onDeleted: () => void }) {

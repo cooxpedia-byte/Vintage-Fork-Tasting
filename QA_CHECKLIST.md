@@ -55,6 +55,9 @@ Test with one host, one backup/observer and at least three guest browsers.
 - Trivia accepts only one answer per participant.
 - Correct answer is hidden until close/deadline.
 - Guest state never includes participant rankings or room-wide descriptor frequencies.
+- Recap trivia shows only that guest's correct and answered counts, never the room trivia aggregate.
+- Every recap tea can be saved or unsaved, including after the session ends, and the saved count updates immediately after confirmation.
+- A tea without a completed tasting response is labeled “Not tasted,” never “Not rated.”
 - Completed guest can send a participant-only recap to the stored email or a corrected address; one initial send and no more than three retries are allowed per 24 hours.
 - Recap email contains a 90-day deletion link and does not include another guest's name, responses or descriptors.
 - Active guest and accountless email-link flows both require confirmation before deleting tasting data.

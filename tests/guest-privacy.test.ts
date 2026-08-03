@@ -29,25 +29,28 @@ describe("guest state privacy boundary", () => {
         event_flight_item_id: "tea-1",
         rating: 4,
         descriptors: ["honeyed"],
-        saved: true
+        saved: true,
+        completed_at: "2026-08-02T18:00:00.000Z"
       }],
-      allItems: [{
-        id: "tea-1",
-        reveal_title: "Golden Dawn",
-        tea: { origin: "Yunnan" }
-      }],
-      analytics: {
-        average_rating: 4.2,
-        tea_saves: 3,
-        trivia_answers: 4,
-        trivia_correct: 3
-      }
+      allItems: [
+        { id: "tea-1", reveal_title: "Golden Dawn", tea: { origin: "Yunnan" } },
+        { id: "tea-2", reveal_title: "Cloud Mist", tea: { origin: "Zhejiang" } }
+      ],
+      analytics: { average_rating: 4.2 },
+      participantTrivia: { answered: 2, correct: 1, total: 4 }
     } as StatePayload;
 
     const html = renderToStaticMarkup(createElement(GuestRecap, { state }));
 
     expect(html).toContain("Your evening, Alex");
     expect(html).toContain("Golden Dawn");
+    expect(html).toContain("Cloud Mist");
+    expect(html).toContain("correct · answered 2 of 4");
+    expect(html).toContain("Remove from saved teas");
+    expect(html).toContain("Save this tea");
+    expect(html).toContain("Not tasted");
+    expect(html).not.toContain("Not rated");
+    expect(html).not.toContain("75%");
     expect(html).not.toContain("Leaderboard");
     expect(html).not.toContain("The room noticed");
     expect(html).not.toContain("Another guest");

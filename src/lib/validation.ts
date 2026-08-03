@@ -52,3 +52,8 @@ export const recapEmailSchema = z.object({
 export const guestDeletionSchema = z.object({
   deletionToken: z.string().min(32).max(256).optional()
 });
+
+export const savedTeaSchema = z.object({
+  flightItemId: z.string().uuid(),
+  saved: z.boolean()
+});
