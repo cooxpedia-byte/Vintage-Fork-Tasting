@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { authenticatedFetch } from "@/lib/authenticated-fetch";
+import { createTriviaQuestion, isTriviaQuestionComplete, MAX_TRIVIA_QUESTIONS, type TriviaQuestionDraft } from "@/lib/event-trivia";
 import { parseEventStartTime } from "@/lib/event-start-time";
 
 type Tea = { id: string; name: string; origin: string | null; default_character: string | null; default_brewing: string | null; default_steep_seconds: number | null };
@@ -9,7 +10,7 @@ type Staff = { id: string; display_name: string; role: string };
 type Flight = {
   tea_id: string; reveal_title: string; reveal_description: string; brewing_instructions: string; steep_seconds: number;
   temperature_c: number | null; leaf_grams: number | null; water_ml: number | null;
-  trivia: { question: string; options: string[]; correct_index: number; explanation: string; answer_window_seconds: number };
+  trivia: TriviaQuestionDraft[];
 };
 type Existing = {
   id: string; title: string; slug: string; invite_code: string | null; status: string; location_mode: "remote" | "in_person";
@@ -37,7 +38,7 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
     ["Title", title.trim().length >= 3], ["Start time", Boolean(startsAt)], ["Location", mode === "remote" ? /^https?:\/\//.test(videoCallUrl) : Boolean(venueName && venueAddress)],
     ["Host", Boolean(hostId)], ["Backup host", Boolean(backupId && backupId !== hostId)], ["Flight", flight.length > 0],
     ["Steep times", flight.every(x => x.steep_seconds > 0)], ["Reveal text", flight.every(x => x.reveal_description.trim())],
-    ["Brewing guidance", flight.every(x => x.brewing_instructions.trim())], ["Trivia", flight.every(x => x.trivia.question.trim() && x.trivia.options.length >= 2 && x.trivia.options.length <= 4 && x.trivia.options.every(option => option.trim()) && x.trivia.correct_index >= 0 && x.trivia.correct_index < x.trivia.options.length)]
+    ["Brewing guidance", flight.every(x => x.brewing_instructions.trim())], ["Trivia", flight.every(x => x.trivia.length >= 1 && x.trivia.length <= MAX_TRIVIA_QUESTIONS && x.trivia.every(isTriviaQuestionComplete))]
   ] as Array<[string, boolean]>, [title, startsAt, mode, videoCallUrl, venueName, venueAddress, hostId, backupId, flight]);
 
   function addTea(teaId: string) {
@@ -45,7 +46,7 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
     setFlight(items => [...items, {
       tea_id: tea.id, reveal_title: tea.name, reveal_description: tea.default_character ?? "", brewing_instructions: tea.default_brewing ?? "",
       steep_seconds: tea.default_steep_seconds ?? 180, temperature_c: 95, leaf_grams: 4, water_ml: 250,
-      trivia: { question: "", options: ["", ""], correct_index: 0, explanation: "", answer_window_seconds: 20 }
+      trivia: [createTriviaQuestion()]
     }]);
   }
   function updateFlight(index: number, patch: Partial<Flight>) { setFlight(items => items.map((item, i) => i === index ? { ...item, ...patch } : item)); }
@@ -116,17 +117,27 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
 }
 
 function FlightEditor({ item, index, teaName, canMoveUp, canMoveDown, update, move, remove }: { item: Flight; index: number; teaName: string; canMoveUp: boolean; canMoveDown: boolean; update: (patch: Partial<Flight>) => void; move: (delta: number) => void; remove: () => void }) {
-  const updateTrivia = (patch: Partial<Flight["trivia"]>) => update({ trivia: { ...item.trivia, ...patch } });
+  const updateTrivia = (questionIndex: number, patch: Partial<TriviaQuestionDraft>) => update({ trivia: item.trivia.map((question, i) => i === questionIndex ? { ...question, ...patch } : question) });
+  const removeTrivia = (questionIndex: number) => update({ trivia: item.trivia.filter((_, i) => i !== questionIndex) });
+  const addTrivia = () => {
+    if (item.trivia.length >= MAX_TRIVIA_QUESTIONS) return;
+    update({ trivia: [...item.trivia, createTriviaQuestion()] });
+  };
   return <article className="card" style={{ boxShadow: "none" }}>
     <div className="card-header"><div><p className="eyebrow">Tea {index + 1}</p><h3 className="card-title">{teaName}</h3></div><div className="row"><button className="btn btn-quiet btn-icon" type="button" disabled={!canMoveUp} onClick={() => move(-1)} aria-label="Move up">↑</button><button className="btn btn-quiet btn-icon" type="button" disabled={!canMoveDown} onClick={() => move(1)} aria-label="Move down">↓</button><button className="btn btn-quiet" type="button" onClick={remove}>Remove</button></div></div>
     <div className="grid grid-2"><div className="field"><label htmlFor={`reveal-title-${index}`}>Reveal title</label><input className="input" id={`reveal-title-${index}`} value={item.reveal_title} onChange={e => update({ reveal_title: e.target.value })} /></div><div className="field"><label htmlFor={`steep-seconds-${index}`}>Steep seconds</label><input className="input" id={`steep-seconds-${index}`} type="number" min={1} value={item.steep_seconds} onChange={e => update({ steep_seconds: Number(e.target.value) })} /></div></div>
     <div className="field"><label htmlFor={`reveal-description-${index}`}>Reveal description</label><textarea className="textarea" id={`reveal-description-${index}`} value={item.reveal_description} onChange={e => update({ reveal_description: e.target.value })} /></div>
     <div className="field"><label htmlFor={`brewing-${index}`}>Brewing instructions</label><textarea className="textarea" id={`brewing-${index}`} value={item.brewing_instructions} onChange={e => update({ brewing_instructions: e.target.value })} /></div>
     <div className="grid grid-3"><div className="field"><label htmlFor={`temperature-${index}`}>Temperature °C</label><input className="input" id={`temperature-${index}`} type="number" value={item.temperature_c ?? ""} onChange={e => update({ temperature_c: e.target.value ? Number(e.target.value) : null })} /></div><div className="field"><label htmlFor={`leaf-${index}`}>Leaf grams</label><input className="input" id={`leaf-${index}`} type="number" step="0.1" value={item.leaf_grams ?? ""} onChange={e => update({ leaf_grams: e.target.value ? Number(e.target.value) : null })} /></div><div className="field"><label htmlFor={`water-${index}`}>Water ml</label><input className="input" id={`water-${index}`} type="number" value={item.water_ml ?? ""} onChange={e => update({ water_ml: e.target.value ? Number(e.target.value) : null })} /></div></div>
-    <div className="section-label"><span>Trivia</span></div>
-    <div className="field"><label htmlFor={`trivia-question-${index}`}>Question</label><input className="input" id={`trivia-question-${index}`} maxLength={140} value={item.trivia.question} onChange={e => updateTrivia({ question: e.target.value })} /></div>
-    <div className="grid grid-2">{item.trivia.options.map((option, i) => <div className="field" key={i}><label htmlFor={`answer-${index}-${i}`}>Answer {i + 1}{i === item.trivia.correct_index ? " · correct" : ""}</label><div className="row" style={{ flexWrap: "nowrap" }}><input type="radio" name={`correct-${index}`} aria-label={`Mark answer ${i + 1} correct`} checked={i === item.trivia.correct_index} onChange={() => updateTrivia({ correct_index: i })} /><input className="input" id={`answer-${index}-${i}`} value={option} onChange={e => updateTrivia({ options: item.trivia.options.map((x, oi) => oi === i ? e.target.value : x) })} />{item.trivia.options.length > 2 && <button type="button" className="btn btn-quiet" onClick={() => { const options = item.trivia.options.filter((_, optionIndex) => optionIndex !== i); const correct_index = item.trivia.correct_index === i ? 0 : item.trivia.correct_index > i ? item.trivia.correct_index - 1 : item.trivia.correct_index; updateTrivia({ options, correct_index }); }}>Remove</button>}</div></div>)}</div>
-    <div className="row"><button type="button" className="btn btn-secondary" disabled={item.trivia.options.length >= 4} onClick={() => updateTrivia({ options: [...item.trivia.options, ""] })}>Add answer</button><div className="field" style={{ margin: 0 }}><label htmlFor={`answer-window-${index}`}>Answer window</label><input className="input" id={`answer-window-${index}`} style={{ width: 110 }} type="number" min={10} max={60} value={item.trivia.answer_window_seconds} onChange={e => updateTrivia({ answer_window_seconds: Number(e.target.value) })} /></div></div>
+    <div className="section-label"><span>Trivia · {item.trivia.length} of {MAX_TRIVIA_QUESTIONS}</span><button type="button" className="btn btn-quiet btn-icon" disabled={item.trivia.length >= MAX_TRIVIA_QUESTIONS} onClick={addTrivia} aria-label={`Add a trivia question for ${teaName}`} title={item.trivia.length >= MAX_TRIVIA_QUESTIONS ? "10-question maximum reached" : "Add trivia question"}>+</button></div>
+    <div className="stack">
+      {item.trivia.map((trivia, questionIndex) => <section className="card" style={{ boxShadow: "none", padding: 16 }} key={questionIndex}>
+        <div className="card-header"><div><p className="eyebrow">Question {questionIndex + 1}</p><p className="card-meta">Added individually · up to {MAX_TRIVIA_QUESTIONS} per tea</p></div>{item.trivia.length > 1 && <button type="button" className="btn btn-quiet" onClick={() => removeTrivia(questionIndex)} aria-label={`Remove trivia question ${questionIndex + 1}`}>Remove</button>}</div>
+        <div className="field"><label htmlFor={`trivia-question-${index}-${questionIndex}`}>Question</label><input className="input" id={`trivia-question-${index}-${questionIndex}`} maxLength={140} value={trivia.question} onChange={e => updateTrivia(questionIndex, { question: e.target.value })} /></div>
+        <div className="grid grid-2">{trivia.options.map((option, answerIndex) => <div className="field" key={answerIndex}><label htmlFor={`answer-${index}-${questionIndex}-${answerIndex}`}>Answer {answerIndex + 1}{answerIndex === trivia.correct_index ? " · correct" : ""}</label><div className="row" style={{ flexWrap: "nowrap" }}><input type="radio" name={`correct-${index}-${questionIndex}`} aria-label={`Mark answer ${answerIndex + 1} correct for question ${questionIndex + 1}`} checked={answerIndex === trivia.correct_index} onChange={() => updateTrivia(questionIndex, { correct_index: answerIndex })} /><input className="input" id={`answer-${index}-${questionIndex}-${answerIndex}`} value={option} onChange={e => updateTrivia(questionIndex, { options: trivia.options.map((answer, i) => i === answerIndex ? e.target.value : answer) })} />{trivia.options.length > 2 && <button type="button" className="btn btn-quiet" onClick={() => { const options = trivia.options.filter((_, i) => i !== answerIndex); const correct_index = trivia.correct_index === answerIndex ? 0 : trivia.correct_index > answerIndex ? trivia.correct_index - 1 : trivia.correct_index; updateTrivia(questionIndex, { options, correct_index }); }}>Remove</button>}</div></div>)}</div>
+        <div className="grid grid-2"><div className="row" style={{ alignItems: "flex-end" }}><button type="button" className="btn btn-secondary" disabled={trivia.options.length >= 4} onClick={() => updateTrivia(questionIndex, { options: [...trivia.options, ""] })}>Add answer</button><div className="field" style={{ margin: 0 }}><label htmlFor={`answer-window-${index}-${questionIndex}`}>Answer window</label><input className="input" id={`answer-window-${index}-${questionIndex}`} style={{ width: 110 }} type="number" min={10} max={60} value={trivia.answer_window_seconds} onChange={e => updateTrivia(questionIndex, { answer_window_seconds: Number(e.target.value) })} /></div></div><div className="field"><label htmlFor={`trivia-explanation-${index}-${questionIndex}`}>Answer explanation <span className="help">optional</span></label><input className="input" id={`trivia-explanation-${index}-${questionIndex}`} value={trivia.explanation} onChange={e => updateTrivia(questionIndex, { explanation: e.target.value })} /></div></div>
+      </section>)}
+    </div>
   </article>;
 }
 

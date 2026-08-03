@@ -34,6 +34,7 @@ export interface FlightItem {
 export interface TriviaQuestion {
   id: string;
   event_flight_item_id: string;
+  position: number;
   question: string;
   options: string[];
   correct_index: number;
@@ -60,6 +61,7 @@ export interface TastingEvent {
   phase: SessionPhase;
   sequence_number: number;
   current_flight_item_id: string | null;
+  current_trivia_question_id: string | null;
   tasting_opened_flight_item_id: string | null;
   reveal_at: string | null;
   timer_started_at: string | null;

@@ -34,8 +34,8 @@ function friendly(message: string) {
   if (message.includes("invalid_host")) return "Choose an active host or administrator for this tasting.";
   if (message.includes("invalid_backup")) return "Choose an active backup host or administrator.";
   if (message.includes("capacity_below_joined")) return "Capacity cannot be lower than the number of guests already joined.";
+  if (message.includes("trivia_limit")) return "Each tea can have up to 10 trivia questions.";
   return message.replaceAll("_", " ");
 }
-
 
 

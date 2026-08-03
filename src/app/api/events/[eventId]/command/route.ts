@@ -42,6 +42,8 @@ function friendly(message: string) {
   if (message.includes("last_tea")) return "This is the last tea. Start the recap next.";
   if (message.includes("not_last_tea")) return "There is another tea in the flight.";
   if (message.includes("trivia_open")) return "Close the trivia question before continuing.";
+  if (message.includes("trivia_incomplete")) return "Finish every trivia question for this tea before continuing.";
+  if (message.includes("trivia_complete")) return "All trivia questions for this tea are already complete.";
   if (message.includes("tasting_not_open")) return "Reveal and open this tea before continuing.";
   if (message.includes("reveal_in_progress")) return "The reveal is still in progress. The next control will unlock when the ceremony finishes.";
   return message.replaceAll("_", " ");

@@ -11,7 +11,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
   if (!participant) return NextResponse.json({ error: "Participation session expired." }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: event } = await admin.from("events").select("id,title,status,phase,sequence_number,current_flight_item_id,tasting_opened_flight_item_id,reveal_at,timer_started_at,timer_ends_at,trivia_opened_at,trivia_closes_at,starts_at,location_mode,video_call_url,venue_name,venue_address,completed_at").eq("id", eventId).single();
+  const { data: event } = await admin.from("events").select("id,title,status,phase,sequence_number,current_flight_item_id,current_trivia_question_id,tasting_opened_flight_item_id,reveal_at,timer_started_at,timer_ends_at,trivia_opened_at,trivia_closes_at,starts_at,location_mode,video_call_url,venue_name,venue_address,completed_at").eq("id", eventId).single();
   if (!event) return NextResponse.json({ error: "Event not found." }, { status: 404 });
 
   const { data: flight } = await admin.from("event_flight_items").select("id,position,reveal_title,reveal_description,brewing_instructions,steep_seconds,temperature_c,leaf_grams,water_ml,tea:teas(name,origin,producer,tea_type)").eq("event_id", eventId).order("position");
@@ -27,8 +27,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
   const current = revealVisible ? rawCurrent : null;
 
   let trivia: Record<string, unknown> | null = null;
-  if (rawCurrent && (event.phase === "trivia" || includeResults)) {
-    const { data: question } = await admin.from("trivia_questions").select("id,question,options,correct_index,explanation,answer_window_seconds").eq("event_flight_item_id", rawCurrent.id).maybeSingle();
+  if (rawCurrent && event.current_trivia_question_id && (event.phase === "trivia" || includeResults)) {
+    const { data: questions } = await admin.from("trivia_questions").select("id,position,question,options,correct_index,explanation,answer_window_seconds").eq("event_flight_item_id", rawCurrent.id).order("position");
+    const questionIndex = (questions ?? []).findIndex(candidate => candidate.id === event.current_trivia_question_id);
+    const question = questionIndex >= 0 ? questions?.[questionIndex] : null;
     if (question) {
       const { data: ownAnswer } = await admin.from("trivia_answers").select("selected_index").eq("participant_id", participant.id).eq("trivia_question_id", question.id).maybeSingle();
       const closed = Boolean(event.trivia_closes_at && new Date(event.trivia_closes_at).getTime() <= Date.now());
@@ -36,6 +38,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
         id: question.id,
         question: question.question,
         options: question.options,
+        questionNumber: questionIndex + 1,
+        questionTotal: questions?.length ?? 1,
         answerWindowSeconds: question.answer_window_seconds,
         flightItemId: rawCurrent.id,
         deadlineAt: event.trivia_closes_at,

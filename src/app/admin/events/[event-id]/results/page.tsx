@@ -32,8 +32,8 @@ export default async function EventResultsPage({ params }: { params: Promise<{ "
   const teaRows = flight.map(item => {
     const itemResponses = responses.filter(response => response.event_flight_item_id === item.id);
     const rated = itemResponses.filter(response => response.rating !== null);
-    const trivia = Array.isArray(item.trivia) ? item.trivia[0] : item.trivia;
-    const itemAnswers = trivia ? answers.filter(answer => answer.trivia_question_id === trivia.id) : [];
+    const triviaIds = (Array.isArray(item.trivia) ? item.trivia : item.trivia ? [item.trivia] : []).map(question => question.id);
+    const itemAnswers = answers.filter(answer => triviaIds.includes(answer.trivia_question_id));
     const tea = Array.isArray(item.tea) ? item.tea[0] : item.tea;
     return {
       position: item.position,
