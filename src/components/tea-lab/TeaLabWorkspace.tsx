@@ -37,6 +37,7 @@ import {
   queueTeaLabCompletion,
   queueTeaLabDraftSave,
   retryTeaLabConflictWithDeviceDraft,
+  retryTeaLabConflictWithDeviceDraftForCompletion,
   shouldRefreshTeaLabReadModels,
   startTeaLabSyncTriggers
 } from "@/lib/tea-lab/outbox";
@@ -213,6 +214,13 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
   const revisionConflict = activeOperations.some(operation => operation.state === "conflict" && operation.lastErrorCode === "revision_conflict");
   const latestServerDraft = draft ? serverDrafts.find(candidate => candidate.sessionId === draft.sessionId) : undefined;
   const canRetryDeviceCopy = revisionConflict && Boolean(latestServerDraft && latestServerDraft.serverRevision > (draft?.serverRevision ?? 0));
+  const conflictRetryCompletesTasting = Boolean(draft && (
+    draft.status === "completion_pending"
+      || (step === "review" && isTeaSelectionReady(draft) && draft.brewing.style && draft.tasting.rating)
+  ));
+  const conflictActionLabel = !canRetryDeviceCopy
+    ? "Check latest version"
+    : conflictRetryCompletesTasting ? "Save tasting & create Passport seal" : "Use this device copy";
 
   function replaceDraft(update: (current: TeaLabSoloDraft) => TeaLabSoloDraft) {
     setFormError("");
@@ -318,7 +326,9 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
     setCompleting(true);
     setFormError("");
     try {
-      const queued = await retryTeaLabConflictWithDeviceDraft(store, draft, latestServerDraft.serverRevision);
+      const queued = conflictRetryCompletesTasting
+        ? await retryTeaLabConflictWithDeviceDraftForCompletion(store, draft, latestServerDraft.serverRevision)
+        : await retryTeaLabConflictWithDeviceDraft(store, draft, latestServerDraft.serverRevision);
       currentDraftRef.current = queued.draft;
       setDraft(queued.draft);
       await refreshDeviceState(store);
@@ -368,7 +378,7 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
         ? "Your completed card is now available in the Journal."
         : "Your tasting is complete locally and will be added to the Journal when you’re connected and signed in."}</p>
       <p className="help" role="status" aria-live="polite">{saveIndicator.label}</p>
-      {blocked && <div className="notice error" role="alert"><p>This tasting conflicts with a newer server version. Your device copy has been retained for review.</p>{revisionConflict && <button className="btn btn-secondary" type="button" disabled={completing} onClick={retryDeviceCopy}>{canRetryDeviceCopy ? "Use this device copy" : "Check latest version"}</button>}</div>}
+      {blocked && <div className="notice error" role="alert"><p>This tasting conflicts with a newer server version. Your device copy has been retained for review.</p>{revisionConflict && <button className="btn btn-secondary" type="button" disabled={completing} onClick={retryDeviceCopy}>{conflictActionLabel}</button>}</div>}
       {formError && <div className="notice error" role="alert">{formError}</div>}
       <div className="row" style={{ marginTop: 20 }}>
         {completed && <button className="btn btn-primary btn-attention" type="button" onClick={onOpenJournal}>Open Journal</button>}
@@ -383,7 +393,7 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
       <p className={`help tea-lab-save-state ${saveIndicator.state}`} role="status" aria-live="polite">{saveIndicator.label}</p>
     </div>
     <TeaLabProgress step={step} furthestStep={furthestStep} onNavigate={navigateToVisitedStep} />
-    {blocked && <div className="notice error" role="alert"><p>This draft changed elsewhere. Your device copy is safe, but syncing is paused until the conflict is reviewed.</p>{revisionConflict && <button className="btn btn-secondary" type="button" disabled={completing} onClick={retryDeviceCopy}>{canRetryDeviceCopy ? "Use this device copy" : "Check latest version"}</button>}</div>}
+    {blocked && <div className="notice error" role="alert"><p>This draft changed elsewhere. Your device copy is safe, but syncing is paused until the conflict is reviewed.</p>{revisionConflict && <button className="btn btn-secondary" type="button" disabled={completing} onClick={retryDeviceCopy}>{conflictActionLabel}</button>}</div>}
     {formError && <div className="notice error" role="alert">{formError}</div>}
     {step === "choose" && <ChooseTeaStep draft={draft} options={teaOptions} update={replaceDraft} next={() => isTeaSelectionReady(draft) ? advanceToStep("brew") : setFormError("Choose a tea or enter its name to continue.")} />}
     {step === "brew" && <BrewStep draft={draft} update={replaceDraft} back={() => navigateToVisitedStep("choose")} next={() => advanceToStep("taste")} />}

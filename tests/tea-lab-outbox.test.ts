@@ -13,6 +13,7 @@ import {
   queueTeaLabDeletion,
   queueTeaLabDraftSave,
   retryTeaLabConflictWithDeviceDraft,
+  retryTeaLabConflictWithDeviceDraftForCompletion,
   shouldRefreshTeaLabReadModels,
   syncTeaLabOutbox,
   type TeaLabOperationTransport
@@ -236,6 +237,66 @@ describe("Tea Lab offline outbox", () => {
     expect(operations).toHaveLength(1);
     expect(operations[0]).toMatchObject({ id: "retry-1", kind: "save", state: "pending", expectedRevision: null });
     expect(await store.getDraft("owner-1", "session-1")).toMatchObject({ serverRevision: 3 });
+  });
+
+  it("saves and completes a reviewed device copy after resolving its revision conflict", async () => {
+    const store = new MemoryTeaLabStore();
+    const draft = { ...tastingDraft(), serverRevision: 2 };
+    await store.putDraft(draft);
+    await store.putOperation({
+      ...createTeaLabOperationBase(draft, 1, idFactory("conflict-1"), () => "2026-08-03T12:00:00.000Z"),
+      kind: "save",
+      payload: {
+        cardId: draft.cardId,
+        tea: draft.tea!,
+        brewing: draft.brewing,
+        tasting: draft.tasting
+      },
+      expectedRevision: 2,
+      attempts: 1,
+      state: "conflict",
+      lastErrorCode: "revision_conflict"
+    });
+
+    await retryTeaLabConflictWithDeviceDraftForCompletion(
+      store,
+      draft,
+      3,
+      idFactory("retry-save", "retry-complete"),
+      clockFactory()
+    );
+
+    expect((await store.listOperations("owner-1")).map(operation => operation.kind)).toEqual(["save", "complete"]);
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({
+      serverRevision: 3,
+      status: "completion_pending"
+    });
+
+    let revision = 3;
+    const sent: Array<{ kind: string; expectedRevision: number | null }> = [];
+    await syncTeaLabOutbox(store, "owner-1", async operation => {
+      sent.push({ kind: operation.kind, expectedRevision: operation.expectedRevision });
+      revision += 1;
+      return {
+        outcome: "success",
+        session: {
+          id: operation.sessionId,
+          status: operation.kind === "complete" ? "completed" : "in_progress",
+          revision,
+          completedAt: operation.kind === "complete" ? "2026-08-03T12:05:00.000Z" : null,
+          archivedAt: null
+        }
+      };
+    }, clockFactory());
+
+    expect(sent).toEqual([
+      { kind: "save", expectedRevision: 3 },
+      { kind: "complete", expectedRevision: 4 }
+    ]);
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({
+      serverRevision: 5,
+      status: "completed"
+    });
   });
 
   it("keeps an unnamed manual tea on the device without queuing an invalid server save", async () => {

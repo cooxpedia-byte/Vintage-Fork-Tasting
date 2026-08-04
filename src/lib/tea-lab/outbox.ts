@@ -204,6 +204,25 @@ export async function retryTeaLabConflictWithDeviceDraft(
     : queueTeaLabDraftSave(store, rebased, idFactory, clock);
 }
 
+export async function retryTeaLabConflictWithDeviceDraftForCompletion(
+  store: TeaLabOfflineStore,
+  draft: TeaLabSoloDraft,
+  latestServerRevision: number,
+  idFactory: IdFactory = defaultIdFactory,
+  clock: Clock = defaultClock
+) {
+  const retried = await retryTeaLabConflictWithDeviceDraft(
+    store,
+    draft,
+    latestServerRevision,
+    idFactory,
+    clock
+  );
+  return draft.status === "completion_pending"
+    ? retried
+    : queueTeaLabCompletion(store, retried.draft, idFactory, clock);
+}
+
 export async function queueTeaLabArchive(
   store: TeaLabOfflineStore,
   draft: TeaLabSoloDraft,
