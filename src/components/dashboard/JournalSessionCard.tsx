@@ -17,8 +17,6 @@ function TeaRow({ card, contextLabel, occurredAt }: { card: JournalCard; context
   return <tr>
     <td><strong>{card.teaName}</strong>{card.origin && <small className="muted" style={{ display: "block" }}>{card.origin}</small>}</td>
     <td>{ratingLabel(card.rating)}</td>
-    <td>{card.intensity ?? "—"}</td>
-    <td>{card.descriptors.map(descriptor => descriptor.label).join(", ") || "—"}</td>
     <td>{card.sealClass ? <span className="chip chip-success">{SEAL_LABELS[card.sealClass]}</span> : "—"}</td>
     <td className="journal-card-action"><TastingCardDialog card={card} contextLabel={contextLabel} earnedAt={card.completedAt ?? occurredAt} triggerLabel={`View tasting card for ${card.teaName}`}><span>View card</span><span aria-hidden="true">→</span></TastingCardDialog></td>
   </tr>;
@@ -30,19 +28,17 @@ function MobileTeaCard({ card, contextLabel, occurredAt }: { card: JournalCard; 
       <div><h3 className="card-title">{card.teaName}</h3>{card.origin && <p className="card-meta">{card.origin}</p>}</div>
       {card.sealClass && <span className="chip chip-success">{SEAL_LABELS[card.sealClass]}</span>}
     </div>
-    <dl>
-      <div><dt>Rating</dt><dd>{ratingLabel(card.rating)}</dd></div>
-      <div><dt>Intensity</dt><dd>{card.intensity ?? "—"}</dd></div>
-      <div className="journal-mobile-descriptors"><dt>Your descriptors</dt><dd>{card.descriptors.map(descriptor => descriptor.label).join(", ") || "—"}</dd></div>
-    </dl>
+    <div className="journal-mobile-rating"><span>Rating</span><strong>{ratingLabel(card.rating)}</strong></div>
     <TastingCardDialog card={card} contextLabel={contextLabel} earnedAt={card.completedAt ?? occurredAt} triggerLabel={`View tasting card for ${card.teaName}`}><span>View card</span><span aria-hidden="true">→</span></TastingCardDialog>
   </article>;
 }
 
 export function JournalSessionCard({ session, ownerUserId, descriptorOptions = [] }: { session: JournalSession; ownerUserId?: string; descriptorOptions?: TeaLabDescriptorOption[] }) {
   const cardsWithNotes = session.cards.filter(card => card.firstImpression || card.personalNotes);
+  const hasActions = session.source === "solo" && Boolean(ownerUserId) && session.revision !== null;
+  const actionHintId = `journal-actions-hint-${session.sourceId}`;
 
-  return <article className="card journal-session-card">
+  const summary = <article className="card journal-session-card">
     <div className="card-header">
       <div>
         <h2 className="card-title">{session.title}</h2>
@@ -51,7 +47,7 @@ export function JournalSessionCard({ session, ownerUserId, descriptorOptions = [
       <span className="chip chip-success">{session.source === "live" ? "Live tasting" : "Solo tasting"}</span>
     </div>
     <div className="table-wrap journal-desktop-table"><table>
-      <thead><tr><th>Tea</th><th>Rating</th><th>Intensity</th><th>Your descriptors</th><th>Seal</th><th><span className="sr-only">Card</span></th></tr></thead>
+      <thead><tr><th>Tea</th><th>Rating</th><th>Seal</th><th><span className="sr-only">Card</span></th></tr></thead>
       <tbody>{session.cards.map(card => <TeaRow card={card} contextLabel={session.contextLabel} occurredAt={session.occurredAt} key={card.id} />)}</tbody>
     </table></div>
     <div className="journal-mobile-tea-list">{session.cards.map(card => <MobileTeaCard card={card} contextLabel={session.contextLabel} occurredAt={session.occurredAt} key={card.id} />)}</div>
@@ -67,6 +63,10 @@ export function JournalSessionCard({ session, ownerUserId, descriptorOptions = [
       <span className="muted">Your words are never shown to other guests.</span>
       {session.source === "live" && <span>{session.cards.filter(card => card.saved).length} saved</span>}
     </div>
-    {session.source === "solo" && ownerUserId && session.revision !== null && <TeaLabSessionActions ownerUserId={ownerUserId} session={session} descriptorOptions={descriptorOptions} />}
+    {hasActions && <span className="journal-session-swipe-hint" id={actionHintId}>Swipe left for actions <span aria-hidden="true">←</span></span>}
   </article>;
+
+  return hasActions && ownerUserId
+    ? <TeaLabSessionActions ownerUserId={ownerUserId} session={session} descriptorOptions={descriptorOptions}>{summary}</TeaLabSessionActions>
+    : summary;
 }

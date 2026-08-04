@@ -72,15 +72,22 @@ describe("Tea Lab customer assets", () => {
     const archived = { ...soloSession, id: "solo-session:archived", sourceId: "archived", archivedAt: "2026-08-04T12:00:00.000Z", revision: 3 };
     const html = render("journal", { journalSessions: [soloSession], archivedJournalSessions: [archived] });
 
-    expect(html).toContain("Edit tasting card");
-    expect(html).toContain("Archive tasting");
-    expect(html).toContain("Delete permanently");
+    expect(html).toContain(">Edit</button>");
+    expect(html).toContain(">Archive</button>");
+    expect(html).toContain(">Delete</button>");
+    expect(html).toContain("Swipe left for actions");
+    expect(html).toContain("journal-session-swipe-row");
+    expect(html).toContain("journal-session-action-rail");
     expect(html).toContain("Show archived tastings (1)");
     expect(html).toContain("View card");
     expect(html).toContain("View tasting card for Moonlight White");
     expect(html).toContain("journal-desktop-table");
     expect(html).toContain("journal-mobile-tea-list");
     expect(html).toContain("journal-mobile-tea-card");
+    expect(html).not.toContain(">Intensity</th>");
+    expect(html).not.toContain(">Your descriptors</th>");
+    expect(html).not.toContain(">Intensity</span>");
+    expect(html).not.toContain(">Your descriptors</span>");
     expect(html).not.toContain("Restore tasting");
   });
 

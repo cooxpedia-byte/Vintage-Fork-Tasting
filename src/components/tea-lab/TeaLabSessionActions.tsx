@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { TeaLabCardEditor } from "@/components/tea-lab/TeaLabCardEditor";
 import { soloJournalSessionToDraft, type JournalSession } from "@/lib/tea-lab/journal";
 import type { TeaLabDescriptorOption } from "@/lib/tea-lab/lab";
@@ -13,9 +13,10 @@ type TeaLabSessionActionsProps = {
   ownerUserId: string;
   session: JournalSession;
   descriptorOptions: TeaLabDescriptorOption[];
+  children: ReactNode;
 };
 
-export function TeaLabSessionActions({ ownerUserId, session, descriptorOptions }: TeaLabSessionActionsProps) {
+export function TeaLabSessionActions({ ownerUserId, session, descriptorOptions, children }: TeaLabSessionActionsProps) {
   const router = useRouter();
   const [busy, setBusy] = useState<"edit" | "archive" | "delete" | null>(null);
   const [editingDraft, setEditingDraft] = useState<TeaLabSoloDraft | null>(null);
@@ -112,14 +113,18 @@ export function TeaLabSessionActions({ ownerUserId, session, descriptorOptions }
     }
   }
 
-  return <div className="tea-lab-record-actions">
-    <div className="row">
-      <button className="btn btn-primary" type="button" disabled={busy !== null || editingDraft !== null} onClick={beginEdit}>Edit tasting card</button>
+  return <div className="journal-session-interactive">
+    <div className="journal-session-swipe-row" tabIndex={0} aria-describedby={`journal-actions-hint-${session.sourceId}`}>
+      {children}
+      <div className="journal-session-action-rail" role="group" aria-label={`Actions for ${session.title}`}>
+      <button className="btn btn-gold" type="button" disabled={busy !== null || editingDraft !== null} onClick={beginEdit}>Edit</button>
       <button className="btn btn-secondary" type="button" disabled={busy !== null || editingDraft !== null} onClick={() => void run("archive")}>
-        {busy === "archive" ? "Saving…" : session.archivedAt ? "Restore tasting" : "Archive tasting"}
+        {busy === "archive" ? "Saving…" : session.archivedAt ? "Restore" : "Archive"}
       </button>
-      <button className="btn btn-quiet danger" type="button" ref={deleteTriggerRef} disabled={busy !== null || editingDraft !== null} onClick={() => setConfirmingDelete(true)}>Delete permanently</button>
+      <button className="btn btn-danger" type="button" ref={deleteTriggerRef} disabled={busy !== null || editingDraft !== null} onClick={() => setConfirmingDelete(true)}>Delete</button>
+      </div>
     </div>
+    <div className="tea-lab-record-actions">
     {editingDraft && <TeaLabCardEditor
       draft={editingDraft}
       descriptorOptions={descriptorOptions}
@@ -138,5 +143,6 @@ export function TeaLabSessionActions({ ownerUserId, session, descriptorOptions }
     </div>}
     {message && <p className="help" role="status" aria-live="polite">{message}</p>}
     {error && <p className="help error-text" role="alert">{error}</p>}
+    </div>
   </div>;
 }

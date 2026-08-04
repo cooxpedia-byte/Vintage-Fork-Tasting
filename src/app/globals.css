@@ -378,14 +378,15 @@ tr:last-child td { border-bottom: 0; }
 .journal-card-action { text-align: right; }
 .journal-card-action .btn { min-width: 112px; justify-content: space-between; white-space: nowrap; }
 .journal-session-card { min-width: 0; max-width: 100%; }
+.journal-session-interactive, .journal-session-swipe-row { min-width: 0; }
+.journal-session-action-rail { display: flex; align-items: stretch; gap: .5rem; margin-top: .55rem; padding: .65rem; border: 1px solid var(--vf-line); border-radius: var(--radius-md); background: rgba(91,24,73,.07); }
+.journal-session-swipe-hint { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .journal-mobile-tea-list { display: none; }
 .journal-mobile-tea-card { min-width: 0; padding: 1rem; border: 1px solid var(--vf-line); border-radius: var(--radius-md); background: var(--vf-ivory); }
 .journal-mobile-tea-card .card-header { align-items: flex-start; }
 .journal-mobile-tea-card .card-meta { margin: .25rem 0 0; overflow-wrap: anywhere; }
-.journal-mobile-tea-card dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .75rem; margin: 0 0 1rem; }
-.journal-mobile-tea-card dt { color: var(--vf-fog); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.journal-mobile-tea-card dd { margin: .18rem 0 0; overflow-wrap: anywhere; }
-.journal-mobile-descriptors { grid-column: 1 / -1; }
+.journal-mobile-rating { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin: 0 0 .75rem; color: var(--vf-fog); font-size: .72rem; font-weight: 800; }
+.journal-mobile-rating strong { color: var(--vf-gold-dark); font-size: 1rem; letter-spacing: .06em; }
 .journal-mobile-tea-card > .btn { width: 100%; justify-content: space-between; }
 .tasting-card-modal { position: fixed; z-index: 300; inset: 0; display: grid; align-items: start; justify-items: center; padding: clamp(1rem,4vw,3rem); overflow-y: auto; background: rgba(35,13,30,.78); backdrop-filter: blur(7px); }
 .tasting-card-sheet { width: min(900px,100%); overflow: hidden; border: 1px solid var(--vf-line-gold); border-radius: var(--radius-lg); background: var(--vf-ivory); color: var(--vf-ink); box-shadow: 0 26px 80px rgba(20,6,16,.44); }
@@ -493,8 +494,13 @@ tr:last-child td { border-bottom: 0; }
   .tasting-card-seal-row { grid-template-columns: auto 1fr; }
   .tasting-card-rating { grid-column: 1 / -1; }
   .journal-card-action .btn { min-width: 104px; }
-  .journal-session-card { padding: .9rem; }
+  .journal-session-swipe-row { display: grid; grid-template-columns: 100% max-content; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: var(--radius-md); background: var(--vf-plum-aged); box-shadow: var(--shadow-1); }
+  .journal-session-swipe-row::-webkit-scrollbar { display: none; }
+  .journal-session-card { margin: 0; padding: .9rem; scroll-snap-align: start; scroll-snap-stop: always; border-radius: var(--radius-md); background: var(--vf-ivory); }
   .journal-session-card > .card-header { align-items: flex-start; flex-direction: column; }
+  .journal-session-action-rail { align-items: stretch; margin: 0; padding: .5rem; scroll-snap-align: end; scroll-snap-stop: always; border: 0; border-radius: 0; background: var(--vf-plum-aged); }
+  .journal-session-action-rail .btn { min-width: 78px; min-height: 56px; padding-inline: .65rem; }
+  .journal-session-swipe-hint { position: static; width: auto; height: auto; display: inline-flex; align-items: center; gap: .35rem; margin: .75rem 0 0; overflow: visible; clip: auto; white-space: normal; color: var(--vf-plum); font-size: .72rem; font-weight: 800; }
   .journal-desktop-table { display: none; }
   .journal-mobile-tea-list { display: grid; gap: .75rem; }
   .journal-mobile-tea-card .card-header { flex-direction: column; gap: .5rem; }
