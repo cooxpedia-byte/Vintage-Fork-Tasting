@@ -17,7 +17,7 @@ export function inferTeaLabFlowStep(draft: TeaLabSoloDraft): TeaLabFlowStep {
   return "brew";
 }
 
-export function toggleTeaLabDescriptor(selected: string[], descriptorId: string, maximum = 3): string[] {
+export function toggleTeaLabDescriptor(selected: string[], descriptorId: string, maximum = 5): string[] {
   if (selected.includes(descriptorId)) return selected.filter(id => id !== descriptorId);
   return selected.length < maximum ? [...selected, descriptorId] : selected;
 }

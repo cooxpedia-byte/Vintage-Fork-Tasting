@@ -31,7 +31,7 @@ Validation performed on 1 August 2026 (America/Edmonton) in the delivery workspa
 - `npm run test` passes **198 tests across 53 files**.
 - The optimized Next.js production build passes with the feature-gated Tea Lab routes included.
 - `npm audit --audit-level=high` reports zero production or development dependency vulnerabilities.
-- Migrations `0018` through `0023` have automated ownership, RLS, grant, hosted-pgcrypto compatibility, idempotency, revision, cascade, signed-photo, private brewing-stage and privacy-contract assertions.
+- Migrations `0018` through `0025` have automated ownership, RLS, grant, hosted-pgcrypto compatibility, idempotency, revision, cascade, signed-photo, private brewing-stage, stable descriptor-palette, five-descriptor limit and privacy-contract assertions.
 - The customer dashboard restores the shipped experience when the flag is off. With the flag on, critical Tea Lab read or seed failures surface the generic safe dashboard error without logging private details.
 - Desktop and mobile browser checks covered the Lab workflow and the Library, Journal and Passport navigation/empty states.
 - Staging migration `0022` was applied only to `Vintage-fork-staging` (`fugvpupuwgbnojkyptym`) and verified with RLS enabled, a private 8 MB bucket, and authenticated `SELECT`-only metadata access.

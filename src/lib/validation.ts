@@ -32,7 +32,7 @@ export const joinSchema = z.object({
 export const responseSchema = z.object({
   flightItemId: z.string().uuid(),
   firstImpression: z.string().max(600).nullable().optional(),
-  descriptors: z.array(z.string().max(40)).max(3),
+  descriptors: z.array(z.string().max(40)).max(5),
   intensity: z.enum(["subtle", "clear", "dominant"]).nullable().optional(),
   rating: z.number().int().min(1).max(5).nullable().optional(),
   personalNotes: z.string().max(3000).nullable().optional(),

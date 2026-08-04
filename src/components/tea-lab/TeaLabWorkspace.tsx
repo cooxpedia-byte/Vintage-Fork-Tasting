@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TeaLabPhotoCapture } from "@/components/tea-lab/TeaLabPhotoCapture";
+import { FlavorDescriptorPicker } from "@/components/tea-lab/FlavorDescriptorPicker";
 import { formatCustomerEventDateTime } from "@/lib/customer-dashboard";
 import { IndexedDbTeaLabOfflineStore } from "@/lib/tea-lab/indexed-db";
 import {
@@ -502,11 +503,7 @@ export function TasteStep({ draft, descriptors, update, back, next, online = tru
     <p className="eyebrow">Step 3</p><h1 className="page-title">Brew and notice</h1><p className="page-lede">Follow your {teaLabBrewingStyleLabel(draft.brewing.style) ?? "chosen"} flow, then capture the cup as a whole. Your prose stays private.</p>
     <BrewStageNotes draft={draft} update={update} />
     <div className="field"><label htmlFor="first-impression">First impression</label><textarea className="textarea" id="first-impression" maxLength={600} value={draft.tasting.firstImpression ?? ""} onChange={event => setTasting("firstImpression", event.target.value || null)} /></div>
-    <fieldset className="tea-lab-fieldset"><legend>Flavor descriptors <span className="muted">Choose up to three</span></legend><div className="descriptor-grid">{descriptors.map(descriptor => {
-      const selected = draft.tasting.descriptorIds.includes(descriptor.id);
-      const unavailable = !selected && draft.tasting.descriptorIds.length >= 3;
-      return <button className="descriptor" type="button" aria-pressed={selected} disabled={unavailable} title={descriptor.category} key={descriptor.id} onClick={() => setTasting("descriptorIds", toggleTeaLabDescriptor(draft.tasting.descriptorIds, descriptor.id))}>{descriptor.label}</button>;
-    })}</div></fieldset>
+    <FlavorDescriptorPicker options={descriptors} selectedIds={draft.tasting.descriptorIds} onToggle={descriptorId => setTasting("descriptorIds", toggleTeaLabDescriptor(draft.tasting.descriptorIds, descriptorId))} />
     <fieldset className="tea-lab-fieldset"><legend>Overall intensity</legend><div className="grid grid-3">{(["subtle", "clear", "dominant"] as const).map(value => <button className={`btn ${draft.tasting.intensity === value ? "btn-gold" : "btn-secondary"}`} type="button" aria-pressed={draft.tasting.intensity === value} key={value} onClick={() => setTasting("intensity", value)}>{value}</button>)}</div></fieldset>
     <fieldset className="tea-lab-fieldset"><legend>Overall rating <span className="muted">Required to complete</span></legend><div className="rating" role="radiogroup" aria-label="Overall rating">{[1, 2, 3, 4, 5].map(value => <button className={(draft.tasting.rating ?? 0) >= value ? "active" : ""} type="button" role="radio" aria-checked={draft.tasting.rating === value} aria-label={`${value} star${value === 1 ? "" : "s"}`} data-rating={value} tabIndex={draft.tasting.rating === value || (draft.tasting.rating === null && value === 1) ? 0 : -1} key={value} onKeyDown={event => moveRating(event, value)} onClick={() => setTasting("rating", value)}>★</button>)}</div></fieldset>
     <div className="field"><label htmlFor="personal-notes">Private notes</label><textarea className="textarea" id="personal-notes" maxLength={3000} value={draft.tasting.personalNotes ?? ""} onChange={event => setTasting("personalNotes", event.target.value || null)} placeholder="Anything you want to remember…" /></div>

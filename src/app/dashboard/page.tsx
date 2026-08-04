@@ -114,7 +114,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           descriptor_links:tasting_card_descriptors(descriptor_id,position)
         )
       `).eq("owner_user_id", user.id).in("status", ["draft", "in_progress"]).is("archived_at", null).order("updated_at", { ascending: false }),
-      supabase.from("flavor_descriptors").select("id,label,category").eq("active", true).order("position"),
+      supabase.from("flavor_descriptors").select("id,label,category,aliases").eq("active", true).order("position"),
       supabase.from("teas").select("id,name,producer,origin,tea_type,default_steep_seconds").is("retired_at", null).order("name"),
       supabase.from("personal_tea_records").select("id,canonical_tea_id,name,producer,origin,tea_type,cultivar,harvest,product_identifier,lot_code,archived_at,created_at,updated_at").eq("owner_user_id", user.id).order("name")
     ]);

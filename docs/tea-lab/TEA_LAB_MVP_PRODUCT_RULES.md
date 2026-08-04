@@ -139,7 +139,7 @@ The following are optional for completion, but validated when supplied:
 - producer, origin, tea type, cultivar, harvest, product identifier, or lot code;
 - leaf weight, water volume, water temperature, water source, vessel, or steep time;
 - first impression;
-- up to three structured descriptors;
+- up to five structured descriptors;
 - overall intensity; and
 - private notes; and
 - up to six private JPEG, PNG, or WebP photos, each no larger than 8 MB.
@@ -173,7 +173,7 @@ Verified batch identity and barcode-to-inventory mapping are deferred. The MVP m
 - The Journal adapter maps known legacy strings to stable descriptors without rewriting the response.
 - Unknown legacy text remains displayable and is marked unmapped for computational use.
 - Retiring a descriptor prevents new selection but never erases historical observations.
-- The initial solo selector retains the current limit of three descriptors.
+- The solo selector permits up to five descriptors.
 
 ## 11. Journal rules
 

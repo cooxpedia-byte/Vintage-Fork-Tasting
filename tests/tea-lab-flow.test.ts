@@ -26,9 +26,9 @@ describe("Tea Lab solo flow", () => {
     expect(inferTeaLabFlowStep({ ...selected, tasting: { ...selected.tasting, firstImpression: "Bright" } })).toBe("taste");
   });
 
-  it("limits descriptor toggling to three and permits deselection", () => {
-    expect(toggleTeaLabDescriptor(["one", "two", "three"], "four")).toEqual(["one", "two", "three"]);
-    expect(toggleTeaLabDescriptor(["one", "two"], "three")).toEqual(["one", "two", "three"]);
+  it("limits descriptor toggling to five and permits deselection", () => {
+    expect(toggleTeaLabDescriptor(["one", "two", "three", "four", "five"], "six")).toEqual(["one", "two", "three", "four", "five"]);
+    expect(toggleTeaLabDescriptor(["one", "two", "three", "four"], "five")).toEqual(["one", "two", "three", "four", "five"]);
     expect(toggleTeaLabDescriptor(["one", "two"], "one")).toEqual(["two"]);
   });
 

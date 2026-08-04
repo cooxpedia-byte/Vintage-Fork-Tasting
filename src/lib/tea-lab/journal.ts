@@ -1,4 +1,5 @@
 import type { TeaLabBrewingStyle } from "@/lib/tea-lab/offline";
+import { findTeaDescriptor } from "@/lib/tea-lab/descriptors";
 
 export type JournalSource = "live" | "solo";
 export type JournalSealClass = "live_event_verified" | "documented_tasting";
@@ -176,21 +177,6 @@ export type SoloJournalSessionRow = {
   }> | null;
 };
 
-const LEGACY_DESCRIPTOR_IDS = new Map<string, string>([
-  ["honeyed", "10000000-0000-4000-8000-000000000001"],
-  ["orchid", "10000000-0000-4000-8000-000000000002"],
-  ["buttery", "10000000-0000-4000-8000-000000000003"],
-  ["toasted grain", "10000000-0000-4000-8000-000000000004"],
-  ["stone fruit", "10000000-0000-4000-8000-000000000005"],
-  ["cream", "10000000-0000-4000-8000-000000000006"],
-  ["green bean", "10000000-0000-4000-8000-000000000007"],
-  ["jasmine", "10000000-0000-4000-8000-000000000008"],
-  ["caramel", "10000000-0000-4000-8000-000000000009"],
-  ["mineral", "10000000-0000-4000-8000-000000000010"],
-  ["citrus peel", "10000000-0000-4000-8000-000000000011"],
-  ["sweet hay", "10000000-0000-4000-8000-000000000012"]
-]);
-
 function first<T>(value: OneOrMany<T>): T | null {
   return Array.isArray(value) ? value[0] ?? null : value;
 }
@@ -199,18 +185,14 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
   return [...new Map(items.map(item => [item.id, item])).values()];
 }
 
-function normalizeDescriptorLabel(label: string): string {
-  return label.trim().toLocaleLowerCase("en-CA").replace(/\s+/g, " ");
-}
-
 export function mapLegacyJournalDescriptor(label: string): JournalDescriptor {
   const displayLabel = label.trim();
-  const stableId = LEGACY_DESCRIPTOR_IDS.get(normalizeDescriptorLabel(displayLabel)) ?? null;
+  const definition = findTeaDescriptor(displayLabel);
 
   return {
-    stableId,
-    label: displayLabel,
-    mapped: stableId !== null
+    stableId: definition?.id ?? null,
+    label: definition?.label ?? displayLabel,
+    mapped: definition !== null
   };
 }
 

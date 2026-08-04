@@ -17,14 +17,14 @@ describe("Tea Lab release documentation", () => {
     for (let id = 1; id <= 14; id += 1) {
       expect(productRules).toContain(`TL-MVP-${String(id).padStart(3, "0")}`);
     }
-    for (let scenario = 1; scenario <= 12; scenario += 1) {
+    for (let scenario = 1; scenario <= 13; scenario += 1) {
       expect(runbook).toMatch(new RegExp(`\\| ${scenario} \\|`));
     }
     expect(runbook).toContain("Environment gate | Pending");
   });
 
   it("documents the ordered migrations, evidence timestamps, and flag-off rollback", () => {
-    for (const migration of ["0018", "0019", "0020", "0021", "0022", "0023"]) {
+    for (const migration of ["0018", "0019", "0020", "0021", "0022", "0023", "0024", "0025"]) {
       expect(runbook).toContain(migration);
     }
     for (const variable of ["TEA_LAB_MIGRATIONS_VERIFIED_AT", "TEA_LAB_ACCEPTANCE_VERIFIED_AT"]) {

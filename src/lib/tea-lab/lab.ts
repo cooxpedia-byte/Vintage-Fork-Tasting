@@ -6,6 +6,7 @@ export type TeaLabDescriptorOption = {
   id: string;
   label: string;
   category: string;
+  aliases?: string[];
 };
 
 export type TeaLabTeaOption = {

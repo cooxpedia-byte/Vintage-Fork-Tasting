@@ -21,7 +21,7 @@ const KNOWN_ERRORS: Array<{ token: string; response: TeaLabOperationError }> = [
   { token: "tea_lab_idempotency_conflict", response: { status: 409, code: "operation_conflict", message: "That save operation conflicts with an earlier request." } },
   { token: "tea_lab_card_id_conflict", response: { status: 409, code: "card_conflict", message: "This session is already linked to a different tasting card." } },
   { token: "tea_lab_rating_required", response: { status: 400, code: "rating_required", message: "Add a rating before completing this tasting." } },
-  { token: "tea_lab_invalid_descriptors", response: { status: 400, code: "invalid_descriptors", message: "Choose up to three available flavor descriptors." } },
+  { token: "tea_lab_invalid_descriptors", response: { status: 400, code: "invalid_descriptors", message: "Choose up to five available flavour descriptors." } },
   { token: "tea_lab_invalid_operation_id", response: { status: 400, code: "invalid_operation", message: "The operation identifier is invalid." } },
   { token: "tea_lab_invalid_revision", response: { status: 400, code: "invalid_revision", message: "The session revision is invalid." } },
   { token: "tea_lab_invalid_tea", response: { status: 400, code: "invalid_tea", message: "Choose a valid tea before saving." } },

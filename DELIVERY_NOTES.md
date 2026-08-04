@@ -30,6 +30,6 @@ The approved Vintage Fork mark is tracked at `public/brand/vintage-fork-icon.jpg
 
 ## Feature-gated Tea Lab extension
 
-The workspace now also contains the Tea Lab Solo Tasting MVP delivered through additive migrations `0018`–`0023`. It includes the four-step solo flow, style-aware brewing stages, Gongfu wash-by-wash notes, owner-namespaced IndexedDB recovery, idempotent synchronization, unified Journal, private Library, source-qualified Passport seals, archive/restore, permanent deletion, private tasting photos, hosted Supabase pgcrypto compatibility and fail-closed release controls.
+The workspace now also contains the Tea Lab Solo Tasting MVP delivered through additive migrations `0018`–`0025`. It includes the four-step solo flow, style-aware brewing stages, Gongfu wash-by-wash notes, an 81-term searchable sensory palette with up to five selections, owner-namespaced IndexedDB recovery, idempotent synchronization, unified Journal, private Library, source-qualified Passport seals, archive/restore, permanent deletion, private tasting photos, hosted Supabase pgcrypto compatibility and fail-closed release controls.
 
 This extension is code-complete but not authorized for production activation. A focused staging photo/card scenario has passed, but the full eleven-scenario environment gate remains pending. Keep Preview and Production on `TEA_LAB_ENABLED=false` and follow `docs/tea-lab/TEA_LAB_RELEASE_RUNBOOK.md` before activation.

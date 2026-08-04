@@ -112,7 +112,7 @@ Private prose is separated from structured observations so a later analytics que
 - optional ordering metadata; and
 - a uniqueness constraint preventing the same descriptor from being attached twice.
 
-The Solo MVP permits no more than three descriptors per card. The server enforces the limit.
+The Solo MVP permits no more than five descriptors per card. The server enforces the limit.
 
 ### 3. Build an application-level Journal adapter
 

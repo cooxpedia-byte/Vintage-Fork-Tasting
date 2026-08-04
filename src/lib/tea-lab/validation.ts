@@ -46,7 +46,7 @@ export const soloSessionSaveSchema = z.object({
   }).strict().default({}),
   tasting: z.object({
     firstImpression: z.string().max(600).nullable().default(null),
-    descriptorIds: z.array(z.string().uuid()).max(3).default([]),
+    descriptorIds: z.array(z.string().uuid()).max(5).default([]),
     intensity: z.enum(["subtle", "clear", "dominant"]).nullable().default(null),
     rating: z.number().int().min(1).max(5).nullable().default(null),
     personalNotes: z.string().max(3000).nullable().default(null)

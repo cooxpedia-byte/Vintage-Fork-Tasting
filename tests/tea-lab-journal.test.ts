@@ -86,7 +86,12 @@ describe("Tea Lab Journal adapters", () => {
   it("maps known legacy descriptors without rewriting unknown observations", () => {
     expect(mapLegacyJournalDescriptor(" Stone   Fruit ")).toEqual({
       stableId: "10000000-0000-4000-8000-000000000005",
-      label: "Stone   Fruit",
+      label: "Stone fruit",
+      mapped: true
+    });
+    expect(mapLegacyJournalDescriptor("silken")).toEqual({
+      stableId: "20000000-0000-4000-8000-000000000069",
+      label: "Silky",
       mapped: true
     });
     expect(mapLegacyJournalDescriptor("Unexpected smoke")).toEqual({

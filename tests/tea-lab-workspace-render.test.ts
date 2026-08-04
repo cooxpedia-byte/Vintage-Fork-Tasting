@@ -2,6 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { BrewStep, TasteStep, TeaLabWorkspace, teaLabDraftTeaName } from "@/components/tea-lab/TeaLabWorkspace";
+import { FlavorDescriptorPicker, flavorWheelIndex, flavorWheelRotation } from "@/components/tea-lab/FlavorDescriptorPicker";
+import { TEA_DESCRIPTOR_PALETTE } from "@/lib/tea-lab/descriptors";
 import { createDefaultTeaLabBrewStages } from "@/lib/tea-lab/brewing";
 import { createSoloTeaDraft } from "@/lib/tea-lab/offline";
 
@@ -99,6 +101,34 @@ describe("Tea Lab workspace", () => {
     expect(html).toContain("Take photo");
     expect(html).toContain('capture="environment"');
     expect(html).toContain("Add from library");
+  });
+
+  it("renders a rotary category picker, drop zone, and five-choice focus", () => {
+    const options = TEA_DESCRIPTOR_PALETTE.map(({ id, label, category, aliases }) => ({ id, label, category, aliases }));
+    const html = renderToStaticMarkup(createElement(FlavorDescriptorPicker, {
+      options,
+      selectedIds: [TEA_DESCRIPTOR_PALETTE[4].id],
+      onToggle: vi.fn()
+    }));
+
+    expect(html).toContain("Search every flavour");
+    expect(html).toContain("1 of 5 selected");
+    expect(html).toContain('aria-label="Flavour category wheel"');
+    expect(html).toContain("Drag wheel or tap a category");
+    expect(html).toContain("Your flavour palette");
+    expect(html).toContain("Drop flavours here");
+    expect(html).toContain("Basic taste");
+    expect(html).toContain("Green &amp; vegetal");
+    expect(html).toContain("Mouthfeel");
+    expect(html).toContain("Off-notes");
+    expect(html).toContain('aria-label="Remove Stone fruit"');
+    expect(html).toContain("tap to add or remove");
+  });
+
+  it("snaps the wheel to the category aligned with its marker", () => {
+    expect(flavorWheelRotation(2, 10)).toBe(-72);
+    expect(flavorWheelIndex(-72, 10)).toBe(2);
+    expect(flavorWheelIndex(36, 10)).toBe(9);
   });
 
   it("offers grouped brewing methods and a Gongfu wash-by-wash flow", () => {
