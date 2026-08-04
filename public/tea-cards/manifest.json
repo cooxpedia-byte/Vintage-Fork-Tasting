@@ -1,0 +1,42 @@
+{
+  "green": {
+    "label": "Green",
+    "front": "/tea-cards/anji-white-tea-front-green.png",
+    "back": "/tea-cards/anji-white-tea-back-green.png"
+  },
+  "black": {
+    "label": "Black",
+    "front": "/tea-cards/anji-white-tea-front-black.png",
+    "back": "/tea-cards/anji-white-tea-back-black.png"
+  },
+  "oolong": {
+    "label": "Oolong",
+    "front": "/tea-cards/anji-white-tea-front-oolong.png",
+    "back": "/tea-cards/anji-white-tea-back-oolong.png"
+  },
+  "white": {
+    "label": "White",
+    "front": "/tea-cards/anji-white-tea-front-white.png",
+    "back": "/tea-cards/anji-white-tea-back-white.png"
+  },
+  "yellow": {
+    "label": "Yellow",
+    "front": "/tea-cards/anji-white-tea-front-yellow.png",
+    "back": "/tea-cards/anji-white-tea-back-yellow.png"
+  },
+  "red": {
+    "label": "Red",
+    "front": "/tea-cards/anji-white-tea-front-red.png",
+    "back": "/tea-cards/anji-white-tea-back-red.png"
+  },
+  "dark": {
+    "label": "Pu-erh / Dark",
+    "front": "/tea-cards/anji-white-tea-front-dark.png",
+    "back": "/tea-cards/anji-white-tea-back-dark.png"
+  },
+  "herbal": {
+    "label": "Herbal",
+    "front": "/tea-cards/anji-white-tea-front-herbal.png",
+    "back": "/tea-cards/anji-white-tea-back-herbal.png"
+  }
+}

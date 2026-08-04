@@ -88,6 +88,19 @@ function brewDuration(seconds: number | null): string | null {
   return `${seconds} sec`;
 }
 
+export function tastingCardTeaTheme(teaType: string | null | undefined): string {
+  const normalized = teaType?.trim().toLocaleLowerCase("en-CA") ?? "";
+  if (normalized.includes("green")) return "green";
+  if (normalized.includes("black")) return "black";
+  if (normalized.includes("oolong")) return "oolong";
+  if (normalized.includes("white")) return "white";
+  if (normalized.includes("yellow")) return "yellow";
+  if (normalized.includes("red") || normalized.includes("rooibos")) return "red";
+  if (normalized.includes("pu-erh") || normalized.includes("puerh") || normalized.includes("dark")) return "dark";
+  if (normalized.includes("herbal") || normalized.includes("tisane") || normalized.includes("mate")) return "herbal";
+  return "classic";
+}
+
 export function PhotoSlider({ photos, teaName }: { photos: JournalPhoto[]; teaName: string }) {
   const [index, setIndex] = useState(0);
   if (photos.length === 0) return null;
@@ -109,6 +122,86 @@ export function PhotoSlider({ photos, teaName }: { photos: JournalPhoto[]; teaNa
   </section>;
 }
 
+export function DetachableTastingSeal({ attached }: { attached: boolean }) {
+  return <span
+    className={`tasting-card-detachable-seal ${attached ? "is-attached" : "is-detached"}`}
+    data-seal-state={attached ? "coupled" : "decoupled"}
+    aria-hidden="true"
+  >
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src="/tea-cards/detachable-seal-coin.png" alt="" draggable="false"/>
+  </span>;
+}
+
+export function TastingCardPresentation({
+  card,
+  contextLabel,
+  earnedAt,
+  flipped
+}: {
+  card: JournalCard;
+  contextLabel: string;
+  earnedAt: string;
+  flipped: boolean;
+}) {
+  const brewing = card.brewing;
+  const stages = Array.from({ length: 4 }, (_, index) => brewing?.stages[index] ?? null);
+  const rating = card.rating ?? 0;
+  const sealLabel = card.sealClass ? SEAL_LABELS[card.sealClass] : "Private tasting";
+  const sealDescription = card.source === "live" ? "Completed at a hosted tasting" : "Documented in your Tea Lab";
+  const theme = tastingCardTeaTheme(card.teaType);
+  const assetTheme = theme === "classic" ? "green" : theme;
+  const dateLabel = new Date(earnedAt).toLocaleDateString("en-CA", { dateStyle: "long" });
+  const missing = "Not recorded";
+
+  return <div className={`tasting-card-flip tasting-card-theme-${theme}${flipped ? " is-flipped" : ""}`}>
+    <article className="tasting-card-face tasting-card-artwork-face tasting-card-front" aria-hidden={flipped} aria-label={`${card.teaName} tasting profile`}>
+      {/* The supplied artwork remains the visual base. Only its variable fields are covered by live values. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="tasting-card-artwork-image" src={`/tea-cards/anji-white-tea-front-${assetTheme}.png`} alt="" draggable="false" aria-hidden="true"/>
+      <span className="sr-only">Digital tasting card. Flip for brewing details.</span>
+      <h3 className="tasting-card-live tasting-card-live-front-name tasting-card-live-plum">{card.teaName}</h3>
+      <p className="tasting-card-live tasting-card-live-session tasting-card-live-plum"><time dateTime={earnedAt}>{dateLabel}</time><span aria-hidden="true"> · </span><span>{contextLabel}</span></p>
+      <span className="tasting-card-live-seal-old-cover" aria-hidden="true"/>
+      <span className="tasting-card-live-tea-medallion-cover" aria-hidden="true"/>
+      <DetachableTastingSeal attached={card.sealClass !== null}/>
+      <section className="tasting-card-live tasting-card-live-seal tasting-card-live-paper" aria-label="Tasting seal">
+        <strong>{sealLabel}</strong><small>{sealDescription}</small>
+      </section>
+      <div className="tasting-card-live tasting-card-live-rating tasting-card-live-paper" aria-label={card.rating ? `${card.rating} out of 5 stars` : "Not rated"}>
+        <span aria-hidden="true">{"★".repeat(rating)}{"☆".repeat(5 - rating)}</span>
+        <small>{card.rating ? `${card.rating} out of 5` : "Not rated"}</small>
+      </div>
+      <div className="tasting-card-live tasting-card-live-origin tasting-card-live-paper"><span className="sr-only">Origin: </span>{card.origin ?? missing}</div>
+      <div className="tasting-card-live tasting-card-live-type tasting-card-live-paper"><span className="sr-only">Tea type: </span>{card.teaType ?? missing}</div>
+      <div className="tasting-card-live tasting-card-live-intensity tasting-card-live-paper"><span className="sr-only">Intensity: </span>{card.intensity ?? missing}</div>
+      <div className="tasting-card-live tasting-card-live-descriptors tasting-card-live-paper"><span className="sr-only">Descriptors: </span>{card.descriptors.map(descriptor => descriptor.label).join(" · ") || missing}</div>
+    </article>
+
+    <article className="tasting-card-face tasting-card-artwork-face tasting-card-back" aria-hidden={!flipped} aria-label={`${card.teaName} brewing record`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="tasting-card-artwork-image" src={`/tea-cards/anji-white-tea-back-${assetTheme}.png`} alt="" draggable="false" aria-hidden="true"/>
+      <span className="sr-only">Back of card. Brewing record. Brew stages.</span>
+      <h3 className="tasting-card-live tasting-card-live-back-name tasting-card-live-paper">{card.teaName}</h3>
+      <div className="tasting-card-live tasting-card-live-style tasting-card-live-paper"><span className="sr-only">Style: </span>{teaLabBrewingStyleLabel(brewing?.style) ?? missing}</div>
+      <div className="tasting-card-live tasting-card-live-leaf tasting-card-live-paper"><span className="sr-only">Leaf: </span>{value(brewing?.leafGrams, " g leaf") ?? missing}</div>
+      <div className="tasting-card-live tasting-card-live-water tasting-card-live-paper"><span className="sr-only">Water: </span>{value(brewing?.waterMl, " ml water") ?? missing}</div>
+      <div className="tasting-card-live tasting-card-live-temperature tasting-card-live-paper"><span className="sr-only">Temperature: </span>{value(brewing?.waterTemperatureC, " °C") ?? missing}</div>
+      <div className="tasting-card-live tasting-card-live-initial tasting-card-live-paper"><span className="sr-only">Initial steep: </span>{brewDuration(brewing?.initialSteepSeconds ?? null) ?? missing}</div>
+      <div className="tasting-card-live tasting-card-live-vessel tasting-card-live-paper"><span className="sr-only">Vessel: </span>{brewing?.vessel ?? missing}</div>
+      <div className="tasting-card-live tasting-card-live-source tasting-card-live-paper"><span className="sr-only">Water source: </span>{brewing?.waterSource ?? missing}</div>
+      <ol className="tasting-card-live-stages" aria-label="Brew stages">
+        {stages.map((stage, index) => <li key={index}>
+          <strong className="tasting-card-live-stage-label tasting-card-live-paper">{stage?.label ?? "—"}</strong>
+          <span className="tasting-card-live-stage-time tasting-card-live-paper">{brewDuration(stage?.durationSeconds ?? null) ?? "—"}</span>
+          <span className="tasting-card-live-stage-temp tasting-card-live-paper">{stage?.temperatureC !== null && stage?.temperatureC !== undefined ? `${stage.temperatureC} °C` : "—"}</span>
+          <small className="tasting-card-live-stage-note tasting-card-live-paper">{stage?.notes ?? ""}</small>
+        </li>)}
+      </ol>
+    </article>
+  </div>;
+}
+
 export function TastingCardDialog({
   card,
   contextLabel,
@@ -125,6 +218,7 @@ export function TastingCardDialog({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [flipped, setFlipped] = useState(false);
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -176,85 +270,34 @@ export function TastingCardDialog({
     };
   }, [open]);
 
-  const brewing = card.brewing;
-  const brewItems = brewing ? [
-    teaLabBrewingStyleLabel(brewing.style),
-    value(brewing.leafGrams, " g leaf"),
-    value(brewing.waterMl, " ml water"),
-    value(brewing.waterTemperatureC, " °C"),
-    value(brewing.initialSteepSeconds, " sec initial steep"),
-    value(brewing.vessel),
-    value(brewing.waterSource)
-  ].filter((item): item is string => Boolean(item)) : [];
-  const identity = [
-    ["Producer", card.producer],
-    ["Origin", card.origin],
-    ["Tea type", card.teaType],
-    ["Cultivar", card.cultivar],
-    ["Harvest", card.harvest],
-    ["Lot or batch", card.lotCode],
-    ["Product ID", card.productIdentifier]
-  ].filter((item): item is [string, string] => Boolean(item[1]));
-
   return <>
-    <button ref={triggerRef} className={triggerClassName} type="button" aria-label={triggerLabel} onClick={() => setOpen(true)}>{children}</button>
-    {open && <div ref={modalRef} className="tasting-card-modal" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false); }}>
-      <article ref={dialogRef} className={`tasting-card-sheet ${card.sealClass ?? "documented_tasting"}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
-        <header className="tasting-card-sheet-header">
-          <div>
-            <p className="eyebrow">Digital tasting card</p>
-            <h2 className="display" id={titleId}>{card.teaName}</h2>
-            <p>{new Date(earnedAt).toLocaleDateString("en-CA", { dateStyle: "long" })} · {contextLabel}</p>
-          </div>
-          <button ref={closeRef} className="tasting-card-close" type="button" aria-label="Close tasting card" onClick={() => setOpen(false)}>×</button>
-        </header>
-
-        <PhotoSlider photos={card.photos ?? []} teaName={card.teaName} />
-
-        <div className="tasting-card-seal-row">
-          <span className="passport-seal-mark" aria-hidden="true">{card.sealClass === "live_event_verified" ? "✦" : "◇"}</span>
-          <div><strong>{card.sealClass ? SEAL_LABELS[card.sealClass] : "Private tasting"}</strong><small>{card.source === "live" ? "Completed at a hosted tasting" : "Documented in your Tea Lab"}</small></div>
-          <span className="tasting-card-rating" aria-label={card.rating ? `${card.rating} out of 5 stars` : "Not rated"}>{card.rating ? `${"★".repeat(card.rating)}${"☆".repeat(5 - card.rating)}` : "Not rated"}</span>
+    <button ref={triggerRef} className={triggerClassName} type="button" aria-label={triggerLabel} onClick={() => { setFlipped(false); setOpen(true); }}>{children}</button>
+    {open && <div ref={modalRef} className="tasting-card-modal" role="presentation">
+      <section
+        ref={dialogRef}
+        className="tasting-card-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={() => setFlipped(current => !current)}
+      >
+        <h2 className="sr-only" id={titleId}>{card.teaName} digital tasting card</h2>
+        <button ref={closeRef} className="tasting-card-close" type="button" aria-label="Close tasting card" onClick={event => { event.stopPropagation(); setOpen(false); }}>×</button>
+        <div
+          className="tasting-card-flip-target"
+          role="button"
+          tabIndex={0}
+          aria-label={flipped ? "Show tasting profile" : "Show brewing details"}
+          onKeyDown={event => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            setFlipped(current => !current);
+          }}
+        >
+          <TastingCardPresentation card={card} contextLabel={contextLabel} earnedAt={earnedAt} flipped={flipped} />
         </div>
-
-        {identity.length > 0 && <dl className="tasting-card-details">{identity.map(([label, detail]) => <div key={label}><dt>{label}</dt><dd>{detail}</dd></div>)}</dl>}
-
-        <div className="tasting-card-section-grid">
-          <section>
-            <p className="eyebrow">Tasting profile</p>
-            <dl className="tasting-card-profile">
-              <div><dt>Intensity</dt><dd>{card.intensity ?? "Not recorded"}</dd></div>
-              <div><dt>Descriptors</dt><dd>{card.descriptors.map(descriptor => descriptor.label).join(" · ") || "Not recorded"}</dd></div>
-            </dl>
-          </section>
-          <section>
-            <p className="eyebrow">Brewing record</p>
-            <p>{brewItems.join(" · ") || "Not recorded"}</p>
-            {brewing?.instructions && <p className="muted">{brewing.instructions}</p>}
-            {brewing?.preparationNotes && <p className="muted">{brewing.preparationNotes}</p>}
-          </section>
-        </div>
-
-        {brewing?.stages.length ? <section className="tasting-card-notes">
-          <p className="eyebrow">Brew stages</p>
-          <div className="tasting-card-brew-stages">{brewing.stages.map((stage, index) => <article key={`${stage.label}-${index}`}>
-            <strong>{stage.label}</strong>
-            <small>{[
-              brewDuration(stage.durationSeconds),
-              stage.temperatureC !== null ? `${stage.temperatureC} °C` : null
-            ].filter(Boolean).join(" · ") || "Timing not recorded"}</small>
-            {stage.notes && <p>{stage.notes}</p>}
-          </article>)}</div>
-        </section> : null}
-
-        {(card.firstImpression || card.personalNotes) && <section className="tasting-card-notes">
-          <p className="eyebrow">Your private journal</p>
-          {card.firstImpression && <blockquote>“{card.firstImpression}”</blockquote>}
-          {card.personalNotes && <p>{card.personalNotes}</p>}
-        </section>}
-
-        <footer className="tasting-card-sheet-footer"><span>Private to your account</span><button className="btn btn-primary" type="button" onClick={() => setOpen(false)}>Done</button></footer>
-      </article>
+        <span className="sr-only" role="status" aria-live="polite">{flipped ? "Showing brewing details" : "Showing tasting profile"}</span>
+      </section>
     </div>}
   </>;
 }

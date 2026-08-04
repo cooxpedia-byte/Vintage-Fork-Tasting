@@ -1,7 +1,22 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { PhotoSlider } from "@/components/tea-lab/TastingCardDialog";
+import { DetachableTastingSeal, PhotoSlider, TastingCardPresentation, tastingCardTeaTheme } from "@/components/tea-lab/TastingCardDialog";
+import type { JournalCard } from "@/lib/tea-lab/journal";
+
+const card: JournalCard = {
+  id: "solo:card-1", source: "solo", sourceId: "card-1", teaName: "Anji White Tea", origin: "China – Anji County", teaType: "Green",
+  rating: 3, intensity: "subtle", descriptors: [{ stableId: null, label: "Lychee", mapped: false }], firstImpression: "Silky",
+  personalNotes: "Third infusion opened.", completedAt: "2026-08-03T12:00:00.000Z", saved: false, position: 1, sealClass: "documented_tasting",
+  brewing: {
+    style: "gongfu", leafGrams: 8, waterMl: 125, waterTemperatureC: 85, waterSource: "Tap", vessel: "Gaiwan", initialSteepSeconds: 35,
+    instructions: null, preparationNotes: null,
+    stages: [
+      { label: "Rinse (optional)", durationSeconds: 5, temperatureC: 85, notes: null },
+      { label: "Infusion 1", durationSeconds: 10, temperatureC: 85, notes: "Sweet" }
+    ]
+  }
+};
 
 describe("Tea Lab tasting-card photo slider", () => {
   it("renders one active image with previous and next controls for a gallery", () => {
@@ -18,5 +33,73 @@ describe("Tea Lab tasting-card photo slider", () => {
     expect(html).toContain("1 / 2");
     expect(html).toContain('alt="Moonlight White tasting photo 1"');
     expect(html).not.toContain("two.jpg");
+  });
+
+  it("renders themed front and back card faces with the full tasting and brewing record", () => {
+    const front = renderToStaticMarkup(createElement(TastingCardPresentation, {
+      card, contextLabel: "Personal session", earnedAt: "2026-08-03T12:00:00.000Z", flipped: false
+    }));
+    const back = renderToStaticMarkup(createElement(TastingCardPresentation, {
+      card, contextLabel: "Personal session", earnedAt: "2026-08-03T12:00:00.000Z", flipped: true
+    }));
+
+    expect(front).toContain("tasting-card-theme-green");
+    expect(front).toContain('/tea-cards/anji-white-tea-front-green.png');
+    expect(front).toContain("Digital tasting card");
+    expect(front).toContain("Documented Tasting");
+    expect(front).toContain('/tea-cards/detachable-seal-coin.png');
+    expect(front).toContain('data-seal-state="coupled"');
+    expect(front).toContain("Flip for brewing details");
+    expect(front).toContain("Lychee");
+    expect(back).toContain("is-flipped");
+    expect(back).toContain('/tea-cards/anji-white-tea-back-green.png');
+    expect(back).toContain("Brewing record");
+    expect(back).toContain("Infusion 1");
+    expect(back).toContain("85 °C");
+  });
+
+  it("couples and decouples the ornate seal independently of the card artwork", () => {
+    const coupled = renderToStaticMarkup(createElement(DetachableTastingSeal, { attached: true }));
+    const decoupled = renderToStaticMarkup(createElement(DetachableTastingSeal, { attached: false }));
+    const privateCard = renderToStaticMarkup(createElement(TastingCardPresentation, {
+      card: { ...card, sealClass: null }, contextLabel: "Personal session", earnedAt: "2026-08-03T12:00:00.000Z", flipped: false
+    }));
+
+    expect(coupled).toContain('data-seal-state="coupled"');
+    expect(coupled).toContain("is-attached");
+    expect(decoupled).toContain('data-seal-state="decoupled"');
+    expect(decoupled).toContain("is-detached");
+    expect(privateCard).toContain('data-seal-state="decoupled"');
+    expect(privateCard).toContain("Private tasting");
+  });
+
+  it("renders changed journal values over the supplied artwork instead of a fixed sample", () => {
+    const editedCard: JournalCard = {
+      ...card,
+      teaName: "Moonlight White",
+      origin: "Yunnan, China",
+      teaType: "White",
+      rating: 5,
+      intensity: "Lively",
+      descriptors: [{ stableId: null, label: "Honey", mapped: false }],
+      brewing: { ...card.brewing!, waterTemperatureC: 92, vessel: "Glass pot" }
+    };
+    const html = renderToStaticMarkup(createElement(TastingCardPresentation, {
+      card: editedCard, contextLabel: "Evening session", earnedAt: "2026-08-03T12:00:00.000Z", flipped: false
+    }));
+
+    expect(html).toContain('/tea-cards/anji-white-tea-front-white.png');
+    expect(html).toContain("Moonlight White");
+    expect(html).toContain("Yunnan, China");
+    expect(html).toContain("★★★★★");
+    expect(html).toContain("Honey");
+    expect(html).toContain("92 °C");
+    expect(html).toContain("Glass pot");
+  });
+
+  it("assigns distinct palettes to the supported tea families", () => {
+    expect(["Green", "Black", "Oolong", "White", "Yellow", "Red", "Pu-erh", "Herbal"].map(tastingCardTeaTheme))
+      .toEqual(["green", "black", "oolong", "white", "yellow", "red", "dark", "herbal"]);
+    expect(tastingCardTeaTheme(null)).toBe("classic");
   });
 });

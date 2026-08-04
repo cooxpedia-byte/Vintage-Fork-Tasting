@@ -73,7 +73,7 @@ describe("shipped customer dashboard presentation", () => {
     expect(teaLabHtml).not.toContain("6:00 p.m.");
   });
 
-  it("keeps live-event history and owner-private notes in Journal", () => {
+  it("integrates the digital card into existing live-event Journal history", () => {
     const html = render("journal");
 
     expect(html).toContain("Your Tasting Journal");
@@ -82,11 +82,13 @@ describe("shipped customer dashboard presentation", () => {
     expect(html).toContain("Cloud Mist");
     expect(html).toContain("Bright and warm");
     expect(html).toContain("Keep this private");
-    expect(html).not.toContain("Live Event Verified");
-    expect(html).not.toContain("<th>Seal</th>");
+    expect(html).toContain("Live Event Verified");
+    expect(html).toContain("<th>Seal</th>");
+    expect(html).toContain("View card");
+    expect(html).toContain("View tasting card for Golden Dawn");
   });
 
-  it("uses the unified Journal renderer only when Tea Lab is enabled", () => {
+  it("retains the full Tea Lab navigation when Tea Lab is enabled", () => {
     const journalSessions = buildJournalSessions([event], []);
     const html = render("journal", { teaLabEnabled: true, journalSessions });
 
@@ -106,6 +108,8 @@ describe("shipped customer dashboard presentation", () => {
 
     expect(html).toContain("Golden Dawn");
     expect(html).not.toContain("Cloud Mist");
+    expect(html).toContain("Tap to view card");
+    expect(html).toContain("Open tasting card for Golden Dawn");
   });
 
   it("shows only explicitly saved responses in Saved Teas", () => {

@@ -8,11 +8,11 @@ import { TeaLabWorkspace } from "@/components/tea-lab/TeaLabWorkspace";
 import { TeaLibrary } from "@/components/tea-lab/TeaLibrary";
 import { TeaPassport } from "@/components/tea-lab/TeaPassport";
 import { formatCustomerEventDate, formatCustomerEventDateTime, parseCustomerDashboardSection, summarizeCustomerResponses, type CustomerDashboardSection } from "@/lib/customer-dashboard";
-import type { JournalSession, LiveJournalEventRow } from "@/lib/tea-lab/journal";
+import { mapLiveEventToJournalSession, type JournalSession, type LiveJournalEventRow } from "@/lib/tea-lab/journal";
 import type { TeaLabDescriptorOption, TeaLabTeaOption } from "@/lib/tea-lab/lab";
 import type { TeaLabSoloDraft } from "@/lib/tea-lab/offline";
 import type { TeaLibraryItem } from "@/lib/tea-lab/library";
-import type { PassportSeal } from "@/lib/tea-lab/passport";
+import { buildPassportSeals, type PassportSeal } from "@/lib/tea-lab/passport";
 
 type EventRow = LiveJournalEventRow;
 
@@ -40,6 +40,8 @@ export function CustomerDashboard({ name, ownerUserId, events, upcoming, initial
   const [showArchivedJournal, setShowArchivedJournal] = useState(false);
   const allResponses = useMemo(() => events.flatMap(e => e.responses.map(r => ({ ...r, event: e }))), [events]);
   const { completed, saved, average } = useMemo(() => summarizeCustomerResponses(allResponses), [allResponses]);
+  const fallbackJournalSessions = useMemo(() => events.map(mapLiveEventToJournalSession), [events]);
+  const fallbackPassportSeals = useMemo(() => buildPassportSeals(events, []), [events]);
   const routeSection = searchParams.get("section");
   const tab = routeSection === null ? initialTab : parseCustomerDashboardSection(routeSection);
 
@@ -108,7 +110,7 @@ export function CustomerDashboard({ name, ownerUserId, events, upcoming, initial
           <h1 className="page-title">Your Tasting Journal</h1><p className="page-lede">Historical notes are private to you.</p>
           <div className="stack" style={{ marginTop: 20 }}>{teaLabEnabled
             ? journalSessions.length ? journalSessions.map(session => <JournalSessionCard session={session} ownerUserId={ownerUserId} descriptorOptions={descriptorOptions} key={session.id} />) : <div className="empty-state"><h2>No tasting history yet.</h2></div>
-            : events.length ? events.map(event => <EventCard event={event} key={event.id} />) : <div className="empty-state"><h2>No tasting history yet.</h2></div>}
+            : fallbackJournalSessions.length ? fallbackJournalSessions.map(session => <JournalSessionCard session={session} key={session.id} />) : <div className="empty-state"><h2>No tasting history yet.</h2></div>}
           </div>
           {teaLabEnabled && archivedJournalSessions.length > 0 && <section className="archived-journal">
             <button className="btn btn-quiet" type="button" aria-expanded={showArchivedJournal} onClick={() => setShowArchivedJournal(value => !value)}>{showArchivedJournal ? "Hide archived tastings" : `Show archived tastings (${archivedJournalSessions.length})`}</button>
@@ -116,11 +118,7 @@ export function CustomerDashboard({ name, ownerUserId, events, upcoming, initial
           </section>}
         </>}
         {tab === "passport" && teaLabEnabled && <TeaPassport seals={passportSeals} />}
-        {tab === "passport" && !teaLabEnabled && <>
-          <h1 className="page-title">Your Passport</h1><p className="page-lede">One stamp for every tea you completed.</p>
-          <div className="grid grid-4" style={{ marginTop: 20 }}>{completed.map(r => <article key={r.id} className="card" style={{ textAlign: "center", background: "var(--vf-plum-aged)", color: "var(--vf-ivory)", borderColor: "var(--vf-gold-light)" }}><div style={{ fontSize: 28, color: "var(--vf-gold-light)" }}>✦</div><strong>{r.flight?.tea?.name ?? r.flight?.reveal_title}</strong><small style={{ display: "block", opacity: .75 }}>{r.flight?.tea?.origin}</small></article>)}</div>
-          {!completed.length && <div className="empty-state"><h2>No stamps yet.</h2><p>Finish a tea during a live tasting to earn its stamp.</p></div>}
-        </>}
+        {tab === "passport" && !teaLabEnabled && <TeaPassport seals={fallbackPassportSeals} />}
         {tab === "saved" && teaLabEnabled && <TeaLibrary items={libraryItems} onOpenLab={() => selectTab("home")} />}
         {tab === "saved" && !teaLabEnabled && <>
           <h1 className="page-title">Saved to Remember</h1><p className="page-lede">Saving never adds a product to a cart or charges you.</p>

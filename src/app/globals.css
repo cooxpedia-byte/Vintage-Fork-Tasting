@@ -388,13 +388,178 @@ tr:last-child td { border-bottom: 0; }
 .journal-mobile-rating { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin: 0 0 .75rem; color: var(--vf-fog); font-size: .72rem; font-weight: 800; }
 .journal-mobile-rating strong { color: var(--vf-gold-dark); font-size: 1rem; letter-spacing: .06em; }
 .journal-mobile-tea-card > .btn { width: 100%; justify-content: space-between; }
-.tasting-card-modal { position: fixed; z-index: 300; inset: 0; display: grid; align-items: start; justify-items: center; padding: clamp(1rem,4vw,3rem); overflow-y: auto; background: rgba(35,13,30,.78); backdrop-filter: blur(7px); }
-.tasting-card-sheet { width: min(900px,100%); overflow: hidden; border: 1px solid var(--vf-line-gold); border-radius: var(--radius-lg); background: var(--vf-ivory); color: var(--vf-ink); box-shadow: 0 26px 80px rgba(20,6,16,.44); }
-.tasting-card-sheet-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: clamp(1.25rem,4vw,2.25rem); color: var(--vf-ivory); background: linear-gradient(145deg,var(--vf-plum-aged),var(--vf-plum)); }
-.tasting-card-sheet-header .display { margin: .2rem 0; color: var(--vf-ivory); font-size: clamp(2rem,6vw,3.8rem); }
-.tasting-card-sheet-header p { margin: 0; }
-.tasting-card-close { flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid rgba(255,255,255,.55); border-radius: 50%; background: transparent; color: white; font-size: 2rem; line-height: 1; cursor: pointer; }
+.tasting-card-modal { position: fixed; z-index: 300; inset: 0; overflow: hidden; background: radial-gradient(circle at 50% 18%,#39102f 0,#21081d 68%,#12040f 100%); }
+.tasting-card-dialog { width: 100%; height: 100%; display: grid; place-items: center; padding: .55rem; perspective: 1800px; cursor: pointer; }
+.tasting-card-flip-target { width: min(96vw,calc((100dvh - 1.1rem) * .565),660px); aspect-ratio: .565; max-height: calc(100dvh - 1.1rem); border-radius: clamp(22px,4vw,42px); outline: none; }
+.tasting-card-flip-target:focus-visible { outline: 3px solid var(--vf-gold-light); outline-offset: 4px; }
+.tasting-card-flip { --tc-plum:#431632; --tc-plum-dark:#2c0e27; --tc-plum-light:#63234e; --tc-tea:#5d6639; --tc-tea-dark:#3f4928; --tc-tea-light:#858b55; --tc-gold:#b8891d; --tc-gold-light:#f1d679; position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 760ms cubic-bezier(.2,.72,.2,1); }
+.tasting-card-flip.is-flipped { transform: rotateY(180deg); }
+.tasting-card-theme-green { --tc-tea:#5d6639; --tc-tea-dark:#3d4929; --tc-tea-light:#838a56; --tc-panel-bg:#183f2b; }
+.tasting-card-theme-black { --tc-tea:#3b3030; --tc-tea-dark:#21191b; --tc-tea-light:#6c4a43; --tc-panel-bg:#211f1e; }
+.tasting-card-theme-oolong { --tc-tea:#8a5527; --tc-tea-dark:#573019; --tc-tea-light:#aa7844; --tc-panel-bg:#5b3117; }
+.tasting-card-theme-white { --tc-tea:#7e806d; --tc-tea-dark:#555847; --tc-tea-light:#a5a68f; --tc-panel-bg:#525348; }
+.tasting-card-theme-yellow { --tc-tea:#a47b16; --tc-tea-dark:#6d4f0e; --tc-tea-light:#c4a446; --tc-panel-bg:#6b540f; }
+.tasting-card-theme-red { --tc-tea:#923b32; --tc-tea-dark:#641f22; --tc-tea-light:#b6604c; --tc-panel-bg:#641f21; }
+.tasting-card-theme-dark { --tc-tea:#544034; --tc-tea-dark:#2f241f; --tc-tea-light:#79604c; --tc-panel-bg:#37261e; }
+.tasting-card-theme-herbal { --tc-tea:#4d704b; --tc-tea-dark:#2c4b32; --tc-tea-light:#78936a; --tc-panel-bg:#20472d; }
+.tasting-card-close { position: fixed; z-index: 4; top: max(.75rem,env(safe-area-inset-top)); right: max(.75rem,env(safe-area-inset-right)); width: 48px; height: 48px; display: grid; place-items: center; padding: 0 0 .18rem; border: 2px solid #e5c45f; border-radius: 50%; background: rgba(44,14,39,.92); color: #fff8e4; box-shadow: 0 0 0 2px rgba(255,248,228,.7),0 8px 24px rgba(0,0,0,.34); font-size: 2rem; line-height: 1; cursor: pointer; }
+.tasting-card-close:hover { background: var(--vf-plum); }
 .tasting-card-close:focus-visible { outline: 3px solid var(--vf-gold-light); outline-offset: 3px; }
+.tasting-card-face { position: absolute; inset: 0; isolation: isolate; overflow-x: hidden; overflow-y: auto; display: flex; align-items: center; flex-direction: column; padding: clamp(.95rem,3.9vw,2rem) clamp(.8rem,3.7vw,1.9rem) clamp(.8rem,3.5vw,1.55rem); border: clamp(4px,1vw,8px) double #cf9e25; border-radius: clamp(22px,4vw,42px); backface-visibility: hidden; color: #251c17; background: radial-gradient(circle at 50% 12%,rgba(255,255,255,.9),transparent 30%),repeating-linear-gradient(90deg,rgba(135,102,43,.025) 0 1px,transparent 1px 5px),#fbf4e4; box-shadow: inset 0 0 0 2px #fffaf0,inset 0 0 0 5px rgba(190,143,31,.52),0 24px 70px rgba(0,0,0,.52); }
+.tasting-card-face::before { content: ""; position: absolute; z-index: -1; inset: clamp(.48rem,2vw,1rem); border: 1px dashed rgba(177,127,25,.48); border-radius: clamp(15px,3vw,32px); pointer-events: none; }
+.tasting-card-face::after { content: ""; position: absolute; z-index: -2; left: 2%; right: 2%; bottom: 4%; height: 42%; opacity: .38; background: repeating-radial-gradient(ellipse at 10% 100%,transparent 0 18px,rgba(116,126,73,.16) 19px 20px,transparent 21px 34px),linear-gradient(165deg,transparent 0 52%,rgba(185,157,92,.12) 53% 54%,transparent 55% 100%); mask-image: linear-gradient(to top,#000,transparent); pointer-events: none; }
+.tasting-card-back { transform: rotateY(180deg); }
+.tasting-card-corner { position: absolute; z-index: 2; top: 2.8%; width: 20%; color: #b18325; pointer-events: none; }
+.tasting-card-corner-left { left: 4.5%; }
+.tasting-card-corner-right { right: 4.5%; }
+.tasting-card-sprig { width: 100%; height: auto; display: block; }
+.tasting-card-sprig.is-mirrored { transform: scaleX(-1); }
+.tasting-card-line-icon { width: 100%; height: 100%; display: block; }
+.tasting-card-front-header, .tasting-card-back-header { width: 100%; text-align: center; }
+.tasting-card-front-header { min-height: 34.5%; display: flex; align-items: center; flex-direction: column; justify-content: center; margin: 0 0 clamp(.55rem,2vw,.9rem); padding: clamp(.65rem,2.7vw,1.35rem) clamp(.65rem,2vw,1rem) clamp(1.2rem,4.8vw,2.4rem); border: 2px solid #cfaa47; border-radius: 45% 45% 24% 24% / 15% 15% 17% 17%; color: #fbf3df; background: radial-gradient(circle at 50% 18%,var(--tc-plum-light),var(--tc-plum) 50%,var(--tc-plum-dark)); box-shadow: inset 0 0 0 2px var(--tc-plum-dark),inset 0 0 0 3px #d9b24e,0 10px 24px rgba(53,13,44,.25); }
+.tasting-card-front-header p, .tasting-card-back-header p { margin: .18rem 0; color: #e4c657; font-family: Georgia,"Times New Roman",serif; font-size: clamp(.56rem,1.72vw,.84rem); font-weight: 800; letter-spacing: .24em; text-transform: uppercase; }
+.tasting-card-front-header h3, .tasting-card-back-header h3 { max-width: 95%; margin: .32rem 0; color: inherit; font-family: Georgia,"Times New Roman",serif; font-size: clamp(2.15rem,8.4vw,4.3rem); font-weight: 500; line-height: .92; }
+.tasting-card-session { display: flex; align-items: center; justify-content: center; gap: .35rem; color: #f8ead4; font-size: clamp(.68rem,2.25vw,1.02rem); white-space: nowrap; }
+.tasting-card-cup { width: clamp(30px,8.5vw,52px); height: clamp(30px,8.5vw,52px); display: block; color: #d7b13e; }
+.tasting-card-divider { width: 76%; display: flex; align-items: center; gap: .55rem; margin: .45rem auto; color: #c79a2b; }
+.tasting-card-divider::before, .tasting-card-divider::after { content: ""; flex: 1; height: 1px; background: currentColor; }
+.tasting-card-divider span { width: clamp(18px,5vw,28px); height: clamp(18px,5vw,28px); }
+.tasting-card-medallion { z-index: 2; width: clamp(92px,30%,178px); aspect-ratio: 1; flex: none; display: grid; place-items: center; margin: clamp(-2rem,-4vw,-1.1rem) auto clamp(.55rem,2vw,.85rem); overflow: hidden; border: clamp(4px,.85vw,7px) double #bf8c1e; border-radius: 50%; color: var(--tc-tea); background: radial-gradient(circle,#fffdf5 0 52%,#eee2c5 53% 54%,#fbf5e7 55% 100%); box-shadow: inset 0 0 0 2px #fff9e7,0 7px 17px rgba(61,39,15,.27); }
+.tasting-card-medallion img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.tasting-card-medallion-leaf { width: 64%; height: 64%; filter: drop-shadow(0 2px 2px rgba(69,60,31,.15)); }
+.tasting-card-seal { width: min(82%,520px); display: flex; align-items: center; justify-content: center; gap: clamp(.55rem,2vw,.85rem); padding: clamp(.5rem,1.8vw,.8rem); border: 1px solid rgba(177,127,25,.55); border-radius: clamp(12px,3vw,19px); background: rgba(255,251,238,.92); box-shadow: 0 6px 14px rgba(65,42,16,.14); }
+.tasting-card-seal-mark { width: clamp(42px,10vw,64px); aspect-ratio: 1; flex: none; display: grid; place-items: center; border: 2px solid #f2d16d; border-radius: 50%; color: #fff8dc; background: linear-gradient(145deg,#c49a28,#936811); box-shadow: 0 3px 8px rgba(62,40,10,.25); }
+.tasting-card-seal-mark .tasting-card-line-icon { width: 48%; height: 48%; }
+.tasting-card-seal strong { display: block; color: #35132d; font-family: Georgia,"Times New Roman",serif; font-size: clamp(1rem,3.4vw,1.55rem); line-height: 1; }
+.tasting-card-seal small { display: block; margin-top: .24rem; color: #6d5d4c; font-size: clamp(.58rem,1.72vw,.8rem); }
+.tasting-card-stars { display: grid; place-items: center; margin: clamp(.4rem,1.5vw,.7rem) 0; color: #b98b18; }
+.tasting-card-stars > div { display: flex; align-items: center; justify-content: center; gap: .3rem; }
+.tasting-card-stars > div .tasting-card-sprig { width: clamp(30px,10vw,58px); }
+.tasting-card-stars > div > span { font-size: clamp(1.25rem,4.7vw,2.2rem); letter-spacing: .055em; line-height: 1; white-space: nowrap; }
+.tasting-card-stars small { display: flex; align-items: center; gap: .5rem; color: #44372c; font-size: clamp(.66rem,1.95vw,.9rem); }
+.tasting-card-stars small::before, .tasting-card-stars small::after { content: ""; width: clamp(28px,8vw,48px); height: 1px; background: #b98b18; }
+.tasting-card-profile-grid { width: 100%; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); overflow: hidden; border: 1px solid rgba(177,127,25,.38); border-radius: 16px; background: rgba(255,251,238,.72); }
+.tasting-card-fact { min-width: 0; display: flex; align-items: center; gap: clamp(.38rem,1.55vw,.75rem); padding: clamp(.42rem,1.65vw,.72rem); border-right: 1px solid rgba(177,127,25,.3); border-bottom: 1px solid rgba(177,127,25,.3); }
+.tasting-card-profile-grid .tasting-card-fact:nth-child(even) { border-right: 0; }
+.tasting-card-profile-grid .tasting-card-fact:nth-last-child(-n+2) { border-bottom: 0; }
+.tasting-card-fact-icon { width: clamp(36px,9vw,54px); aspect-ratio: 1; flex: none; display: grid; place-items: center; border: 2px solid #e0be6b; border-radius: 50%; color: #fff3ba; background: var(--tc-plum); box-shadow: inset 0 0 0 2px rgba(255,255,255,.3),0 2px 6px rgba(55,16,44,.22); }
+.tasting-card-fact-icon .tasting-card-line-icon { width: 58%; height: 58%; }
+.tasting-card-fact.tone-tea .tasting-card-fact-icon { background: var(--tc-tea); }
+.tasting-card-fact.tone-gold .tasting-card-fact-icon { background: linear-gradient(145deg,#c49a28,#936811); }
+.tasting-card-fact small { display: block; color: #746758; font-size: clamp(.46rem,1.36vw,.64rem); font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.tasting-card-fact strong { display: block; overflow-wrap: anywhere; color: #201914; font-size: clamp(.68rem,2.1vw,.98rem); line-height: 1.16; }
+.tasting-card-footer-ornament { width: 92%; display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: .45rem; margin-top: auto; color: #a77a1b; }
+.tasting-card-footer-ornament > span { width: clamp(50px,13vw,78px); aspect-ratio: 1; display: grid; place-items: center; border: 3px double #c49a2a; border-radius: 50%; color: #efd36a; background: var(--tc-plum); box-shadow: 0 3px 8px rgba(53,13,44,.22); }
+.tasting-card-footer-ornament > span .tasting-card-line-icon { width: 52%; height: 52%; }
+.tasting-card-flip-ribbon { width: min(90%,560px); display: flex; align-items: center; justify-content: space-between; gap: .45rem; padding: clamp(.34rem,1.2vw,.55rem) clamp(.65rem,2vw,1rem); border: 2px solid #bc8d25; border-radius: 999px; color: #efd373; background: var(--tc-plum-dark); box-shadow: inset 0 0 0 1px #edca68; text-align: center; font-family: Georgia,"Times New Roman",serif; font-size: clamp(.5rem,1.55vw,.72rem); font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+.tasting-card-back-header { margin: 0 0 clamp(.5rem,1.6vw,.8rem); padding: 0 clamp(.5rem,2vw,1rem); color: var(--tc-plum); }
+.tasting-card-back-header > p, .tasting-card-record h4, .tasting-card-stages h4 { min-width: 42%; display: flex; align-items: center; justify-content: space-between; gap: .6rem; width: fit-content; margin: 0 auto .5rem; padding: .34rem clamp(.9rem,3.5vw,1.8rem); border: 2px solid #bc8d25; border-radius: 9px; color: #efd373; background: var(--tc-plum-dark); box-shadow: inset 0 0 0 1px #edca68,0 3px 7px rgba(53,13,44,.18); font-size: clamp(.54rem,1.64vw,.76rem); letter-spacing: .18em; text-transform: uppercase; }
+.tasting-card-back-header .tasting-card-cup { margin: .35rem auto; }
+.tasting-card-back-header h3 { margin-block: .15rem; color: var(--tc-plum); font-size: clamp(1.85rem,7.1vw,3.65rem); }
+.tasting-card-record, .tasting-card-stages { width: 100%; margin-bottom: clamp(.45rem,1.7vw,.8rem); padding: clamp(.45rem,1.7vw,.8rem); border: 1px solid rgba(177,127,25,.48); border-radius: 18px; background: rgba(255,251,238,.72); box-shadow: 0 3px 8px rgba(69,44,16,.08); }
+.tasting-card-record h4, .tasting-card-stages h4 { position: relative; z-index: 2; margin-top: clamp(-1rem,-2.2vw,-.7rem); }
+.tasting-card-brew-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); }
+.tasting-card-brew-grid .tasting-card-fact { align-items: center; flex-direction: column; gap: .12rem; padding-block: .28rem; border-bottom: 0; text-align: center; }
+.tasting-card-brew-grid .tasting-card-fact-icon { width: clamp(30px,7.4vw,46px); }
+.tasting-card-brew-grid .tasting-card-fact:nth-child(4) { border-right: 0; }
+.tasting-card-brew-grid .tasting-card-fact:nth-child(n+5) { border-top: 1px solid rgba(177,127,25,.3); }
+.tasting-card-brew-grid .tasting-card-fact:last-child { border-right: 0; }
+.tasting-card-preparation, .tasting-card-journal-note { margin: .4rem 0 0; padding: .4rem .55rem; border-radius: 10px; color: #5e4f40; background: rgba(201,162,39,.09); font-size: clamp(.56rem,1.6vw,.72rem); }
+.tasting-card-stages { padding-inline: clamp(.35rem,1.4vw,.65rem); }
+.tasting-card-stages ol { position: relative; display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.tasting-card-stages ol::before { content: ""; position: absolute; top: 8%; bottom: 8%; left: clamp(21px,5.6vw,34px); width: 2px; background: linear-gradient(#c99b2f,#ebd181,#c99b2f); }
+.tasting-card-stages li { position: relative; display: grid; grid-template-columns: clamp(40px,10.7vw,66px) minmax(0,1.3fr) minmax(54px,.68fr) minmax(54px,.68fr) minmax(30px,.42fr); align-items: center; gap: .28rem; min-height: clamp(46px,10.8vw,66px); padding: .22rem .1rem; border-bottom: 1px dashed rgba(177,127,25,.46); font-size: clamp(.54rem,1.7vw,.79rem); }
+.tasting-card-stages li:last-child { border-bottom: 0; }
+.tasting-card-stage-medallion { position: relative; z-index: 1; width: clamp(36px,9vw,56px); aspect-ratio: 1; display: grid; place-items: center; justify-self: center; border: 2px solid #e0be6b; border-radius: 50%; color: #fff3ba; background: var(--tc-tea); box-shadow: inset 0 0 0 2px rgba(255,255,255,.3),0 2px 5px rgba(55,16,44,.2); }
+.tasting-card-stage-medallion > .tasting-card-line-icon { width: 56%; height: 56%; }
+.tasting-card-stage-medallion.tone-plum { background: var(--tc-plum); }
+.tasting-card-stage-medallion > small { position: absolute; top: -8%; left: -7%; width: clamp(17px,4vw,24px); aspect-ratio: 1; display: grid; place-items: center; border: 1px solid #f0d36e; border-radius: 50%; color: white; background: #a87818; font-size: clamp(.46rem,1.2vw,.6rem); }
+.tasting-card-stage-metric { display: flex; align-items: center; gap: .2rem; white-space: nowrap; }
+.tasting-card-stage-metric .tasting-card-line-icon { width: clamp(14px,3.6vw,20px); height: clamp(14px,3.6vw,20px); color: var(--tc-plum); }
+.tasting-card-stage-note { min-width: 0; overflow: hidden; color: #79643c; text-overflow: ellipsis; white-space: nowrap; }
+.tasting-card-stage-note .tasting-card-line-icon { width: clamp(20px,5vw,30px); height: clamp(20px,5vw,30px); color: var(--tc-tea); }
+.tasting-card-empty, .tasting-card-more-stages { margin: .45rem 0 0; text-align: center; color: #756657; font-size: clamp(.58rem,1.62vw,.74rem); }
+.tasting-card-journal-note { width: 100%; margin: 0 0 .4rem; }
+.tasting-card-journal-note p { margin: .16rem 0 0; white-space: pre-wrap; }
+.tasting-card-back .tasting-card-footer-ornament > span { width: clamp(42px,10.5vw,62px); }
+.tasting-card-face.tasting-card-artwork-face { container-type: inline-size; display: block; overflow: hidden; padding: 0; border: 0; border-radius: 3.8% / 2.15%; color: #241b16; background: #f6eedb; box-shadow: 0 3.5rem 7rem rgba(7,1,7,.32),0 1rem 2rem rgba(7,1,7,.26),0 0 0 1px rgba(201,162,39,.25); -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+.tasting-card-face.tasting-card-artwork-face::before { content: ""; position: absolute; z-index: 1; inset: 0; display: block; pointer-events: none; background: linear-gradient(135deg,#5f3700 0%,#a96f00 18%,#ffd700 38%,#fff0a3 48%,#d4af37 58%,#865400 76%,#f7cf33 100%); opacity: .42; -webkit-backface-visibility: hidden; backface-visibility: hidden; will-change: filter,opacity; animation: tasting-card-gold-lustre 5.4s ease-in-out infinite; }
+.tasting-card-face.tasting-card-artwork-face::after { content: none; display: none; }
+.tasting-card-flip:not(.is-flipped) .tasting-card-back::before, .tasting-card-flip.is-flipped .tasting-card-front::before { animation-play-state: paused; }
+.tasting-card-front::before { -webkit-mask: url("/tea-cards/anji-white-tea-front-gold-mask.png") center / 100% 100% no-repeat; mask: url("/tea-cards/anji-white-tea-front-gold-mask.png") center / 100% 100% no-repeat; }
+.tasting-card-back::before { -webkit-mask: url("/tea-cards/anji-white-tea-back-gold-mask.png") center / 100% 100% no-repeat; mask: url("/tea-cards/anji-white-tea-back-gold-mask.png") center / 100% 100% no-repeat; }
+.tasting-card-artwork-image { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; user-select: none; pointer-events: none; }
+.tasting-card-live { position: absolute; z-index: 2; min-width: 0; display: flex; align-items: center; justify-content: center; margin: 0; overflow: hidden; line-height: 1.12; text-align: center; text-overflow: ellipsis; }
+.tasting-card-live-plum { color: #fff8e9; background: var(--tc-panel-bg,#431832); box-shadow: 0 0 1.15cqw 1.1cqw var(--tc-panel-bg,#431832); }
+.tasting-card-live-paper { color: #241b16; background: rgba(250,245,232,.99); box-shadow: 0 0 .8cqw .72cqw rgba(250,245,232,.99); }
+.tasting-card-live-front-name { top: 15.5%; left: 14%; width: 72%; height: 6%; font-family: Georgia,"Times New Roman",serif; font-size: 7.7cqw; font-weight: 500; white-space: nowrap; }
+.tasting-card-live-session { top: 24.5%; left: 23%; width: 54%; height: 3.1%; gap: .7cqw; font-size: 2.55cqw; white-space: nowrap; }
+.tasting-card-live-seal-old-cover { position: absolute; z-index: 2; top: 49.5%; left: 20.8%; width: 12.5%; height: 7%; border-radius: 50%; background: rgba(250,245,232,.99); box-shadow: 0 0 .8cqw .8cqw rgba(250,245,232,.99); }
+.tasting-card-live-tea-medallion-cover { position: absolute; z-index: 2; top: 29.3%; left: 35.1%; width: 29.8%; box-sizing: border-box; aspect-ratio: 1; border: .48cqw solid transparent; border-radius: 50%; background: radial-gradient(circle at 50% 30%,rgba(255,253,246,.98),rgba(246,239,220,.99) 62%,rgba(235,224,198,.99)) padding-box,conic-gradient(from 210deg,#6d4100,#c28b00,#fff3a6,#ffd700,#8d5b00,#f8d34b,#fff5bc,#8b5700,#6d4100) border-box; box-shadow: inset 0 0 2.4cqw rgba(173,137,65,.12),inset 0 0 0 .18cqw rgba(255,248,196,.55),0 0 1.2cqw rgba(212,175,55,.34); }
+.tasting-card-detachable-seal { position: absolute; z-index: 4; top: 27.7%; left: 32%; width: 36%; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 50%; transform-origin: 50% 22%; filter: drop-shadow(0 1.25cqw 1.25cqw rgba(78,43,0,.32)) drop-shadow(0 0 .65cqw rgba(255,215,0,.24)); transition: opacity 420ms ease,transform 560ms cubic-bezier(.2,.76,.2,1),filter 420ms ease,visibility 0s; pointer-events: none; }
+.tasting-card-detachable-seal img { position: relative; z-index: 0; width: 100%; height: 100%; display: block; object-fit: contain; user-select: none; }
+.tasting-card-detachable-seal::after { content: ""; position: absolute; z-index: 1; top: -35%; bottom: -35%; left: -90%; width: 35%; background: linear-gradient(90deg,transparent,rgba(255,244,174,.2),rgba(255,255,246,.68),rgba(255,220,47,.18),transparent); transform: skewX(-17deg); animation: tasting-card-seal-sweep 4.6s cubic-bezier(.4,0,.2,1) infinite; }
+.tasting-card-detachable-seal.is-attached { visibility: visible; opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+.tasting-card-detachable-seal.is-detached { visibility: hidden; opacity: 0; transform: translateY(13cqw) rotate(7deg) scale(.74); filter: drop-shadow(0 .4cqw .5cqw rgba(78,43,0,.12)); transition-delay: 0s,0s,0s,560ms; }
+.tasting-card-detachable-seal.is-detached::after { animation-play-state: paused; }
+.tasting-card-live-seal { top: 49.7%; left: 31.4%; width: 48.8%; height: 6.4%; align-items: flex-start; flex-direction: column; padding-left: .6cqw; text-align: left; }
+.tasting-card-live-seal strong { color: #3b1830; font-family: Georgia,"Times New Roman",serif; font-size: 3.3cqw; line-height: 1.1; white-space: nowrap; }
+.tasting-card-live-seal small { margin-top: .8cqw; color: #68594c; font-size: 2.45cqw; white-space: nowrap; }
+.tasting-card-live-rating { top: 57.9%; left: 27%; width: 46%; height: 7.2%; flex-direction: column; color: #b4881d; }
+.tasting-card-live-rating > span { font-size: 5.7cqw; letter-spacing: .28cqw; line-height: 1; white-space: nowrap; }
+.tasting-card-live-rating small { margin-top: .65cqw; color: #44372c; font-size: 2.55cqw; }
+.tasting-card-live-origin { top: 68.8%; left: 19.5%; width: 29.5%; height: 4.5%; justify-content: flex-start; font-size: 2.65cqw; font-weight: 700; line-height: 1.28; text-align: left; }
+.tasting-card-live-type { top: 68.9%; left: 61.5%; width: 22.5%; height: 3.5%; justify-content: flex-start; font-size: 2.7cqw; font-weight: 700; text-align: left; }
+.tasting-card-live-intensity { top: 78%; left: 19.5%; width: 21%; height: 3.5%; justify-content: flex-start; font-size: 2.65cqw; font-weight: 700; text-align: left; }
+.tasting-card-live-descriptors { top: 78%; left: 54.5%; width: 34%; height: 3.5%; justify-content: flex-start; font-size: 2.5cqw; font-weight: 700; text-align: left; white-space: nowrap; }
+.tasting-card-live-back-name { top: 13.2%; left: 19%; width: 62%; height: 5.5%; color: #431832; font-family: Georgia,"Times New Roman",serif; font-size: 7.2cqw; font-weight: 500; white-space: nowrap; }
+.tasting-card-live-style, .tasting-card-live-leaf, .tasting-card-live-water, .tasting-card-live-temperature, .tasting-card-live-initial, .tasting-card-live-vessel, .tasting-card-live-source { height: 2.7%; font-size: 2.75cqw; white-space: nowrap; }
+.tasting-card-live-style { top: 35.1%; left: 12.3%; width: 17.5%; }
+.tasting-card-live-leaf { top: 35.1%; left: 32.4%; width: 17%; }
+.tasting-card-live-water { top: 35.1%; left: 51%; width: 19.5%; }
+.tasting-card-live-temperature { top: 35.1%; left: 73%; width: 15%; }
+.tasting-card-live-initial { top: 47.1%; left: 14.5%; width: 20%; }
+.tasting-card-live-vessel { top: 47.1%; left: 39%; width: 22%; }
+.tasting-card-live-source { top: 47.1%; left: 66%; width: 17%; }
+.tasting-card-live-stages { position: absolute; z-index: 2; inset: 0; margin: 0; padding: 0; list-style: none; pointer-events: none; }
+.tasting-card-live-stages li { --stage-y:58.55%; position: absolute; top: var(--stage-y); left: 0; width: 100%; height: 3.6%; margin: 0; padding: 0; }
+.tasting-card-live-stages li:nth-child(2) { --stage-y:65.1%; }
+.tasting-card-live-stages li:nth-child(3) { --stage-y:71.7%; }
+.tasting-card-live-stages li:nth-child(4) { --stage-y:78.3%; }
+.tasting-card-live-stage-label, .tasting-card-live-stage-time, .tasting-card-live-stage-temp, .tasting-card-live-stage-note { position: absolute; top: 0; height: 100%; display: flex; align-items: center; overflow: hidden; font-size: 2.45cqw; line-height: 1.08; text-overflow: ellipsis; white-space: nowrap; }
+.tasting-card-live-stage-label { left: 24.5%; width: 20.5%; justify-content: flex-start; font-family: Georgia,"Times New Roman",serif; font-size: 2.75cqw; font-weight: 500; }
+.tasting-card-live-stage-time { left: 53%; width: 9.5%; justify-content: flex-start; }
+.tasting-card-live-stage-temp { left: 69.5%; width: 9.5%; justify-content: flex-start; }
+.tasting-card-live-stage-note { left: 82.5%; width: 7.8%; justify-content: flex-start; color: #765b25; font-family: Georgia,"Times New Roman",serif; font-size: 2.1cqw; white-space: normal; }
+.artwork-card-preview { display: grid; justify-items: center; gap: 1.25rem; margin-top: 1.5rem; }
+.artwork-card-themes { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
+.artwork-card-themes button { min-height: 42px; display: inline-flex; align-items: center; gap: .45rem; padding: .5rem .75rem; border: 1px solid var(--vf-line); border-radius: 999px; color: var(--vf-walnut); background: rgba(251,247,236,.78); cursor: pointer; font-size: .76rem; font-weight: 800; }
+.artwork-card-themes button:hover, .artwork-card-themes button.is-active { border-color: var(--vf-gold); color: var(--vf-plum); background: white; box-shadow: 0 3px 10px rgba(51,16,42,.1); }
+.artwork-card-themes button > span { width: 18px; height: 18px; border: 2px solid #d8b95e; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.45); }
+.artwork-seal-controls { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .65rem 1rem; }
+.artwork-seal-controls button { min-height: 42px; padding: .55rem 1rem; border: 1px solid var(--vf-gold-dark); border-radius: 999px; color: white; background: var(--vf-plum); cursor: pointer; font-size: .78rem; font-weight: 850; }
+.artwork-seal-controls button:hover { background: var(--vf-plum-aged); }
+.artwork-seal-controls button:focus-visible { outline: 3px solid var(--vf-gold-light); outline-offset: 3px; }
+.artwork-seal-controls span { color: var(--vf-fog); font-size: .78rem; font-weight: 700; }
+.artwork-card-editor { width: min(100%,54rem); display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .75rem; padding: 1rem; border: 1px solid var(--vf-line); border-radius: var(--radius-md); background: rgba(251,247,236,.84); box-shadow: var(--shadow-1); }
+.artwork-card-editor label { min-width: 0; display: grid; gap: .3rem; color: var(--vf-walnut); font-size: .72rem; font-weight: 800; }
+.artwork-card-editor input { width: 100%; min-height: 42px; padding: .55rem .65rem; border: 1px solid var(--vf-line); border-radius: var(--radius-sm); color: var(--vf-ink); background: white; font: inherit; font-weight: 600; }
+.artwork-card-editor input:focus { border-color: var(--vf-gold-dark); outline: 2px solid rgba(200,162,57,.2); }
+.artwork-card-editor-wide { grid-column: span 2; }
+.artwork-card-scene { width: min(100%,30rem); aspect-ratio: 941 / 1672; perspective: 1500px; }
+.artwork-live-card { position: relative; width: 100%; height: 100%; cursor: pointer; outline: none; }
+.artwork-live-card:hover .tasting-card-flip { transform: rotateY(-3deg) translateY(-.25rem); }
+.artwork-live-card:hover .tasting-card-flip.is-flipped { transform: rotateY(183deg) translateY(-.25rem); }
+.artwork-live-card:focus-visible { border-radius: 3.8% / 2.15%; outline: 3px solid var(--vf-gold); outline-offset: .55rem; }
+.artwork-tea-card { position: relative; width: 100%; height: 100%; display: block; padding: 0; border: 0; background: transparent; cursor: pointer; transform-style: preserve-3d; transition: transform 900ms cubic-bezier(.2,.75,.15,1); will-change: transform; }
+.artwork-tea-card:hover { transform: rotateY(-3deg) translateY(-.25rem); }
+.artwork-tea-card.is-flipped { transform: rotateY(180deg); }
+.artwork-tea-card.is-flipped:hover { transform: rotateY(183deg) translateY(-.25rem); }
+.artwork-tea-card:focus-visible { border-radius: 3.8% / 2.15%; outline: 3px solid var(--vf-gold); outline-offset: .55rem; }
+.artwork-card-face { position: absolute; inset: 0; display: block; overflow: hidden; border-radius: 3.8% / 2.15%; background: #f6eedb; box-shadow: 0 3.5rem 7rem rgba(7,1,7,.32),0 1rem 2rem rgba(7,1,7,.26),0 0 0 1px rgba(201,162,39,.25); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.artwork-card-face img { width: 100%; height: 100%; display: block; object-fit: cover; user-select: none; }
+.artwork-card-back { transform: rotateY(180deg); }
+.artwork-card-hint { margin: 0; color: var(--vf-fog); font-size: .78rem; font-weight: 700; }
 .tasting-card-gallery { padding: clamp(1rem,3vw,1.75rem) clamp(1rem,4vw,2.25rem) 0; }
 .tasting-card-gallery-frame { position: relative; overflow: hidden; aspect-ratio: 16 / 9; border-radius: var(--radius-md); background: var(--vf-plum-aged); }
 .tasting-card-gallery-frame img { width: 100%; height: 100%; display: block; object-fit: cover; }
@@ -405,21 +570,6 @@ tr:last-child td { border-bottom: 0; }
 .tasting-card-gallery-dots { display: flex; gap: .35rem; }
 .tasting-card-gallery-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--vf-line); }
 .tasting-card-gallery-dots i.active { background: var(--vf-plum); }
-.tasting-card-seal-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1rem; margin: clamp(1rem,4vw,2.25rem); padding-bottom: 1.25rem; border-bottom: 1px solid var(--vf-line); }
-.tasting-card-seal-row small { display: block; margin-top: .2rem; color: var(--vf-fog); }
-.tasting-card-rating { color: var(--vf-gold-dark); font-size: 1.2rem; letter-spacing: .08em; white-space: nowrap; }
-.tasting-card-details { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1rem; margin: 0 clamp(1rem,4vw,2.25rem) clamp(1rem,4vw,2.25rem); }
-.tasting-card-details div { padding: .8rem; border: 1px solid var(--vf-line); border-radius: var(--radius-sm); background: rgba(251,247,236,.72); }
-.tasting-card-details dt, .tasting-card-profile dt { color: var(--vf-fog); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.tasting-card-details dd, .tasting-card-profile dd { margin: .25rem 0 0; font-weight: 700; }
-.tasting-card-section-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; margin: 0 clamp(1rem,4vw,2.25rem) clamp(1rem,4vw,2.25rem); }
-.tasting-card-section-grid > section, .tasting-card-notes { padding: 1.15rem; border-radius: var(--radius-md); background: rgba(201,162,39,.09); border-left: 4px solid var(--vf-gold); }
-.tasting-card-section-grid p { margin: .4rem 0 0; }
-.tasting-card-profile { display: grid; gap: .75rem; margin: .5rem 0 0; }
-.tasting-card-notes { margin: 0 clamp(1rem,4vw,2.25rem) clamp(1rem,4vw,2.25rem); background: rgba(74,13,54,.06); border-left-color: var(--vf-plum); }
-.tasting-card-notes blockquote { margin: .7rem 0; color: var(--vf-plum); font-family: var(--font-display); font-size: 1.35rem; }
-.tasting-card-notes > p:last-child { white-space: pre-wrap; }
-.tasting-card-sheet-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem clamp(1rem,4vw,2.25rem); border-top: 1px solid var(--vf-line); background: rgba(140,133,120,.06); color: var(--vf-fog); font-size: .82rem; font-weight: 800; }
 
 .empty-state { text-align: center; padding: clamp(2rem, 6vw, 4rem) 1rem; border: 1px dashed rgba(74,53,36,.35); border-radius: var(--radius-md); background: rgba(251,247,236,.55); }
 .skeleton { position: relative; overflow: hidden; min-height: 1rem; border-radius: var(--radius-sm); background: rgba(140,133,120,.12); }
@@ -436,6 +586,14 @@ tr:last-child td { border-bottom: 0; }
 @keyframes flavor-palette-float {
   0%, 100% { transform: translateY(1px) rotate(0); box-shadow: 0 5px 12px rgba(51,16,42,.12); }
   50% { transform: translateY(-6px) rotate(var(--flavor-float-tilt)); box-shadow: 0 10px 18px rgba(51,16,42,.17); }
+}
+@keyframes tasting-card-gold-lustre {
+  0%, 18%, 100% { opacity: .56; filter: brightness(1.08) saturate(1.18) drop-shadow(0 0 .08cqw rgba(255,215,0,.42)); }
+  52% { opacity: .74; filter: brightness(1.32) saturate(1.28) drop-shadow(0 0 .18cqw rgba(255,226,92,.62)); }
+}
+@keyframes tasting-card-seal-sweep {
+  0%, 22% { left: -90%; }
+  68%, 100% { left: 148%; }
 }
 .enter { animation: enter 260ms var(--settle); }
 
@@ -488,11 +646,12 @@ tr:last-child td { border-bottom: 0; }
   .tea-lab-review div:nth-child(odd) { border-right: 0; }
   .page-heading-row { align-items: stretch; flex-direction: column; }
   .page-heading-row > .btn { width: 100%; }
-  .tasting-card-modal { align-items: end; padding: .5rem; }
-  .tasting-card-sheet { max-height: calc(100dvh - 1rem); overflow-y: auto; border-radius: var(--radius-md); }
-  .tasting-card-details, .tasting-card-section-grid { grid-template-columns: 1fr; }
-  .tasting-card-seal-row { grid-template-columns: auto 1fr; }
-  .tasting-card-rating { grid-column: 1 / -1; }
+  .tasting-card-dialog { padding: .45rem; }
+  .tasting-card-flip-target { width: min(96vw,calc((100dvh - .9rem) * .565)); max-height: calc(100dvh - .9rem); }
+  .tasting-card-close { top: max(.5rem,env(safe-area-inset-top)); right: max(.5rem,env(safe-area-inset-right)); width: 44px; height: 44px; }
+  .tasting-card-face { padding-inline: .8rem; }
+  .tasting-card-brew-grid .tasting-card-fact { padding-inline: .2rem; }
+  .artwork-card-editor { grid-template-columns: repeat(2,minmax(0,1fr)); padding: .75rem; }
   .journal-card-action .btn { min-width: 104px; }
   .journal-session-swipe-row { display: grid; grid-template-columns: 100% max-content; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: var(--radius-md); background: var(--vf-plum-aged); box-shadow: var(--shadow-1); }
   .journal-session-swipe-row::-webkit-scrollbar { display: none; }
