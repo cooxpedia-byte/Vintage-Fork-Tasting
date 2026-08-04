@@ -5,7 +5,7 @@ const stubs = vi.hoisted(() => ({ authenticatedFetch: vi.fn() }));
 
 vi.mock("@/lib/authenticated-fetch", () => ({ authenticatedFetch: stubs.authenticatedFetch }));
 
-import { sendTeaLabOperation } from "@/lib/tea-lab/outbox";
+import { fetchTeaLabSessionState, sendTeaLabOperation } from "@/lib/tea-lab/outbox";
 
 const base = {
   schemaVersion: 1 as const,
@@ -43,6 +43,17 @@ beforeEach(() => {
 });
 
 describe("Tea Lab operation transport", () => {
+  it("loads the current server revision for an explicit device-copy retry", async () => {
+    stubs.authenticatedFetch.mockResolvedValue(new Response(JSON.stringify({
+      session: { id: "session-1", status: "in_progress", revision: 5, completedAt: null, archivedAt: null }
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    await expect(fetchTeaLabSessionState("session-1")).resolves.toEqual({
+      id: "session-1", status: "in_progress", revision: 5, completedAt: null, archivedAt: null
+    });
+    expect(stubs.authenticatedFetch).toHaveBeenCalledWith("/api/tea-lab/sessions/session-1", { method: "GET" });
+  });
+
   it("sends the materialized save to the protected PR5 endpoint", async () => {
     stubs.authenticatedFetch.mockResolvedValue(new Response(JSON.stringify({
       session: { id: "session-1", status: "in_progress", revision: 3, completedAt: null, archivedAt: null }
