@@ -57,7 +57,7 @@ export const TEA_LAB_BREWING_STYLES: TeaLabBrewingStyleDefinition[] = [
     repeatable: true, nextStageLabel: "Next pour"
   },
   {
-    id: "gongfu", group: "chinese", label: "Gongfu", durationUnit: "seconds", stageNoun: "wash / infusion",
+    id: "gongfu", group: "chinese", label: "Gongfu", durationUnit: "seconds", stageNoun: "infusion",
     summary: "A high leaf-to-water ratio with many short, fully decanted infusions.", vesselSuggestion: "Gaiwan or small teapot",
     setupGuidance: ["Warm the vessel and cups.", "Keep pours consistent and decant fully between infusions."],
     stages: [
@@ -68,7 +68,7 @@ export const TEA_LAB_BREWING_STYLES: TeaLabBrewingStyleDefinition[] = [
     ], repeatable: true, nextStageLabel: "Infusion"
   },
   {
-    id: "chaozhou_gongfu", group: "chinese", label: "Chaozhou gongfu", durationUnit: "seconds", stageNoun: "wash / infusion",
+    id: "chaozhou_gongfu", group: "chinese", label: "Chaozhou gongfu", durationUnit: "seconds", stageNoun: "infusion",
     summary: "A concentrated gongfu approach associated with tightly packed small pots and decisive pours.", vesselSuggestion: "Small Chaozhou or Yixing pot",
     setupGuidance: ["Arrange leaf gently; do not force or crush it.", "Use quick, complete decants and small tasting cups."],
     stages: [

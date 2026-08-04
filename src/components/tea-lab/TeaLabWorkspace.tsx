@@ -595,6 +595,10 @@ function BrewStageNotes({ draft, update }: { draft: TeaLabSoloDraft; update: (re
   const style = getTeaLabBrewingStyle(draft.brewing.style);
   if (!style || !draft.brewing.style) return null;
   const stages = draft.brewing.stages ?? [];
+  const isGongfuStyle = style.id === "gongfu" || style.id === "chaozhou_gongfu";
+  const firstInfusionIndex = isGongfuStyle
+    ? stages.findIndex(stage => /^infusion\s+1$/i.test(stage.label.trim()))
+    : -1;
   const updateStages = (recipe: (stages: TeaLabBrewStageDraft[]) => TeaLabBrewStageDraft[]) => update(current => ({
     ...current,
     brewing: { ...current.brewing, stages: recipe(current.brewing.stages ?? []) }
@@ -623,7 +627,7 @@ function BrewStageNotes({ draft, update }: { draft: TeaLabSoloDraft; update: (re
           <div className="field"><label htmlFor={`brew-stage-duration-${index}`}>Time ({style.durationUnit})</label><input className="input" id={`brew-stage-duration-${index}`} type="number" min={style.durationUnit === "seconds" ? 1 : 0.01} max={style.durationUnit === "hours" ? 24 : style.durationUnit === "minutes" ? 1440 : 86400} step={style.durationUnit === "seconds" ? 1 : 0.1} value={durationSecondsToInput(stage.durationSeconds, style.durationUnit)} onChange={event => updateStage(index, "durationSeconds", event.target.value)} /></div>
           <div className="field"><label htmlFor={`brew-stage-temperature-${index}`}>Temperature (°C)</label><input className="input" id={`brew-stage-temperature-${index}`} type="number" min="0" max="100" step="1" value={numericValue(stage.temperatureC)} onChange={event => updateStage(index, "temperatureC", event.target.value)} /></div>
         </div>
-        <div className="field"><label htmlFor={`brew-stage-notes-${index}`}>What changed?</label><textarea className="textarea" id={`brew-stage-notes-${index}`} maxLength={600} value={stage.notes ?? ""} onChange={event => updateStage(index, "notes", event.target.value)} placeholder={prompt} /></div>
+        <div className="field"><label htmlFor={`brew-stage-notes-${index}`}>{isGongfuStyle ? index === firstInfusionIndex ? "How’s your first infusion?" : "What’s changed?" : "What changed?"}</label><textarea className="textarea" id={`brew-stage-notes-${index}`} maxLength={600} value={stage.notes ?? ""} onChange={event => updateStage(index, "notes", event.target.value)} placeholder={prompt} /></div>
       </article>;
     })}</div>
     {stages.length < 20 && <button className="btn btn-secondary" type="button" onClick={addStage}>Add {style.nextStageLabel?.toLocaleLowerCase("en-CA") ?? style.stageNoun}</button>}

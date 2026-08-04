@@ -145,7 +145,7 @@ describe("Tea Lab workspace", () => {
     expect(flavorWheelIndex(36, 10)).toBe(9);
   });
 
-  it("offers grouped brewing methods and a Gongfu wash-by-wash flow", () => {
+  it("offers grouped brewing methods and distinct first and later Gongfu infusion prompts", () => {
     const draft = {
       ...createSoloTeaDraft("owner-1", (() => {
         const ids = ["session-1", "card-1"];
@@ -161,9 +161,11 @@ describe("Tea Lab workspace", () => {
     expect(brewHtml).toContain("Gongfu");
     expect(brewHtml).toContain("Hong Kong–style milk tea");
     expect(brewHtml).toContain("Custom method");
-    expect(tasteHtml).toContain("Gongfu wash / infusion notes");
+    expect(tasteHtml).toContain("Gongfu infusion notes");
+    expect(tasteHtml).not.toContain("Gongfu wash / infusion notes");
     expect(tasteHtml).toContain("Rinse (optional)");
     expect(tasteHtml).toContain("Infusion 3");
-    expect(tasteHtml).toContain("What changed?");
+    expect(tasteHtml.match(/How’s your first infusion\?/g)).toHaveLength(1);
+    expect(tasteHtml).toContain("What’s changed?");
   });
 });
