@@ -114,6 +114,7 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
   const [storageError, setStorageError] = useState("");
   const [formError, setFormError] = useState("");
   const [completing, setCompleting] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
 
   const refreshDeviceState = useCallback(async (store: TeaLabOfflineStore) => {
@@ -267,6 +268,22 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
     setStep(nextStep);
   }
 
+  async function saveAndReviewTasting() {
+    const store = storeRef.current;
+    if (!store || !draft || reviewing || photoBusy || !draft.tasting.rating) return;
+    setReviewing(true);
+    setFormError("");
+    try {
+      await autosaveRef.current?.flush();
+      await refreshDeviceState(store);
+      advanceToStep("review");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "This tasting could not be saved before review.");
+    } finally {
+      setReviewing(false);
+    }
+  }
+
   async function leaveTasting() {
     await autosaveRef.current?.flush();
     currentDraftRef.current = null;
@@ -402,7 +419,7 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
     {formError && <div className="notice error" role="alert">{formError}</div>}
     {step === "choose" && <ChooseTeaStep draft={draft} options={teaOptions} update={replaceDraft} next={() => isTeaSelectionReady(draft) ? advanceToStep("brew") : setFormError("Choose a tea or enter its name to continue.")} />}
     {step === "brew" && <BrewStep draft={draft} update={replaceDraft} back={() => navigateToVisitedStep("choose")} next={() => advanceToStep("taste")} />}
-    {step === "taste" && <TasteStep draft={draft} descriptors={descriptorOptions} update={replaceDraft} back={() => navigateToVisitedStep("brew")} next={() => advanceToStep("review")} online={online} photoBusy={photoBusy} preparePhotoCard={preparePhotoCard} onPhotoBusyChange={setPhotoBusy} />}
+    {step === "taste" && <TasteStep draft={draft} descriptors={descriptorOptions} update={replaceDraft} back={() => navigateToVisitedStep("brew")} next={saveAndReviewTasting} online={online} photoBusy={photoBusy} reviewing={reviewing} preparePhotoCard={preparePhotoCard} onPhotoBusyChange={setPhotoBusy} />}
     {step === "review" && <ReviewStep draft={draft} teaOptions={teaOptions} descriptors={descriptorOptions} back={() => navigateToVisitedStep("taste")} complete={completeTasting} busy={completing || photoBusy} blocked={blocked} recoverableConflict={revisionConflict} />}
   </div>;
 }
@@ -647,7 +664,7 @@ function BrewStageNotes({ draft, update }: { draft: TeaLabSoloDraft; update: (re
   </fieldset>;
 }
 
-export function TasteStep({ draft, descriptors, update, back, next, online = true, photoBusy = false, preparePhotoCard, onPhotoBusyChange }: { draft: TeaLabSoloDraft; descriptors: TeaLabDescriptorOption[]; update: (recipe: (draft: TeaLabSoloDraft) => TeaLabSoloDraft) => void; back: () => void; next: () => void; online?: boolean; photoBusy?: boolean; preparePhotoCard?: () => Promise<void>; onPhotoBusyChange?: (busy: boolean) => void }) {
+export function TasteStep({ draft, descriptors, update, back, next, online = true, photoBusy = false, reviewing = false, preparePhotoCard, onPhotoBusyChange }: { draft: TeaLabSoloDraft; descriptors: TeaLabDescriptorOption[]; update: (recipe: (draft: TeaLabSoloDraft) => TeaLabSoloDraft) => void; back: () => void; next: () => void | Promise<void>; online?: boolean; photoBusy?: boolean; reviewing?: boolean; preparePhotoCard?: () => Promise<void>; onPhotoBusyChange?: (busy: boolean) => void }) {
   const setTasting = <K extends keyof TeaLabSoloDraft["tasting"]>(field: K, value: TeaLabSoloDraft["tasting"][K]) => update(current => ({ ...current, tasting: { ...current.tasting, [field]: value } }));
   function moveRating(event: React.KeyboardEvent<HTMLButtonElement>, current: number) {
     const rating = nextTeaLabRating(current, event.key);
@@ -665,7 +682,7 @@ export function TasteStep({ draft, descriptors, update, back, next, online = tru
     <fieldset className="tea-lab-fieldset"><legend>Overall rating <span className="muted">Required to complete</span></legend><div className="rating" role="radiogroup" aria-label="Overall rating">{[1, 2, 3, 4, 5].map(value => <button className={(draft.tasting.rating ?? 0) >= value ? "active" : ""} type="button" role="radio" aria-checked={draft.tasting.rating === value} aria-label={`${value} star${value === 1 ? "" : "s"}`} data-rating={value} tabIndex={draft.tasting.rating === value || (draft.tasting.rating === null && value === 1) ? 0 : -1} key={value} onKeyDown={event => moveRating(event, value)} onClick={() => setTasting("rating", value)}>★</button>)}</div></fieldset>
     <div className="field"><label htmlFor="personal-notes">Private notes</label><textarea className="textarea" id="personal-notes" maxLength={3000} value={draft.tasting.personalNotes ?? ""} onChange={event => setTasting("personalNotes", event.target.value || null)} placeholder="Anything you want to remember…" /></div>
     {preparePhotoCard && onPhotoBusyChange && <TeaLabPhotoCapture cardId={draft.cardId} online={online} prepareCard={preparePhotoCard} onBusyChange={onPhotoBusyChange} />}
-    <div className="card-footer"><button className="btn btn-secondary" type="button" disabled={photoBusy} onClick={back}>Back</button><button className="btn btn-primary btn-attention" type="button" disabled={!draft.tasting.rating || photoBusy} onClick={next}>Review tasting</button></div>
+    <div className="card-footer"><button className="btn btn-secondary" type="button" disabled={photoBusy || reviewing} onClick={back}>Back</button><button className="btn btn-primary btn-attention" type="button" disabled={!draft.tasting.rating || photoBusy || reviewing} onClick={next}>{reviewing ? "Saving…" : "Save & Review"}</button></div>
   </section>;
 }
 

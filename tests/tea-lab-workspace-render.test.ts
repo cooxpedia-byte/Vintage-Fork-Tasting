@@ -103,6 +103,29 @@ describe("Tea Lab workspace", () => {
     expect(html).toContain("Add from library");
   });
 
+  it("makes page-three review an explicit save action with a busy state", () => {
+    const draft = {
+      ...createSoloTeaDraft("owner-1", (() => {
+        const ids = ["session-1", "card-1"];
+        return () => ids.shift() ?? "unused";
+      })()),
+      tasting: {
+        firstImpression: "Sweet",
+        descriptorIds: [],
+        intensity: "clear" as const,
+        rating: 4,
+        personalNotes: null
+      }
+    };
+    const shared = { draft, descriptors: [], update: vi.fn(), back: vi.fn(), next: vi.fn() };
+
+    const readyHtml = renderToStaticMarkup(createElement(TasteStep, shared));
+    const savingHtml = renderToStaticMarkup(createElement(TasteStep, { ...shared, reviewing: true }));
+
+    expect(readyHtml).toContain("Save &amp; Review");
+    expect(savingHtml).toMatch(/<button class="btn btn-primary btn-attention" type="button" disabled="">Saving…<\/button>/);
+  });
+
   it("renders visited progress steps as edit buttons and locks unvisited steps", () => {
     const html = renderToStaticMarkup(createElement(TeaLabProgress, {
       step: "brew",
