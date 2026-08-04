@@ -648,7 +648,7 @@ function BrewStageNotes({ draft, update }: { draft: TeaLabSoloDraft; update: (re
   }]);
 
   return <fieldset className="tea-lab-fieldset tea-lab-brew-stages">
-    <legend>{style.label} {style.stageNoun} notes <span className="muted">Optional, private, up to 20</span></legend>
+    <legend>{style.label} {style.stageNoun} notes <span className="muted">Optional, private{style.repeatable ? ", up to 20" : ""}</span></legend>
     <p className="help">Capture each stage while you brew. Edit the guide to match this tea and your own practice.</p>
     <div className="tea-lab-stage-list">{stages.map((stage, index) => {
       const prompt = style.stages[index]?.notePrompt ?? `What did you notice during this ${style.stageNoun}?`;
@@ -664,7 +664,7 @@ function BrewStageNotes({ draft, update }: { draft: TeaLabSoloDraft; update: (re
         <div className="field"><label htmlFor={`brew-stage-notes-${index}`}>{noteLabel}</label><textarea className="textarea" id={`brew-stage-notes-${index}`} maxLength={600} value={stage.notes ?? ""} onChange={event => updateStage(index, { notes: event.target.value || null })} placeholder={prompt} /></div>
       </article>;
     })}</div>
-    {stages.length < 20 && <button className="btn btn-secondary" type="button" onClick={addStage}>Add {style.nextStageLabel?.toLocaleLowerCase("en-CA") ?? style.stageNoun}</button>}
+    {style.repeatable && stages.length < 20 && <button className="btn btn-secondary" type="button" onClick={addStage}>Add {style.nextStageLabel?.toLocaleLowerCase("en-CA") ?? style.stageNoun}</button>}
   </fieldset>;
 }
 

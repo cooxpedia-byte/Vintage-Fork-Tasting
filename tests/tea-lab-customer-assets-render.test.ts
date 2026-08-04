@@ -111,7 +111,19 @@ describe("Tea Lab customer assets", () => {
     expect(html).toMatch(/id="edit-stage-time-card-1-0" type="range" min="0" max="60"/);
     expect(html).toMatch(/id="edit-stage-temp-card-1-0" type="range" min="0" max="100"/);
     expect(html).toContain("Infusion time unit");
+    expect(html).toContain(">Add infusion</button>");
     expect(html).toContain("Passport stays intact.");
     expect(html).toContain("Save card");
+
+    const matchaHtml = renderToStaticMarkup(createElement(TeaLabCardEditor, {
+      draft: { ...draft, brewing: { ...draft.brewing, style: "matcha_koicha" } },
+      descriptorOptions: [],
+      busy: false,
+      onChange: vi.fn(),
+      onCancel: vi.fn(),
+      onSave: vi.fn()
+    }));
+    expect(matchaHtml).not.toContain(">Add phase</button>");
+    expect(matchaHtml).not.toContain("Up to 20");
   });
 });
