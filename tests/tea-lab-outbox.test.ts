@@ -212,6 +212,56 @@ describe("Tea Lab offline outbox", () => {
     });
   });
 
+  it("serializes background synchronization with a newer autosave from the same owner", async () => {
+    const store = new MemoryTeaLabStore();
+    const clock = clockFactory();
+    const staleUiDraft = tastingDraft();
+    await queueTeaLabDraftSave(store, staleUiDraft, idFactory("save-1"), clock);
+
+    let releaseTransport: () => void = () => undefined;
+    const transportPaused = new Promise<void>(resolve => { releaseTransport = resolve; });
+    let markTransportStarted: () => void = () => undefined;
+    const transportStarted = new Promise<void>(resolve => { markTransportStarted = resolve; });
+    const firstSync = syncTeaLabOutbox(store, "owner-1", async operation => {
+      markTransportStarted();
+      await transportPaused;
+      return {
+        outcome: "success",
+        session: { id: operation.sessionId, status: "in_progress", revision: 1, completedAt: null, archivedAt: null }
+      };
+    }, clock);
+    await transportStarted;
+
+    const changedWhileSyncing = {
+      ...staleUiDraft,
+      tasting: { ...staleUiDraft.tasting, personalNotes: "Typed while the prior save was syncing" }
+    };
+    let autosaveFinished = false;
+    const autosave = queueTeaLabDraftSave(store, changedWhileSyncing, idFactory("save-2"), clock)
+      .then(result => { autosaveFinished = true; return result; });
+    await Promise.resolve();
+    expect(autosaveFinished).toBe(false);
+
+    releaseTransport();
+    await firstSync;
+    await autosave;
+
+    const sent: Array<number | null> = [];
+    await syncTeaLabOutbox(store, "owner-1", async operation => {
+      sent.push(operation.expectedRevision);
+      return {
+        outcome: "success",
+        session: { id: operation.sessionId, status: "in_progress", revision: 2, completedAt: null, archivedAt: null }
+      };
+    }, clock);
+
+    expect(sent).toEqual([1]);
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({
+      serverRevision: 2,
+      tasting: { personalNotes: "Typed while the prior save was syncing" }
+    });
+  });
+
   it("requeues an explicitly chosen device copy against the reviewed server revision", async () => {
     const store = new MemoryTeaLabStore();
     const draft = { ...tastingDraft(), serverRevision: 2 };

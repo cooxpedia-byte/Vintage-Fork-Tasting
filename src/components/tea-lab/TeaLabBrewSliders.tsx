@@ -51,7 +51,6 @@ export function TeaLabDurationSlider({
 
   function changeUnit(nextUnit: TeaLabBrewDurationUnit) {
     setUnit(nextUnit);
-    onChange(durationFromSlider(String(value), nextUnit));
   }
 
   return <div className="field tea-lab-slider-field">
@@ -65,7 +64,7 @@ export function TeaLabDurationSlider({
       type="range"
       min="0"
       max="60"
-      step="1"
+      step={unit === "seconds" ? "1" : "0.1"}
       value={value}
       disabled={disabled}
       aria-valuetext={`${value} ${unit}`}

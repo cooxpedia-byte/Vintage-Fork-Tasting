@@ -3,6 +3,7 @@ import {
   createDefaultTeaLabBrewStages,
   durationInputToSeconds,
   durationSecondsToInput,
+  formatTeaLabDuration,
   getTeaLabBrewingStyle,
   nextTeaLabBrewStageLabel,
   TEA_LAB_BREWING_STYLES
@@ -35,5 +36,13 @@ describe("Tea Lab brewing flows", () => {
     expect(durationInputToSeconds("2.5", "minutes")).toBe(150);
     expect(durationInputToSeconds("", "seconds")).toBeNull();
     expect(getTeaLabBrewingStyle("cold_brew")?.durationUnit).toBe("hours");
+  });
+
+  it("formats persisted durations in readable mixed units", () => {
+    expect(formatTeaLabDuration(20)).toBe("20 sec");
+    expect(formatTeaLabDuration(2880)).toBe("48 min");
+    expect(formatTeaLabDuration(5400)).toBe("1 hr 30 min");
+    expect(formatTeaLabDuration(172800)).toBe("48 hr");
+    expect(formatTeaLabDuration(null)).toBeNull();
   });
 });
