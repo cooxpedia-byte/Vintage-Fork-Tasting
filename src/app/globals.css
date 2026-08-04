@@ -265,9 +265,14 @@ tr:last-child td { border-bottom: 0; }
 .guest-shell .descriptor:active, .guest-shell .rating button:active { transform: scale(.97); }
 
 .tea-lab-workspace { display: grid; gap: 1rem; }
-.tea-lab-hero { min-height: 220px; display: flex; align-items: center; justify-content: space-between; gap: 2rem; border-left: 5px solid var(--vf-gold); background: radial-gradient(circle at 100% 0%, rgba(201,162,39,.16), transparent 22rem), rgba(251,247,236,.96); }
-.tea-lab-hero > div { max-width: 720px; }
-.tea-lab-hero > .btn { flex: 0 0 auto; min-height: 54px; }
+.tea-lab-hero { position: relative; isolation: isolate; min-height: 300px; display: flex; align-items: center; justify-content: space-between; gap: 2rem; overflow: hidden; border-left: 5px solid var(--vf-gold); color: var(--vf-ivory); background: radial-gradient(circle at 88% 22%, rgba(201,162,39,.14), transparent 34%), linear-gradient(110deg, #2a0a22, #3b102f); box-shadow: var(--shadow-2); }
+.tea-lab-hero::before { content: ""; position: absolute; z-index: 0; inset: 0 0 0 auto; width: 62%; pointer-events: none; background: linear-gradient(rgba(27,8,22,.2), rgba(27,8,22,.34)), url("/brand/customer-dashboard-tea-ceremony.jpg") center 43% / cover no-repeat; -webkit-mask-image: linear-gradient(to left, #000 0%, #000 42%, rgba(0,0,0,.7) 62%, transparent 100%); mask-image: linear-gradient(to left, #000 0%, #000 42%, rgba(0,0,0,.7) 62%, transparent 100%); }
+.tea-lab-hero > * { position: relative; z-index: 1; }
+.tea-lab-hero > div { max-width: 650px; }
+.tea-lab-hero .eyebrow { color: var(--vf-gold-light); }
+.tea-lab-hero .page-title, .tea-lab-hero .page-lede { color: var(--vf-ivory); text-shadow: 0 2px 18px rgba(16,4,13,.68); }
+.tea-lab-hero .page-lede { max-width: 58ch; }
+.tea-lab-hero > .btn { flex: 0 0 auto; min-height: 54px; box-shadow: 0 12px 30px rgba(16,4,13,.3); }
 .tea-lab-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 44px; }
 .tea-lab-save-state { margin: 0; text-align: right; }
 .tea-lab-save-state.saved { color: var(--vf-forest); }
