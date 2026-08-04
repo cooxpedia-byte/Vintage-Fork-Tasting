@@ -23,7 +23,7 @@ const personalTeaSchema = z.object({
 
 const brewStageSchema = z.object({
   label: z.string().trim().min(1).max(80),
-  durationSeconds: z.number().int().min(1).max(86400).nullable().optional(),
+  durationSeconds: z.number().int().min(1).max(216000).nullable().optional(),
   temperatureC: z.number().finite().min(0).max(100).nullable().optional(),
   notes: optionalText(600)
 }).strict();
@@ -40,7 +40,7 @@ export const soloSessionSaveSchema = z.object({
     waterTemperatureC: z.number().finite().min(0).max(100).nullable().optional(),
     waterSource: optionalText(160),
     vessel: optionalText(160),
-    initialSteepSeconds: z.number().int().min(1).max(86400).nullable().optional(),
+    initialSteepSeconds: z.number().int().min(1).max(216000).nullable().optional(),
     preparationNotes: optionalText(1200),
     stages: z.array(brewStageSchema).max(20).optional()
   }).strict().default({}),

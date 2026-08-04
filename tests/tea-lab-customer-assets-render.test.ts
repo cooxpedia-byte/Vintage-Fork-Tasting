@@ -31,7 +31,12 @@ const soloSession: JournalSession = {
   cards: [{
     id: "solo:card-1", source: "solo", sourceId: "card-1", canonicalTeaId: null, personalTeaId: "personal-1", teaName: "Moonlight White", origin: "Yunnan", rating: 4,
     intensity: "clear", descriptors: [], firstImpression: "Soft", personalNotes: "Private", completedAt: "2026-08-03T12:00:00.000Z",
-    saved: false, position: 1, sealClass: "documented_tasting"
+    saved: false, position: 1, sealClass: "documented_tasting",
+    brewing: {
+      style: "gongfu", leafGrams: 5, waterMl: 100, waterTemperatureC: 85, waterSource: "Filtered", vessel: "Gaiwan",
+      initialSteepSeconds: 10, instructions: null, preparationNotes: null,
+      stages: [{ label: "Infusion 1", durationSeconds: 10, temperatureC: 85, notes: "Soft apricot" }]
+    }
   }]
 };
 
@@ -73,6 +78,9 @@ describe("Tea Lab customer assets", () => {
     expect(html).toContain("Show archived tastings (1)");
     expect(html).toContain("View card");
     expect(html).toContain("View tasting card for Moonlight White");
+    expect(html).toContain("journal-desktop-table");
+    expect(html).toContain("journal-mobile-tea-list");
+    expect(html).toContain("journal-mobile-tea-card");
     expect(html).not.toContain("Restore tasting");
   });
 
@@ -93,6 +101,9 @@ describe("Tea Lab customer assets", () => {
     expect(html).toContain("Flavour descriptors");
     expect(html).toContain("Brewing record");
     expect(html).toContain("Brew stages");
+    expect(html).toMatch(/id="edit-stage-time-card-1-0" type="range" min="0" max="60"/);
+    expect(html).toMatch(/id="edit-stage-temp-card-1-0" type="range" min="0" max="100"/);
+    expect(html).toContain("Infusion time unit");
     expect(html).toContain("Passport stays intact.");
     expect(html).toContain("Save card");
   });

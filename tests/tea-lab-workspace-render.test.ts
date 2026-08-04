@@ -165,6 +165,14 @@ describe("Tea Lab workspace", () => {
     expect(tasteHtml).not.toContain("Gongfu wash / infusion notes");
     expect(tasteHtml).toContain("Rinse (optional)");
     expect(tasteHtml).toContain("Infusion 3");
+    expect(brewHtml).toMatch(/id="water-temperature" type="range" min="0" max="100"/);
+    expect(brewHtml).toMatch(/id="steep-seconds" type="range" min="0" max="60"/);
+    expect(tasteHtml).toMatch(/id="brew-stage-duration-1" type="range" min="0" max="60"/);
+    expect(tasteHtml).toMatch(/id="brew-stage-temperature-1" type="range" min="0" max="100"/);
+    expect(tasteHtml).toContain("Infusion time unit");
+    expect(tasteHtml).toContain('<option value="seconds" selected="">Seconds</option>');
+    expect(tasteHtml).toContain('<option value="minutes">Minutes</option>');
+    expect(tasteHtml).toContain('<option value="hours">Hours</option>');
     expect(tasteHtml.match(/How’s your first infusion\?/g)).toHaveLength(1);
     expect(tasteHtml).toMatch(/How’s your first infusion\?<\/label><textarea[^>]*id="brew-stage-notes-0"/);
     expect(tasteHtml).toMatch(/What’s changed\?<\/label><textarea[^>]*id="brew-stage-notes-1"/);

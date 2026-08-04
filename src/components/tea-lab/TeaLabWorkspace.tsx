@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { TeaLabPhotoCapture } from "@/components/tea-lab/TeaLabPhotoCapture";
 import { FlavorDescriptorPicker } from "@/components/tea-lab/FlavorDescriptorPicker";
+import { TeaLabDurationSlider, TeaLabTemperatureSlider } from "@/components/tea-lab/TeaLabBrewSliders";
 import { formatCustomerEventDateTime } from "@/lib/customer-dashboard";
 import { IndexedDbTeaLabOfflineStore } from "@/lib/tea-lab/indexed-db";
 import {
   createDefaultTeaLabBrewStages,
-  durationInputToSeconds,
-  durationSecondsToInput,
   getTeaLabBrewingStyle,
   nextTeaLabBrewStageLabel,
   TEA_LAB_BREWING_STYLE_GROUPS,
@@ -591,10 +590,10 @@ export function BrewStep({ draft, update, back, next }: { draft: TeaLabSoloDraft
     <div className="grid grid-3">
       <div className="field"><label htmlFor="leaf-grams">Leaf weight (g)</label><input className="input" id="leaf-grams" type="number" min="0.01" max="1000" step="0.1" value={numericValue(draft.brewing.leafGrams)} onChange={event => setBrewing("leafGrams", event.target.value, true)} /></div>
       <div className="field"><label htmlFor="water-ml">Water (ml)</label><input className="input" id="water-ml" type="number" min="1" max="10000" step="1" value={numericValue(draft.brewing.waterMl)} onChange={event => setBrewing("waterMl", event.target.value, true)} /></div>
-      <div className="field"><label htmlFor="water-temperature">Temperature (°C)</label><input className="input" id="water-temperature" type="number" min="0" max="100" step="1" value={numericValue(draft.brewing.waterTemperatureC)} onChange={event => setBrewing("waterTemperatureC", event.target.value, true)} /></div>
+      <TeaLabTemperatureSlider id="water-temperature" label="Water temperature" valueC={draft.brewing.waterTemperatureC} onChange={value => update(current => ({ ...current, brewing: { ...current.brewing, waterTemperatureC: value } }))} />
       <div className="field"><label htmlFor="vessel">Vessel</label><input className="input" id="vessel" maxLength={160} value={draft.brewing.vessel ?? ""} onChange={event => setBrewing("vessel", event.target.value)} placeholder={style?.vesselSuggestion} /></div>
       <div className="field"><label htmlFor="water-source">Water source</label><input className="input" id="water-source" maxLength={160} value={draft.brewing.waterSource ?? ""} onChange={event => setBrewing("waterSource", event.target.value)} /></div>
-      <div className="field"><label htmlFor="steep-seconds">Initial steep (seconds)</label><input className="input" id="steep-seconds" type="number" min="1" max="86400" step="1" value={numericValue(draft.brewing.initialSteepSeconds)} onChange={event => setBrewing("initialSteepSeconds", event.target.value, true)} /></div>
+      <TeaLabDurationSlider key={`initial-${style?.id ?? "seconds"}`} id="steep-seconds" label="Initial steep" valueSeconds={draft.brewing.initialSteepSeconds} preferredUnit={style?.durationUnit ?? "seconds"} onChange={value => update(current => ({ ...current, brewing: { ...current.brewing, initialSteepSeconds: value } }))} />
     </div>
     <div className="field"><label htmlFor="preparation-notes">Setup notes</label><textarea className="textarea" id="preparation-notes" maxLength={1200} value={draft.brewing.preparationNotes ?? ""} onChange={event => setBrewing("preparationNotes", event.target.value)} placeholder="Leaf arrangement, rinse, ice amount, spice mix, milk ratio…" /></div>
     <div className="card-footer"><button className="btn btn-secondary" type="button" onClick={back}>Back</button><button className="btn btn-primary btn-attention" type="button" disabled={!draft.brewing.style} onClick={next}>Continue to brew notes</button></div>
@@ -610,11 +609,9 @@ function BrewStageNotes({ draft, update }: { draft: TeaLabSoloDraft; update: (re
     ...current,
     brewing: { ...current.brewing, stages: recipe(current.brewing.stages ?? []) }
   }));
-  const updateStage = (index: number, field: keyof TeaLabBrewStageDraft, value: string) => updateStages(current => current.map((stage, stageIndex) => stageIndex === index ? {
+  const updateStage = (index: number, stageUpdate: Partial<TeaLabBrewStageDraft>) => updateStages(current => current.map((stage, stageIndex) => stageIndex === index ? {
     ...stage,
-    [field]: field === "durationSeconds"
-      ? durationInputToSeconds(value, style.durationUnit)
-      : field === "temperatureC" ? parseOptionalNumber(value) : value || null
+    ...stageUpdate
   } : stage));
   const addStage = () => updateStages(current => current.length >= 20 ? current : [...current, {
     label: nextTeaLabBrewStageLabel(draft.brewing.style as TeaLabBrewingStyle, current),
@@ -632,12 +629,12 @@ function BrewStageNotes({ draft, update }: { draft: TeaLabSoloDraft; update: (re
         ? index === 0 ? "How’s your first infusion?" : "What’s changed?"
         : "What changed?";
       return <article className="tea-lab-stage" key={index}>
-        <div className="tea-lab-stage-heading"><span>{index + 1}</span><div className="field"><label htmlFor={`brew-stage-label-${index}`}>Stage name</label><input className="input" id={`brew-stage-label-${index}`} maxLength={80} value={stage.label} onChange={event => { if (event.target.value.trim()) updateStage(index, "label", event.target.value); }} /></div>{stages.length > 1 && <button className="btn btn-quiet danger" type="button" aria-label={`Remove ${stage.label}`} onClick={() => updateStages(current => current.filter((_, stageIndex) => stageIndex !== index))}>Remove</button>}</div>
+        <div className="tea-lab-stage-heading"><span>{index + 1}</span><div className="field"><label htmlFor={`brew-stage-label-${index}`}>Stage name</label><input className="input" id={`brew-stage-label-${index}`} maxLength={80} value={stage.label} onChange={event => { if (event.target.value.trim()) updateStage(index, { label: event.target.value }); }} /></div>{stages.length > 1 && <button className="btn btn-quiet danger" type="button" aria-label={`Remove ${stage.label}`} onClick={() => updateStages(current => current.filter((_, stageIndex) => stageIndex !== index))}>Remove</button>}</div>
         <div className="grid grid-2">
-          <div className="field"><label htmlFor={`brew-stage-duration-${index}`}>Time ({style.durationUnit})</label><input className="input" id={`brew-stage-duration-${index}`} type="number" min={style.durationUnit === "seconds" ? 1 : 0.01} max={style.durationUnit === "hours" ? 24 : style.durationUnit === "minutes" ? 1440 : 86400} step={style.durationUnit === "seconds" ? 1 : 0.1} value={durationSecondsToInput(stage.durationSeconds, style.durationUnit)} onChange={event => updateStage(index, "durationSeconds", event.target.value)} /></div>
-          <div className="field"><label htmlFor={`brew-stage-temperature-${index}`}>Temperature (°C)</label><input className="input" id={`brew-stage-temperature-${index}`} type="number" min="0" max="100" step="1" value={numericValue(stage.temperatureC)} onChange={event => updateStage(index, "temperatureC", event.target.value)} /></div>
+          <TeaLabDurationSlider key={`${style.id}-${index}-duration`} id={`brew-stage-duration-${index}`} label="Infusion time" valueSeconds={stage.durationSeconds} preferredUnit={style.durationUnit} onChange={value => updateStage(index, { durationSeconds: value })} />
+          <TeaLabTemperatureSlider id={`brew-stage-temperature-${index}`} label="Water temperature" valueC={stage.temperatureC} onChange={value => updateStage(index, { temperatureC: value })} />
         </div>
-        <div className="field"><label htmlFor={`brew-stage-notes-${index}`}>{noteLabel}</label><textarea className="textarea" id={`brew-stage-notes-${index}`} maxLength={600} value={stage.notes ?? ""} onChange={event => updateStage(index, "notes", event.target.value)} placeholder={prompt} /></div>
+        <div className="field"><label htmlFor={`brew-stage-notes-${index}`}>{noteLabel}</label><textarea className="textarea" id={`brew-stage-notes-${index}`} maxLength={600} value={stage.notes ?? ""} onChange={event => updateStage(index, { notes: event.target.value || null })} placeholder={prompt} /></div>
       </article>;
     })}</div>
     {stages.length < 20 && <button className="btn btn-secondary" type="button" onClick={addStage}>Add {style.nextStageLabel?.toLocaleLowerCase("en-CA") ?? style.stageNoun}</button>}

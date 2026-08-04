@@ -1,7 +1,9 @@
 "use client";
 
 import { FlavorDescriptorPicker } from "@/components/tea-lab/FlavorDescriptorPicker";
+import { TeaLabDurationSlider, TeaLabTemperatureSlider } from "@/components/tea-lab/TeaLabBrewSliders";
 import {
+  getTeaLabBrewingStyle,
   TEA_LAB_BREWING_STYLE_GROUPS,
   TEA_LAB_BREWING_STYLES
 } from "@/lib/tea-lab/brewing";
@@ -49,6 +51,7 @@ export function TeaLabCardEditor({ draft, descriptorOptions, busy, onChange, onC
     setBrewing("stages", (draft.brewing.stages ?? []).map((stage, stageIndex) => stageIndex === index ? { ...stage, ...update } : stage));
   };
   const stages = draft.brewing.stages ?? [];
+  const preferredDurationUnit = getTeaLabBrewingStyle(draft.brewing.style)?.durationUnit ?? "seconds";
 
   return <form className="tea-lab-card-editor" aria-labelledby={`edit-card-${draft.cardId}`} onSubmit={event => { event.preventDefault(); onSave(); }}>
     <div className="section-label"><span id={`edit-card-${draft.cardId}`}>Edit tasting card</span></div>
@@ -95,10 +98,10 @@ export function TeaLabCardEditor({ draft, descriptorOptions, busy, onChange, onC
       <div className="grid grid-3">
         <div className="field"><label htmlFor={`edit-leaf-${draft.cardId}`}>Leaf weight (g)</label><input className="input" id={`edit-leaf-${draft.cardId}`} type="number" min="0.01" max="1000" step="0.1" value={numericValue(draft.brewing.leafGrams)} onChange={event => setBrewing("leafGrams", optionalNumber(event.target.value))} /></div>
         <div className="field"><label htmlFor={`edit-water-${draft.cardId}`}>Water (ml)</label><input className="input" id={`edit-water-${draft.cardId}`} type="number" min="1" max="10000" step="1" value={numericValue(draft.brewing.waterMl)} onChange={event => setBrewing("waterMl", optionalNumber(event.target.value))} /></div>
-        <div className="field"><label htmlFor={`edit-temperature-${draft.cardId}`}>Temperature (°C)</label><input className="input" id={`edit-temperature-${draft.cardId}`} type="number" min="0" max="100" step="1" value={numericValue(draft.brewing.waterTemperatureC)} onChange={event => setBrewing("waterTemperatureC", optionalNumber(event.target.value))} /></div>
+        <TeaLabTemperatureSlider id={`edit-temperature-${draft.cardId}`} label="Water temperature" valueC={draft.brewing.waterTemperatureC} disabled={busy} onChange={value => setBrewing("waterTemperatureC", value)} />
         <div className="field"><label htmlFor={`edit-vessel-${draft.cardId}`}>Vessel</label><input className="input" id={`edit-vessel-${draft.cardId}`} maxLength={160} value={draft.brewing.vessel ?? ""} onChange={event => setBrewing("vessel", event.target.value || null)} /></div>
         <div className="field"><label htmlFor={`edit-water-source-${draft.cardId}`}>Water source</label><input className="input" id={`edit-water-source-${draft.cardId}`} maxLength={160} value={draft.brewing.waterSource ?? ""} onChange={event => setBrewing("waterSource", event.target.value || null)} /></div>
-        <div className="field"><label htmlFor={`edit-steep-${draft.cardId}`}>Initial steep (seconds)</label><input className="input" id={`edit-steep-${draft.cardId}`} type="number" min="1" max="86400" step="1" value={numericValue(draft.brewing.initialSteepSeconds)} onChange={event => setBrewing("initialSteepSeconds", optionalNumber(event.target.value))} /></div>
+        <TeaLabDurationSlider key={`edit-initial-${draft.cardId}-${draft.brewing.style ?? "seconds"}`} id={`edit-steep-${draft.cardId}`} label="Initial steep" valueSeconds={draft.brewing.initialSteepSeconds} preferredUnit={preferredDurationUnit} disabled={busy} onChange={value => setBrewing("initialSteepSeconds", value)} />
       </div>
       <div className="field"><label htmlFor={`edit-preparation-${draft.cardId}`}>Setup notes</label><textarea className="textarea" id={`edit-preparation-${draft.cardId}`} maxLength={1200} value={draft.brewing.preparationNotes ?? ""} onChange={event => setBrewing("preparationNotes", event.target.value || null)} /></div>
     </fieldset>
@@ -109,8 +112,8 @@ export function TeaLabCardEditor({ draft, descriptorOptions, busy, onChange, onC
         <div className="card-header"><strong>Stage {index + 1}</strong>{stages.length > 1 && <button className="btn btn-quiet danger" type="button" disabled={busy} onClick={() => setBrewing("stages", stages.filter((_, stageIndex) => stageIndex !== index))}>Remove</button>}</div>
         <div className="grid grid-3">
           <div className="field"><label htmlFor={`edit-stage-name-${draft.cardId}-${index}`}>Stage name</label><input className="input" id={`edit-stage-name-${draft.cardId}-${index}`} maxLength={80} required value={stage.label} onChange={event => updateStage(index, { label: event.target.value })} /></div>
-          <div className="field"><label htmlFor={`edit-stage-time-${draft.cardId}-${index}`}>Time (seconds)</label><input className="input" id={`edit-stage-time-${draft.cardId}-${index}`} type="number" min="1" max="86400" step="1" value={numericValue(stage.durationSeconds)} onChange={event => updateStage(index, { durationSeconds: optionalNumber(event.target.value) })} /></div>
-          <div className="field"><label htmlFor={`edit-stage-temp-${draft.cardId}-${index}`}>Temperature (°C)</label><input className="input" id={`edit-stage-temp-${draft.cardId}-${index}`} type="number" min="0" max="100" step="1" value={numericValue(stage.temperatureC)} onChange={event => updateStage(index, { temperatureC: optionalNumber(event.target.value) })} /></div>
+          <TeaLabDurationSlider key={`edit-${draft.cardId}-${draft.brewing.style ?? "seconds"}-${index}`} id={`edit-stage-time-${draft.cardId}-${index}`} label="Infusion time" valueSeconds={stage.durationSeconds} preferredUnit={preferredDurationUnit} disabled={busy} onChange={value => updateStage(index, { durationSeconds: value })} />
+          <TeaLabTemperatureSlider id={`edit-stage-temp-${draft.cardId}-${index}`} label="Water temperature" valueC={stage.temperatureC} disabled={busy} onChange={value => updateStage(index, { temperatureC: value })} />
         </div>
         <div className="field"><label htmlFor={`edit-stage-notes-${draft.cardId}-${index}`}>Notes</label><textarea className="textarea" id={`edit-stage-notes-${draft.cardId}-${index}`} maxLength={600} value={stage.notes ?? ""} onChange={event => updateStage(index, { notes: event.target.value || null })} /></div>
       </article>)}</div>

@@ -41,4 +41,24 @@ describe("tasting descriptor validation", () => {
       tasting: { ...payload.tasting, descriptorIds: ids }
     }).success).toBe(false);
   });
+
+  it("accepts the full 0-to-60 hour brewing slider range", () => {
+    const payload = {
+      operationId: ids[0],
+      cardId: ids[1],
+      expectedRevision: 0,
+      tea: { kind: "canonical" as const, canonicalTeaId: ids[2] },
+      brewing: {
+        initialSteepSeconds: 216000,
+        stages: [{ label: "Long infusion", durationSeconds: 216000, temperatureC: 100, notes: null }]
+      },
+      tasting: { firstImpression: null, descriptorIds: [], intensity: null, rating: 4, personalNotes: null }
+    };
+
+    expect(soloSessionSaveSchema.safeParse(payload).success).toBe(true);
+    expect(soloSessionSaveSchema.safeParse({
+      ...payload,
+      brewing: { ...payload.brewing, initialSteepSeconds: 216001 }
+    }).success).toBe(false);
+  });
 });

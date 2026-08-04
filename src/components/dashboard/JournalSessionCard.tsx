@@ -24,10 +24,25 @@ function TeaRow({ card, contextLabel, occurredAt }: { card: JournalCard; context
   </tr>;
 }
 
+function MobileTeaCard({ card, contextLabel, occurredAt }: { card: JournalCard; contextLabel: string; occurredAt: string }) {
+  return <article className="journal-mobile-tea-card">
+    <div className="card-header">
+      <div><h3 className="card-title">{card.teaName}</h3>{card.origin && <p className="card-meta">{card.origin}</p>}</div>
+      {card.sealClass && <span className="chip chip-success">{SEAL_LABELS[card.sealClass]}</span>}
+    </div>
+    <dl>
+      <div><dt>Rating</dt><dd>{ratingLabel(card.rating)}</dd></div>
+      <div><dt>Intensity</dt><dd>{card.intensity ?? "—"}</dd></div>
+      <div className="journal-mobile-descriptors"><dt>Your descriptors</dt><dd>{card.descriptors.map(descriptor => descriptor.label).join(", ") || "—"}</dd></div>
+    </dl>
+    <TastingCardDialog card={card} contextLabel={contextLabel} earnedAt={card.completedAt ?? occurredAt} triggerLabel={`View tasting card for ${card.teaName}`}><span>View card</span><span aria-hidden="true">→</span></TastingCardDialog>
+  </article>;
+}
+
 export function JournalSessionCard({ session, ownerUserId, descriptorOptions = [] }: { session: JournalSession; ownerUserId?: string; descriptorOptions?: TeaLabDescriptorOption[] }) {
   const cardsWithNotes = session.cards.filter(card => card.firstImpression || card.personalNotes);
 
-  return <article className="card">
+  return <article className="card journal-session-card">
     <div className="card-header">
       <div>
         <h2 className="card-title">{session.title}</h2>
@@ -35,10 +50,11 @@ export function JournalSessionCard({ session, ownerUserId, descriptorOptions = [
       </div>
       <span className="chip chip-success">{session.source === "live" ? "Live tasting" : "Solo tasting"}</span>
     </div>
-    <div className="table-wrap"><table>
+    <div className="table-wrap journal-desktop-table"><table>
       <thead><tr><th>Tea</th><th>Rating</th><th>Intensity</th><th>Your descriptors</th><th>Seal</th><th><span className="sr-only">Card</span></th></tr></thead>
       <tbody>{session.cards.map(card => <TeaRow card={card} contextLabel={session.contextLabel} occurredAt={session.occurredAt} key={card.id} />)}</tbody>
     </table></div>
+    <div className="journal-mobile-tea-list">{session.cards.map(card => <MobileTeaCard card={card} contextLabel={session.contextLabel} occurredAt={session.occurredAt} key={card.id} />)}</div>
     {cardsWithNotes.length > 0 && <div>
       <div className="section-label"><span>Your private notes</span></div>
       <div className="stack">{cardsWithNotes.map(card => <article key={`note-${card.id}`} className="notice">
