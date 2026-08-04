@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { DetachableTastingSeal, PhotoSlider, TastingCardPresentation, tastingCardTeaTheme, tastingCardTitleLengthClass } from "@/components/tea-lab/TastingCardDialog";
+import { DetachableTastingSeal, PhotoSlider, TastingCardPresentation, tastingCardStyleLengthClass, tastingCardTeaTheme, tastingCardTitleLengthClass } from "@/components/tea-lab/TastingCardDialog";
 import type { JournalCard } from "@/lib/tea-lab/journal";
 
 const card: JournalCard = {
@@ -117,5 +117,20 @@ describe("Tea Lab tasting-card photo slider", () => {
     expect(tastingCardTitleLengthClass("A Very Long Tea Name From a Small Mountain Garden Lot Seven")).toBe("is-long is-extra-long");
     expect(html.match(/is-long/g)).toHaveLength(2);
     expect(html.match(new RegExp(longName, "g"))).toHaveLength(4);
+  });
+
+  it("uses compact styles for long brewing method labels", () => {
+    const html = renderToStaticMarkup(createElement(TastingCardPresentation, {
+      card: { ...card, brewing: { ...card.brewing!, style: "matcha_koicha" } },
+      contextLabel: "Personal session",
+      earnedAt: "2026-08-03T12:00:00.000Z",
+      flipped: true
+    }));
+
+    expect(tastingCardStyleLengthClass("Gongfu")).toBe("");
+    expect(tastingCardStyleLengthClass("Matcha — koicha")).toBe("is-long");
+    expect(tastingCardStyleLengthClass("Hong Kong–style milk tea")).toBe("is-long is-extra-long");
+    expect(html).toContain("tasting-card-live-style tasting-card-live-paper is-long");
+    expect(html).toContain("Matcha — koicha");
   });
 });
