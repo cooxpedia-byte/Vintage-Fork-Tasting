@@ -118,10 +118,10 @@ export function TeaLabSessionActions({ ownerUserId, session, descriptorOptions, 
       {children}
       <div className="journal-session-action-rail" role="group" aria-label={`Actions for ${session.title}`}>
       <button className="btn btn-gold" type="button" disabled={busy !== null || editingDraft !== null} onClick={beginEdit}>Edit</button>
-      <button className="btn btn-secondary" type="button" disabled={busy !== null || editingDraft !== null} onClick={() => void run("archive")}>
+      <button className="btn btn-secondary journal-session-action-archive" type="button" disabled={busy !== null || editingDraft !== null} onClick={() => void run("archive")}>
         {busy === "archive" ? "Saving…" : session.archivedAt ? "Restore" : "Archive"}
       </button>
-      <button className="btn btn-danger" type="button" ref={deleteTriggerRef} disabled={busy !== null || editingDraft !== null} onClick={() => setConfirmingDelete(true)}>Delete</button>
+      <button className="btn btn-danger journal-session-action-delete" type="button" ref={deleteTriggerRef} disabled={busy !== null || editingDraft !== null} onClick={() => setConfirmingDelete(true)}>Delete</button>
       </div>
     </div>
     <div className="tea-lab-record-actions">

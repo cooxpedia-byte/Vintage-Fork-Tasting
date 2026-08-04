@@ -75,6 +75,8 @@ describe("Tea Lab customer assets", () => {
     expect(html).toContain(">Edit</button>");
     expect(html).toContain(">Archive</button>");
     expect(html).toContain(">Delete</button>");
+    expect(html).toContain("btn btn-secondary journal-session-action-archive");
+    expect(html).toContain("btn btn-danger journal-session-action-delete");
     expect(html).toContain("Swipe left for actions");
     expect(html).toContain("journal-session-swipe-row");
     expect(html).toContain("journal-session-action-rail");
