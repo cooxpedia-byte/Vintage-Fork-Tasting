@@ -268,3 +268,17 @@ export function durationInputToSeconds(value: string, unit: TeaLabBrewDurationUn
   const multiplier = unit === "hours" ? 3600 : unit === "minutes" ? 60 : 1;
   return Math.max(1, Math.round(parsed * multiplier));
 }
+
+export function formatTeaLabDuration(seconds: number | null | undefined): string | null {
+  if (!Number.isFinite(seconds) || !seconds || seconds < 1) return null;
+  let remaining = Math.round(seconds);
+  const hours = Math.floor(remaining / 3600);
+  remaining %= 3600;
+  const minutes = Math.floor(remaining / 60);
+  const trailingSeconds = remaining % 60;
+  return [
+    hours ? `${hours} hr` : null,
+    minutes ? `${minutes} min` : null,
+    trailingSeconds ? `${trailingSeconds} sec` : null
+  ].filter(Boolean).join(" ");
+}

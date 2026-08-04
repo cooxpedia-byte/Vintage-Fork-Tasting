@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { BrewStep, TasteStep, TeaLabProgress, TeaLabWorkspace, teaLabDraftTeaName } from "@/components/tea-lab/TeaLabWorkspace";
+import { BrewStep, ReviewStep, TasteStep, TeaLabProgress, TeaLabWorkspace, teaLabDraftTeaName } from "@/components/tea-lab/TeaLabWorkspace";
 import { FlavorDescriptorPicker, flavorWheelIndex, flavorWheelRotation } from "@/components/tea-lab/FlavorDescriptorPicker";
 import { TEA_DESCRIPTOR_PALETTE } from "@/lib/tea-lab/descriptors";
 import { createDefaultTeaLabBrewStages } from "@/lib/tea-lab/brewing";
@@ -166,7 +166,7 @@ describe("Tea Lab workspace", () => {
     expect(tasteHtml).toContain("Rinse (optional)");
     expect(tasteHtml).toContain("Infusion 3");
     expect(brewHtml).toMatch(/id="water-temperature" type="range" min="0" max="100"/);
-    expect(brewHtml).toMatch(/id="steep-seconds" type="range" min="0" max="60"/);
+    expect(brewHtml).toMatch(/id="steep-seconds" type="range" min="0" max="60" step="1"/);
     expect(tasteHtml).toMatch(/id="brew-stage-duration-1" type="range" min="0" max="60"/);
     expect(tasteHtml).toMatch(/id="brew-stage-temperature-1" type="range" min="0" max="100"/);
     expect(tasteHtml).toContain("Infusion time unit");
@@ -176,5 +176,31 @@ describe("Tea Lab workspace", () => {
     expect(tasteHtml.match(/How’s your first infusion\?/g)).toHaveLength(1);
     expect(tasteHtml).toMatch(/How’s your first infusion\?<\/label><textarea[^>]*id="brew-stage-notes-0"/);
     expect(tasteHtml).toMatch(/What’s changed\?<\/label><textarea[^>]*id="brew-stage-notes-1"/);
+  });
+
+  it("keeps the primary completion action available for a reviewable revision conflict", () => {
+    const draft = {
+      ...createSoloTeaDraft("owner-1", (() => {
+        const ids = ["session-1", "card-1"];
+        return () => ids.shift() ?? "unused";
+      })()),
+      tea: { kind: "personal" as const, personalTeaId: "personal-1", name: "Moonlight White" },
+      brewing: { style: "koridashi" as const, initialSteepSeconds: 2880 },
+      tasting: { firstImpression: null, descriptorIds: [], intensity: null, rating: 4, personalNotes: null }
+    };
+    const html = renderToStaticMarkup(createElement(ReviewStep, {
+      draft,
+      teaOptions: [],
+      descriptors: [],
+      back: vi.fn(),
+      complete: vi.fn(),
+      busy: false,
+      blocked: true,
+      recoverableConflict: true
+    }));
+
+    expect(html).toContain("48 min");
+    expect(html).toContain("Save This Copy &amp; Complete");
+    expect(html).toMatch(/<button class="btn btn-gold btn-attention" type="button">Save This Copy &amp; Complete<\/button>/);
   });
 });

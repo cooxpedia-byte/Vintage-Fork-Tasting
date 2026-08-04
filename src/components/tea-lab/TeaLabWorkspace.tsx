@@ -10,6 +10,7 @@ import { formatCustomerEventDateTime } from "@/lib/customer-dashboard";
 import { IndexedDbTeaLabOfflineStore } from "@/lib/tea-lab/indexed-db";
 import {
   createDefaultTeaLabBrewStages,
+  formatTeaLabDuration,
   getTeaLabBrewingStyle,
   nextTeaLabBrewStageLabel,
   TEA_LAB_BREWING_STYLE_GROUPS,
@@ -276,9 +277,14 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
 
   async function completeTasting() {
     const store = storeRef.current;
-    if (!store || !draft || blocked || photoBusy) return;
+    if (!store || !draft || photoBusy) return;
     if (!isTeaSelectionReady(draft) || !draft.brewing.style || !draft.tasting.rating) {
       setFormError("Choose a tea and brewing style, then add a rating before completing this tasting.");
+      return;
+    }
+    if (blocked) {
+      if (revisionConflict) await retryDeviceCopy();
+      else setFormError("This tasting has a sync issue that must be retried before it can be completed.");
       return;
     }
     setCompleting(true);
@@ -397,7 +403,7 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
     {step === "choose" && <ChooseTeaStep draft={draft} options={teaOptions} update={replaceDraft} next={() => isTeaSelectionReady(draft) ? advanceToStep("brew") : setFormError("Choose a tea or enter its name to continue.")} />}
     {step === "brew" && <BrewStep draft={draft} update={replaceDraft} back={() => navigateToVisitedStep("choose")} next={() => advanceToStep("taste")} />}
     {step === "taste" && <TasteStep draft={draft} descriptors={descriptorOptions} update={replaceDraft} back={() => navigateToVisitedStep("brew")} next={() => advanceToStep("review")} online={online} photoBusy={photoBusy} preparePhotoCard={preparePhotoCard} onPhotoBusyChange={setPhotoBusy} />}
-    {step === "review" && <ReviewStep draft={draft} teaOptions={teaOptions} descriptors={descriptorOptions} back={() => navigateToVisitedStep("taste")} complete={completeTasting} busy={completing || photoBusy} blocked={blocked} />}
+    {step === "review" && <ReviewStep draft={draft} teaOptions={teaOptions} descriptors={descriptorOptions} back={() => navigateToVisitedStep("taste")} complete={completeTasting} busy={completing || photoBusy} blocked={blocked} recoverableConflict={revisionConflict} />}
   </div>;
 }
 
@@ -570,7 +576,7 @@ export function BrewStep({ draft, update, back, next }: { draft: TeaLabSoloDraft
       brewing: {
         ...current.brewing,
         style: selected,
-        initialSteepSeconds: current.brewing.initialSteepSeconds || stages.find(stage => stage.durationSeconds)?.durationSeconds || null,
+        initialSteepSeconds: stages.find(stage => stage.durationSeconds)?.durationSeconds || null,
         stages
       }
     }));
@@ -663,7 +669,7 @@ export function TasteStep({ draft, descriptors, update, back, next, online = tru
   </section>;
 }
 
-function ReviewStep({ draft, teaOptions, descriptors, back, complete, busy, blocked }: { draft: TeaLabSoloDraft; teaOptions: TeaLabTeaOption[]; descriptors: TeaLabDescriptorOption[]; back: () => void; complete: () => void; busy: boolean; blocked: boolean }) {
+export function ReviewStep({ draft, teaOptions, descriptors, back, complete, busy, blocked, recoverableConflict = false }: { draft: TeaLabSoloDraft; teaOptions: TeaLabTeaOption[]; descriptors: TeaLabDescriptorOption[]; back: () => void; complete: () => void; busy: boolean; blocked: boolean; recoverableConflict?: boolean }) {
   const labels = draft.tasting.descriptorIds.map(id => descriptors.find(option => option.id === id)?.label).filter(Boolean);
   return <section className="card tea-lab-step">
     <p className="eyebrow">Step 4</p><h1 className="page-title">Review your tasting</h1><p className="page-lede">Completion adds one private card to your Journal and one Documented Tasting seal.</p>
@@ -677,11 +683,11 @@ function ReviewStep({ draft, teaOptions, descriptors, back, complete, busy, bloc
         draft.brewing.leafGrams ? `${draft.brewing.leafGrams} g` : null,
         draft.brewing.waterMl ? `${draft.brewing.waterMl} ml` : null,
         draft.brewing.waterTemperatureC !== null && draft.brewing.waterTemperatureC !== undefined ? `${draft.brewing.waterTemperatureC} °C` : null,
-        draft.brewing.initialSteepSeconds ? `${draft.brewing.initialSteepSeconds} sec` : null
+        formatTeaLabDuration(draft.brewing.initialSteepSeconds)
       ].filter(Boolean).join(" · ") || "Not recorded"}</dd></div>
       <div><dt>Stages</dt><dd>{draft.brewing.stages?.length ? `${draft.brewing.stages.length} recorded` : "Not recorded"}</dd></div>
     </dl>
     <div className="notice"><strong>Private by default.</strong><p style={{ margin: "6px 0 0" }}>Your first impression, brewing record, rating and notes are visible only to you.</p></div>
-    <div className="card-footer"><button className="btn btn-secondary" type="button" disabled={busy} onClick={back}>Back</button><button className="btn btn-gold btn-attention" type="button" disabled={busy || blocked || !draft.brewing.style || !draft.tasting.rating} onClick={complete}>{busy ? "Completing…" : "Complete Tasting"}</button></div>
+    <div className="card-footer"><button className="btn btn-secondary" type="button" disabled={busy} onClick={back}>Back</button><button className="btn btn-gold btn-attention" type="button" disabled={busy || (blocked && !recoverableConflict) || !draft.brewing.style || !draft.tasting.rating} onClick={complete}>{busy ? "Completing…" : recoverableConflict ? "Save This Copy & Complete" : "Complete Tasting"}</button></div>
   </section>;
 }

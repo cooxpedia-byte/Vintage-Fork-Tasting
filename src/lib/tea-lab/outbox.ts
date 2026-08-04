@@ -19,6 +19,19 @@ type Clock = () => string;
 
 const defaultIdFactory: IdFactory = () => crypto.randomUUID();
 const defaultClock: Clock = () => new Date().toISOString();
+const ownerMutationChains = new Map<string, Promise<void>>();
+
+async function withOwnerMutationLock<T>(ownerUserId: string, work: () => Promise<T>): Promise<T> {
+  const previous = ownerMutationChains.get(ownerUserId) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(work);
+  const settled = current.then(() => undefined, () => undefined);
+  ownerMutationChains.set(ownerUserId, settled);
+  try {
+    return await current;
+  } finally {
+    if (ownerMutationChains.get(ownerUserId) === settled) ownerMutationChains.delete(ownerUserId);
+  }
+}
 
 export type TeaLabTransportResult =
   | { outcome: "success"; session?: TeaLabSessionResult }
@@ -130,20 +143,24 @@ async function rebaseDraftOnConfirmedServerState(store: TeaLabOfflineStore, draf
   };
 }
 
-export async function persistTeaLabDraft(store: TeaLabOfflineStore, draft: TeaLabSoloDraft, clock: Clock = defaultClock) {
+async function persistTeaLabDraftUnlocked(store: TeaLabOfflineStore, draft: TeaLabSoloDraft, clock: Clock) {
   const next = updatedDraft(draft, clock, draft.tea && draft.status === "draft" ? "in_progress" : draft.status);
   await store.putDraft(next);
   return next;
 }
 
-export async function queueTeaLabDraftSave(
+export async function persistTeaLabDraft(store: TeaLabOfflineStore, draft: TeaLabSoloDraft, clock: Clock = defaultClock) {
+  return withOwnerMutationLock(draft.ownerUserId, () => persistTeaLabDraftUnlocked(store, draft, clock));
+}
+
+async function queueTeaLabDraftSaveUnlocked(
   store: TeaLabOfflineStore,
   draft: TeaLabSoloDraft,
-  idFactory: IdFactory = defaultIdFactory,
-  clock: Clock = defaultClock
+  idFactory: IdFactory,
+  clock: Clock
 ) {
   if (!draft.tea || (draft.tea.kind === "personal" && !draft.tea.name.trim())) {
-    return { draft: await persistTeaLabDraft(store, draft, clock), operation: null };
+    return { draft: await persistTeaLabDraftUnlocked(store, draft, clock), operation: null };
   }
   const rebased = await rebaseDraftOnConfirmedServerState(store, draft);
   const operations = await store.listOperations(rebased.ownerUserId);
@@ -153,11 +170,20 @@ export async function queueTeaLabDraftSave(
   return { draft: nextDraft, operation };
 }
 
-export async function queueTeaLabCompletion(
+export async function queueTeaLabDraftSave(
   store: TeaLabOfflineStore,
   draft: TeaLabSoloDraft,
   idFactory: IdFactory = defaultIdFactory,
   clock: Clock = defaultClock
+) {
+  return withOwnerMutationLock(draft.ownerUserId, () => queueTeaLabDraftSaveUnlocked(store, draft, idFactory, clock));
+}
+
+async function queueTeaLabCompletionUnlocked(
+  store: TeaLabOfflineStore,
+  draft: TeaLabSoloDraft,
+  idFactory: IdFactory,
+  clock: Clock
 ) {
   if (!draft.tea || (draft.tea.kind === "personal" && !draft.tea.name.trim())) {
     throw new Error("Choose a tea before completing this tasting.");
@@ -182,12 +208,21 @@ export async function queueTeaLabCompletion(
   return { draft: nextDraft, saveOperation, completionOperation };
 }
 
-export async function retryTeaLabConflictWithDeviceDraft(
+export async function queueTeaLabCompletion(
+  store: TeaLabOfflineStore,
+  draft: TeaLabSoloDraft,
+  idFactory: IdFactory = defaultIdFactory,
+  clock: Clock = defaultClock
+) {
+  return withOwnerMutationLock(draft.ownerUserId, () => queueTeaLabCompletionUnlocked(store, draft, idFactory, clock));
+}
+
+async function retryTeaLabConflictWithDeviceDraftUnlocked(
   store: TeaLabOfflineStore,
   draft: TeaLabSoloDraft,
   latestServerRevision: number,
-  idFactory: IdFactory = defaultIdFactory,
-  clock: Clock = defaultClock
+  idFactory: IdFactory,
+  clock: Clock
 ) {
   if (!Number.isInteger(latestServerRevision) || latestServerRevision <= draft.serverRevision) {
     throw new Error("The latest server version is still loading. Try again in a moment.");
@@ -200,8 +235,24 @@ export async function retryTeaLabConflictWithDeviceDraft(
   };
   await store.replaceSessionOperations(rebased, []);
   return completionPending
-    ? queueTeaLabCompletion(store, rebased, idFactory, clock)
-    : queueTeaLabDraftSave(store, rebased, idFactory, clock);
+    ? queueTeaLabCompletionUnlocked(store, rebased, idFactory, clock)
+    : queueTeaLabDraftSaveUnlocked(store, rebased, idFactory, clock);
+}
+
+export async function retryTeaLabConflictWithDeviceDraft(
+  store: TeaLabOfflineStore,
+  draft: TeaLabSoloDraft,
+  latestServerRevision: number,
+  idFactory: IdFactory = defaultIdFactory,
+  clock: Clock = defaultClock
+) {
+  return withOwnerMutationLock(draft.ownerUserId, () => retryTeaLabConflictWithDeviceDraftUnlocked(
+    store,
+    draft,
+    latestServerRevision,
+    idFactory,
+    clock
+  ));
 }
 
 export async function retryTeaLabConflictWithDeviceDraftForCompletion(
@@ -211,16 +262,18 @@ export async function retryTeaLabConflictWithDeviceDraftForCompletion(
   idFactory: IdFactory = defaultIdFactory,
   clock: Clock = defaultClock
 ) {
-  const retried = await retryTeaLabConflictWithDeviceDraft(
-    store,
-    draft,
-    latestServerRevision,
-    idFactory,
-    clock
-  );
-  return draft.status === "completion_pending"
-    ? retried
-    : queueTeaLabCompletion(store, retried.draft, idFactory, clock);
+  return withOwnerMutationLock(draft.ownerUserId, async () => {
+    const retried = await retryTeaLabConflictWithDeviceDraftUnlocked(
+      store,
+      draft,
+      latestServerRevision,
+      idFactory,
+      clock
+    );
+    return draft.status === "completion_pending"
+      ? retried
+      : queueTeaLabCompletionUnlocked(store, retried.draft, idFactory, clock);
+  });
 }
 
 export async function queueTeaLabArchive(
@@ -230,15 +283,17 @@ export async function queueTeaLabArchive(
   idFactory: IdFactory = defaultIdFactory,
   clock: Clock = defaultClock
 ) {
-  const operations = await store.listOperations(draft.ownerUserId);
-  const nextDraft = { ...updatedDraft(draft, clock), archived };
-  const operation: TeaLabArchiveOperation = {
-    ...createTeaLabOperationBase(nextDraft, nextSequence(operations), idFactory, clock),
-    kind: "archive",
-    payload: { archived }
-  };
-  await store.saveDraftAndOperations(nextDraft, [operation]);
-  return { draft: nextDraft, operation };
+  return withOwnerMutationLock(draft.ownerUserId, async () => {
+    const operations = await store.listOperations(draft.ownerUserId);
+    const nextDraft = { ...updatedDraft(draft, clock), archived };
+    const operation: TeaLabArchiveOperation = {
+      ...createTeaLabOperationBase(nextDraft, nextSequence(operations), idFactory, clock),
+      kind: "archive",
+      payload: { archived }
+    };
+    await store.saveDraftAndOperations(nextDraft, [operation]);
+    return { draft: nextDraft, operation };
+  });
 }
 
 export async function queueTeaLabDeletion(
@@ -247,22 +302,24 @@ export async function queueTeaLabDeletion(
   idFactory: IdFactory = defaultIdFactory,
   clock: Clock = defaultClock
 ) {
-  const operations = await store.listOperations(draft.ownerUserId);
-  const sessionOperations = operations.filter(operation => operation.sessionId === draft.sessionId);
-  if (draft.serverRevision === 0 && sessionOperations.every(operation => operation.attempts === 0)) {
-    await store.deleteSessionData(draft.ownerUserId, draft.sessionId);
-    return null;
-  }
-  const existing = operations.find((operation): operation is TeaLabDeleteOperation =>
-    operation.sessionId === draft.sessionId && operation.kind === "delete"
-  );
-  const operation: TeaLabDeleteOperation = existing ?? {
-    ...createTeaLabOperationBase(draft, nextSequence(operations), idFactory, clock),
-    kind: "delete",
-    payload: null
-  };
-  await store.replaceSessionOperations(updatedDraft(draft, clock), [operation]);
-  return operation;
+  return withOwnerMutationLock(draft.ownerUserId, async () => {
+    const operations = await store.listOperations(draft.ownerUserId);
+    const sessionOperations = operations.filter(operation => operation.sessionId === draft.sessionId);
+    if (draft.serverRevision === 0 && sessionOperations.every(operation => operation.attempts === 0)) {
+      await store.deleteSessionData(draft.ownerUserId, draft.sessionId);
+      return null;
+    }
+    const existing = operations.find((operation): operation is TeaLabDeleteOperation =>
+      operation.sessionId === draft.sessionId && operation.kind === "delete"
+    );
+    const operation: TeaLabDeleteOperation = existing ?? {
+      ...createTeaLabOperationBase(draft, nextSequence(operations), idFactory, clock),
+      kind: "delete",
+      payload: null
+    };
+    await store.replaceSessionOperations(updatedDraft(draft, clock), [operation]);
+    return operation;
+  });
 }
 
 function safeCode(value: unknown, fallback: string): string {
@@ -396,11 +453,11 @@ async function applySuccessfulOperation(
   await store.deleteOperation(operation.ownerUserId, operation.id);
 }
 
-export async function syncTeaLabOutbox(
+async function syncTeaLabOutboxUnlocked(
   store: TeaLabOfflineStore,
   ownerUserId: string,
-  transport: TeaLabOperationTransport = sendTeaLabOperation,
-  clock: Clock = defaultClock
+  transport: TeaLabOperationTransport,
+  clock: Clock
 ): Promise<TeaLabSyncSummary> {
   const operations = await store.listOperations(ownerUserId);
   const blockedSessions = new Set<string>();
@@ -480,6 +537,15 @@ export async function syncTeaLabOutbox(
     conflicts,
     failed
   };
+}
+
+export async function syncTeaLabOutbox(
+  store: TeaLabOfflineStore,
+  ownerUserId: string,
+  transport: TeaLabOperationTransport = sendTeaLabOperation,
+  clock: Clock = defaultClock
+): Promise<TeaLabSyncSummary> {
+  return withOwnerMutationLock(ownerUserId, () => syncTeaLabOutboxUnlocked(store, ownerUserId, transport, clock));
 }
 
 export function createTeaLabSyncRunner(
