@@ -11,7 +11,7 @@ vi.mock("@/lib/logger", () => ({
   logger: { info: vi.fn(), warn: stubs.loggerWarn, error: stubs.loggerError }
 }));
 
-import { DELETE, PATCH, PUT } from "@/app/api/tea-lab/sessions/[sessionId]/route";
+import { DELETE, GET, PATCH, PUT } from "@/app/api/tea-lab/sessions/[sessionId]/route";
 import { POST as COMPLETE } from "@/app/api/tea-lab/sessions/[sessionId]/complete/route";
 
 const sessionId = "10000000-0000-4000-8000-000000000101";
@@ -79,6 +79,31 @@ afterEach(() => {
 });
 
 describe("Tea Lab solo-session routes", () => {
+  it("returns the current owner-scoped session revision for conflict recovery", async () => {
+    const maybeSingle = vi.fn(async () => ({
+      data: { id: sessionId, status: "in_progress", revision: 4, completed_at: null, archived_at: null },
+      error: null
+    }));
+    const builder = {
+      select: vi.fn(() => builder),
+      eq: vi.fn(() => builder),
+      maybeSingle
+    };
+    const from = vi.fn(() => builder);
+    stubs.createRequestClient.mockResolvedValue({ client: { from }, user: { id: "owner-1" } });
+
+    const response = await GET(new Request(`https://example.test/api/tea-lab/sessions/${sessionId}`), context);
+
+    expect(response.status).toBe(200);
+    expect(from).toHaveBeenCalledWith("tasting_sessions");
+    expect(builder.select).toHaveBeenCalledWith("id,status,revision,completed_at,archived_at");
+    expect(builder.eq).toHaveBeenNthCalledWith(1, "id", sessionId);
+    expect(builder.eq).toHaveBeenNthCalledWith(2, "owner_user_id", "owner-1");
+    expect(await response.json()).toEqual({
+      session: { id: sessionId, status: "in_progress", revision: 4, completedAt: null, archivedAt: null }
+    });
+  });
+
   it("returns not found without authenticating or touching the database when disabled", async () => {
     vi.stubEnv("TEA_LAB_ENABLED", "false");
 

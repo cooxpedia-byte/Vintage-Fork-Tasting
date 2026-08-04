@@ -25,6 +25,29 @@ function callRpc(client: SupabaseClient, name: string, args: Record<string, unkn
   return client.rpc(name, args) as unknown as RpcResult;
 }
 
+export async function GET(request: Request, { params }: RouteContext) {
+  if (!getServerFeatureFlags().teaLab) return teaLabDisabledResponse();
+  const parsedParams = soloSessionParamsSchema.safeParse(await params);
+  if (!parsedParams.success) return invalidTeaLabRequest();
+  const { sessionId } = parsedParams.data;
+
+  try {
+    const { client, user } = await createRequestClient(request);
+    if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    const { data, error } = await client.from("tasting_sessions")
+      .select("id,status,revision,completed_at,archived_at")
+      .eq("id", sessionId)
+      .eq("owner_user_id", user.id)
+      .maybeSingle();
+    if (error) return teaLabOperationFailure("tea_lab_session_state_failed", error, { sessionId });
+    if (!data) return NextResponse.json({ error: "That tasting session was not found.", code: "session_not_found" }, { status: 404 });
+    return teaLabSessionResponse(data)
+      ?? teaLabOperationFailure("tea_lab_session_state_failed", new Error("invalid_result"), { sessionId });
+  } catch (error) {
+    return teaLabOperationFailure("tea_lab_session_state_failed", error, { sessionId });
+  }
+}
+
 export async function PUT(request: Request, { params }: RouteContext) {
   if (!getServerFeatureFlags().teaLab) return teaLabDisabledResponse();
   const parsedParams = soloSessionParamsSchema.safeParse(await params);

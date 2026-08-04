@@ -12,6 +12,7 @@ import {
   queueTeaLabCompletion,
   queueTeaLabDeletion,
   queueTeaLabDraftSave,
+  retryTeaLabBlockedDeviceDraft,
   retryTeaLabConflictWithDeviceDraft,
   retryTeaLabConflictWithDeviceDraftForCompletion,
   shouldRefreshTeaLabReadModels,
@@ -347,6 +348,33 @@ describe("Tea Lab offline outbox", () => {
       serverRevision: 5,
       status: "completed"
     });
+  });
+
+  it("replaces a blocked operation with a fresh save even when the local revision already matches", async () => {
+    const store = new MemoryTeaLabStore();
+    const draft = { ...tastingDraft(), serverRevision: 3 };
+    await store.putDraft(draft);
+    await store.putOperation({
+      ...createTeaLabOperationBase(draft, 1, idFactory("blocked-1"), () => "2026-08-03T12:00:00.000Z"),
+      kind: "save",
+      payload: {
+        cardId: draft.cardId,
+        tea: draft.tea!,
+        brewing: draft.brewing,
+        tasting: draft.tasting
+      },
+      expectedRevision: 3,
+      attempts: 1,
+      state: "conflict",
+      lastErrorCode: "operation_conflict"
+    });
+
+    await retryTeaLabBlockedDeviceDraft(store, draft, 3, false, idFactory("retry-1"), clockFactory());
+
+    expect(await store.listOperations("owner-1")).toEqual([
+      expect.objectContaining({ id: "retry-1", kind: "save", state: "pending", expectedRevision: null })
+    ]);
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({ serverRevision: 3, status: "in_progress" });
   });
 
   it("keeps an unnamed manual tea on the device without queuing an invalid server save", async () => {

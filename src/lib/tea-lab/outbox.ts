@@ -21,9 +21,14 @@ const defaultIdFactory: IdFactory = () => crypto.randomUUID();
 const defaultClock: Clock = () => new Date().toISOString();
 const ownerMutationChains = new Map<string, Promise<void>>();
 
+async function withCrossTabOwnerLock<T>(ownerUserId: string, work: () => Promise<T>): Promise<T> {
+  if (typeof navigator === "undefined" || !navigator.locks) return work();
+  return navigator.locks.request(`tea-lab:${ownerUserId}`, { mode: "exclusive" }, work);
+}
+
 async function withOwnerMutationLock<T>(ownerUserId: string, work: () => Promise<T>): Promise<T> {
   const previous = ownerMutationChains.get(ownerUserId) ?? Promise.resolve();
-  const current = previous.catch(() => undefined).then(work);
+  const current = previous.catch(() => undefined).then(() => withCrossTabOwnerLock(ownerUserId, work));
   const settled = current.then(() => undefined, () => undefined);
   ownerMutationChains.set(ownerUserId, settled);
   try {
@@ -276,6 +281,46 @@ export async function retryTeaLabConflictWithDeviceDraftForCompletion(
   });
 }
 
+async function retryTeaLabBlockedDeviceDraftUnlocked(
+  store: TeaLabOfflineStore,
+  draft: TeaLabSoloDraft,
+  latestServerRevision: number,
+  complete: boolean,
+  idFactory: IdFactory,
+  clock: Clock
+) {
+  if (!Number.isInteger(latestServerRevision) || latestServerRevision < 0) {
+    throw new Error("The latest server version could not be checked.");
+  }
+  const rebased = {
+    ...updatedDraft(draft, clock, "in_progress"),
+    serverRevision: Math.max(draft.serverRevision, latestServerRevision),
+    lastSyncedAt: null
+  };
+  await store.replaceSessionOperations(rebased, []);
+  return complete
+    ? queueTeaLabCompletionUnlocked(store, rebased, idFactory, clock)
+    : queueTeaLabDraftSaveUnlocked(store, rebased, idFactory, clock);
+}
+
+export async function retryTeaLabBlockedDeviceDraft(
+  store: TeaLabOfflineStore,
+  draft: TeaLabSoloDraft,
+  latestServerRevision: number,
+  complete: boolean,
+  idFactory: IdFactory = defaultIdFactory,
+  clock: Clock = defaultClock
+) {
+  return withOwnerMutationLock(draft.ownerUserId, () => retryTeaLabBlockedDeviceDraftUnlocked(
+    store,
+    draft,
+    latestServerRevision,
+    complete,
+    idFactory,
+    clock
+  ));
+}
+
 export async function queueTeaLabArchive(
   store: TeaLabOfflineStore,
   draft: TeaLabSoloDraft,
@@ -342,6 +387,17 @@ function sessionFromBody(body: Record<string, unknown>): TeaLabSessionResult | u
     completedAt: typeof session.completedAt === "string" ? session.completedAt : null,
     archivedAt: typeof session.archivedAt === "string" ? session.archivedAt : null
   };
+}
+
+export async function fetchTeaLabSessionState(sessionId: string): Promise<TeaLabSessionResult | null> {
+  const response = await authenticatedFetch(`/api/tea-lab/sessions/${sessionId}`, { method: "GET" });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(response.status === 401
+    ? "Your session ended. Sign in again before saving this tasting."
+    : "The latest saved version could not be checked.");
+  const session = sessionFromBody(await responseBody(response));
+  if (!session) throw new Error("The latest saved version could not be checked.");
+  return session;
 }
 
 export const sendTeaLabOperation: TeaLabOperationTransport = async operation => {

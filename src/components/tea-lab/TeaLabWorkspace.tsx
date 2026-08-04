@@ -34,10 +34,10 @@ import type { TeaLabOfflineStore } from "@/lib/tea-lab/offline-store";
 import {
   createTeaLabDraftAutosave,
   createTeaLabSyncRunner,
+  fetchTeaLabSessionState,
   queueTeaLabCompletion,
   queueTeaLabDraftSave,
-  retryTeaLabConflictWithDeviceDraft,
-  retryTeaLabConflictWithDeviceDraftForCompletion,
+  retryTeaLabBlockedDeviceDraft,
   shouldRefreshTeaLabReadModels,
   startTeaLabSyncTriggers
 } from "@/lib/tea-lab/outbox";
@@ -212,16 +212,16 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
     : [], [draft, operations]);
   const saveIndicator = resolveTeaLabSaveIndicator(activeOperations, online);
   const blocked = activeOperations.some(operation => operation.state === "conflict" || operation.state === "failed");
-  const revisionConflict = activeOperations.some(operation => operation.state === "conflict" && operation.lastErrorCode === "revision_conflict");
+  const recoverableSyncIssue = activeOperations.some(operation =>
+    (operation.state === "conflict" || operation.state === "failed")
+      && (operation.kind === "save" || operation.kind === "complete")
+  );
   const latestServerDraft = draft ? serverDrafts.find(candidate => candidate.sessionId === draft.sessionId) : undefined;
-  const canRetryDeviceCopy = revisionConflict && Boolean(latestServerDraft && latestServerDraft.serverRevision > (draft?.serverRevision ?? 0));
   const conflictRetryCompletesTasting = Boolean(draft && (
     draft.status === "completion_pending"
       || (step === "review" && isTeaSelectionReady(draft) && draft.brewing.style && draft.tasting.rating)
   ));
-  const conflictActionLabel = !canRetryDeviceCopy
-    ? "Check latest version"
-    : conflictRetryCompletesTasting ? "Save tasting & create Passport seal" : "Use this device copy";
+  const conflictActionLabel = conflictRetryCompletesTasting ? "Save tasting & create Passport seal" : "Use this device copy";
 
   function replaceDraft(update: (current: TeaLabSoloDraft) => TeaLabSoloDraft) {
     setFormError("");
@@ -300,7 +300,7 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
       return;
     }
     if (blocked) {
-      if (revisionConflict) await retryDeviceCopy();
+      if (recoverableSyncIssue) await retryDeviceCopy();
       else setFormError("This tasting has a sync issue that must be retried before it can be completed.");
       return;
     }
@@ -340,17 +340,21 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
   async function retryDeviceCopy() {
     const store = storeRef.current;
     if (!store || !draft) return;
-    if (!latestServerDraft || latestServerDraft.serverRevision <= draft.serverRevision) {
-      setFormError("Checking the latest saved version. Try this button again in a moment.");
-      router.refresh();
-      return;
-    }
     setCompleting(true);
     setFormError("");
     try {
-      const queued = conflictRetryCompletesTasting
-        ? await retryTeaLabConflictWithDeviceDraftForCompletion(store, draft, latestServerDraft.serverRevision)
-        : await retryTeaLabConflictWithDeviceDraft(store, draft, latestServerDraft.serverRevision);
+      const serverState = window.navigator.onLine ? await fetchTeaLabSessionState(draft.sessionId) : null;
+      const latestServerRevision = Math.max(
+        serverState?.revision ?? 0,
+        latestServerDraft?.serverRevision ?? 0,
+        draft.serverRevision
+      );
+      const queued = await retryTeaLabBlockedDeviceDraft(
+        store,
+        draft,
+        latestServerRevision,
+        conflictRetryCompletesTasting
+      );
       currentDraftRef.current = queued.draft;
       setDraft(queued.draft);
       await refreshDeviceState(store);
@@ -400,7 +404,7 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
         ? "Your completed card is now available in the Journal."
         : "Your tasting is complete locally and will be added to the Journal when you’re connected and signed in."}</p>
       <p className="help" role="status" aria-live="polite">{saveIndicator.label}</p>
-      {blocked && <div className="notice error" role="alert"><p>This tasting conflicts with a newer server version. Your device copy has been retained for review.</p>{revisionConflict && <button className="btn btn-secondary" type="button" disabled={completing} onClick={retryDeviceCopy}>{conflictActionLabel}</button>}</div>}
+      {blocked && <div className="notice error" role="alert"><p>{recoverableSyncIssue ? "This tasting could not finish syncing. Your device copy is safe and can be saved again." : "This tasting has a sync issue and your device copy has been retained."}</p>{recoverableSyncIssue && <button className="btn btn-secondary" type="button" disabled={completing} onClick={retryDeviceCopy}>{conflictActionLabel}</button>}</div>}
       {formError && <div className="notice error" role="alert">{formError}</div>}
       <div className="row" style={{ marginTop: 20 }}>
         {completed && <button className="btn btn-primary btn-attention" type="button" onClick={onOpenJournal}>Open Journal</button>}
@@ -415,12 +419,12 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
       <p className={`help tea-lab-save-state ${saveIndicator.state}`} role="status" aria-live="polite">{saveIndicator.label}</p>
     </div>
     <TeaLabProgress step={step} furthestStep={furthestStep} onNavigate={navigateToVisitedStep} />
-    {blocked && <div className="notice error" role="alert"><p>This draft changed elsewhere. Your device copy is safe, but syncing is paused until the conflict is reviewed.</p>{revisionConflict && <button className="btn btn-secondary" type="button" disabled={completing} onClick={retryDeviceCopy}>{conflictActionLabel}</button>}</div>}
+    {blocked && <div className="notice error" role="alert"><p>{recoverableSyncIssue ? "This draft could not finish syncing. Your device copy is safe and can be saved again." : "This draft has a sync issue. Your device copy is safe, but syncing is paused until it is reviewed."}</p>{recoverableSyncIssue && <button className="btn btn-secondary" type="button" disabled={completing} onClick={retryDeviceCopy}>{conflictActionLabel}</button>}</div>}
     {formError && <div className="notice error" role="alert">{formError}</div>}
     {step === "choose" && <ChooseTeaStep draft={draft} options={teaOptions} update={replaceDraft} next={() => isTeaSelectionReady(draft) ? advanceToStep("brew") : setFormError("Choose a tea or enter its name to continue.")} />}
     {step === "brew" && <BrewStep draft={draft} update={replaceDraft} back={() => navigateToVisitedStep("choose")} next={() => advanceToStep("taste")} />}
     {step === "taste" && <TasteStep draft={draft} descriptors={descriptorOptions} update={replaceDraft} back={() => navigateToVisitedStep("brew")} next={saveAndReviewTasting} online={online} photoBusy={photoBusy} reviewing={reviewing} preparePhotoCard={preparePhotoCard} onPhotoBusyChange={setPhotoBusy} />}
-    {step === "review" && <ReviewStep draft={draft} teaOptions={teaOptions} descriptors={descriptorOptions} back={() => navigateToVisitedStep("taste")} complete={completeTasting} busy={completing || photoBusy} blocked={blocked} recoverableConflict={revisionConflict} />}
+    {step === "review" && <ReviewStep draft={draft} teaOptions={teaOptions} descriptors={descriptorOptions} back={() => navigateToVisitedStep("taste")} complete={completeTasting} busy={completing || photoBusy} blocked={blocked} recoverableConflict={recoverableSyncIssue} />}
   </div>;
 }
 
