@@ -166,6 +166,7 @@ describe("Tea Lab workspace", () => {
     expect(tasteHtml).toContain("Rinse (optional)");
     expect(tasteHtml).toContain("Infusion 3");
     expect(tasteHtml.match(/How’s your first infusion\?/g)).toHaveLength(1);
-    expect(tasteHtml).toContain("What’s changed?");
+    expect(tasteHtml).toMatch(/How’s your first infusion\?<\/label><textarea[^>]*id="brew-stage-notes-0"/);
+    expect(tasteHtml).toMatch(/What’s changed\?<\/label><textarea[^>]*id="brew-stage-notes-1"/);
   });
 });
