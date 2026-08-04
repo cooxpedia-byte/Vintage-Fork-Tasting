@@ -29,13 +29,41 @@ const INITIAL_VALUES = {
   waterSource: "Tap"
 };
 
+type PreviewInfusion = {
+  id: number;
+  durationSeconds: number;
+  temperatureC: number;
+  notes: string;
+};
+
+const INITIAL_INFUSIONS: PreviewInfusion[] = [
+  { id: 1, durationSeconds: 10, temperatureC: 85, notes: "Sweet" },
+  { id: 2, durationSeconds: 15, temperatureC: 85, notes: "Floral" },
+  { id: 3, durationSeconds: 20, temperatureC: 85, notes: "Soft" }
+];
+
 export function TastingCardArtworkPreview() {
   const [theme, setTheme] = useState<(typeof THEMES)[number]>(THEMES[0]);
   const [flipped, setFlipped] = useState(false);
   const [sealAttached, setSealAttached] = useState(true);
   const [values, setValues] = useState(INITIAL_VALUES);
+  const [infusions, setInfusions] = useState(INITIAL_INFUSIONS);
   const setValue = <K extends keyof typeof INITIAL_VALUES>(key: K, nextValue: (typeof INITIAL_VALUES)[K]) => {
     setValues(current => ({ ...current, [key]: nextValue }));
+  };
+  const setInfusion = <K extends keyof Omit<PreviewInfusion, "id">>(id: number, key: K, nextValue: PreviewInfusion[K]) => {
+    setInfusions(current => current.map(infusion => infusion.id === id ? { ...infusion, [key]: nextValue } : infusion));
+  };
+  const addInfusion = () => {
+    setInfusions(current => {
+      const last = current.at(-1);
+      return [...current, {
+        id: Math.max(0, ...current.map(infusion => infusion.id)) + 1,
+        durationSeconds: (last?.durationSeconds ?? 0) + 5,
+        temperatureC: last?.temperatureC ?? values.temperatureC,
+        notes: ""
+      }];
+    });
   };
   const card: JournalCard = {
     id: "preview-card",
@@ -65,9 +93,12 @@ export function TastingCardArtworkPreview() {
       preparationNotes: null,
       stages: [
         { label: "Rinse (optional)", durationSeconds: 5, temperatureC: values.temperatureC, notes: "" },
-        { label: "Infusion 1", durationSeconds: 10, temperatureC: values.temperatureC, notes: "Sweet" },
-        { label: "Infusion 2", durationSeconds: 15, temperatureC: values.temperatureC, notes: "Floral" },
-        { label: "Infusion 3", durationSeconds: 20, temperatureC: values.temperatureC, notes: "Soft" }
+        ...infusions.map((infusion, index) => ({
+          label: `Infusion ${index + 1}`,
+          durationSeconds: infusion.durationSeconds,
+          temperatureC: infusion.temperatureC,
+          notes: infusion.notes
+        }))
       ]
     }
   };
@@ -104,6 +135,17 @@ export function TastingCardArtworkPreview() {
       <label><span>Initial steep (sec)</span><input type="number" min="0" value={values.initialSteepSeconds} onChange={event => setValue("initialSteepSeconds", Number(event.target.value))}/></label>
       <label><span>Vessel</span><input value={values.vessel} onChange={event => setValue("vessel", event.target.value)}/></label>
       <label><span>Water source</span><input value={values.waterSource} onChange={event => setValue("waterSource", event.target.value)}/></label>
+      <fieldset className="artwork-infusion-editor">
+        <legend>Infusions used by the combined data set</legend>
+        {infusions.map((infusion, index) => <div className="artwork-infusion-row" key={infusion.id}>
+          <strong>Infusion {index + 1}</strong>
+          <label><span>Seconds</span><input type="number" min="0" value={infusion.durationSeconds} onChange={event => setInfusion(infusion.id, "durationSeconds", Number(event.target.value))}/></label>
+          <label><span>Temperature (°C)</span><input type="number" min="0" max="100" value={infusion.temperatureC} onChange={event => setInfusion(infusion.id, "temperatureC", Number(event.target.value))}/></label>
+          <label><span>Tasting notes</span><input value={infusion.notes} onChange={event => setInfusion(infusion.id, "notes", event.target.value)}/></label>
+          <button type="button" disabled={infusions.length === 1} onClick={() => setInfusions(current => current.filter(candidate => candidate.id !== infusion.id))}>Remove</button>
+        </div>)}
+        <button className="artwork-add-infusion" type="button" onClick={addInfusion}>+ Add infusion</button>
+      </fieldset>
     </form>
 
     <div className="artwork-card-scene">

@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { DetachableTastingSeal, PhotoSlider, TastingCardPresentation, tastingCardStyleLengthClass, tastingCardTeaTheme, tastingCardTitleLengthClass } from "@/components/tea-lab/TastingCardDialog";
+import { DetachableTastingSeal, isSecretSealDoubleTap, PhotoSlider, TastingCardPresentation, tastingCardInfusionDataSet, tastingCardStyleLengthClass, tastingCardTeaTheme, tastingCardTitleLengthClass } from "@/components/tea-lab/TastingCardDialog";
 import type { JournalCard } from "@/lib/tea-lab/journal";
 
 const card: JournalCard = {
@@ -49,12 +49,16 @@ describe("Tea Lab tasting-card photo slider", () => {
     expect(front).toContain("Documented Tasting");
     expect(front).toContain('/tea-cards/detachable-seal-coin.png');
     expect(front).toContain('data-seal-state="coupled"');
+    expect(front).toContain("tasting-card-secret-seal-target");
     expect(front).toContain("Flip for brewing details");
     expect(front).toContain("Lychee");
     expect(back).toContain("is-flipped");
     expect(back).toContain('/tea-cards/anji-white-tea-back-green.png');
     expect(back).toContain("Brewing record");
-    expect(back).toContain("Infusion 1");
+    expect(back).toContain("Infusion data set");
+    expect(back).toContain("Combined tasting notes");
+    expect(back).toContain("Sweet");
+    expect(back).not.toContain("Infusion 1");
     expect(back).toContain("85 °C");
   });
 
@@ -71,6 +75,14 @@ describe("Tea Lab tasting-card photo slider", () => {
     expect(decoupled).toContain("is-detached");
     expect(privateCard).toContain('data-seal-state="decoupled"');
     expect(privateCard).toContain("Private tasting");
+    expect(privateCard).not.toContain("tasting-card-secret-seal-target");
+  });
+
+  it("recognizes the hidden shield gesture only when two taps are close together", () => {
+    expect(isSecretSealDoubleTap(null, 1_000)).toBe(false);
+    expect(isSecretSealDoubleTap(1_000, 1_450)).toBe(true);
+    expect(isSecretSealDoubleTap(1_000, 1_451)).toBe(false);
+    expect(isSecretSealDoubleTap(1_000, 999)).toBe(false);
   });
 
   it("renders changed journal values over the supplied artwork instead of a fixed sample", () => {
@@ -132,5 +144,22 @@ describe("Tea Lab tasting-card photo slider", () => {
     expect(tastingCardStyleLengthClass("Hong Kong–style milk tea")).toBe("is-long is-extra-long");
     expect(html).toContain("tasting-card-live-style tasting-card-live-paper is-long");
     expect(html).toContain("Matcha — koicha");
+  });
+
+  it("combines every infusion into one back-card data set", () => {
+    const data = tastingCardInfusionDataSet([
+      { label: "Rinse (optional)", durationSeconds: 5, temperatureC: 80, notes: "Leaf opened" },
+      { label: "Infusion 1", durationSeconds: 10, temperatureC: 85, notes: "Sweet apricot" },
+      { label: "Second wash", durationSeconds: 15, temperatureC: 88, notes: "Floral lift" },
+      { label: "Infusion 3", durationSeconds: 20, temperatureC: 90, notes: "Mineral finish" },
+      { label: "Infusion 4", durationSeconds: 25, temperatureC: 90, notes: "Soft and lingering" }
+    ]);
+
+    expect(data).toEqual({
+      recordCount: 4,
+      timing: "10 sec–25 sec",
+      temperature: "85 °C–90 °C",
+      notes: "Sweet apricot · Floral lift · Mineral finish · Soft and lingering"
+    });
   });
 });
