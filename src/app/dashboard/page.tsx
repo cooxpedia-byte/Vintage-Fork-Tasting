@@ -79,7 +79,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   let personalRows: PersonalTeaRecordRow[] = [];
   let teaOptions: TeaLabTeaOption[] = [];
   let descriptorOptions: TeaLabDescriptorOption[] = [];
-  let serverDrafts = [] as ReturnType<typeof mapServerDraftToOfflineDraft>[];
+  let serverDrafts: NonNullable<ReturnType<typeof mapServerDraftToOfflineDraft>>[] = [];
   let teaLabReady = false;
 
   if (featureFlags.teaLab) {
@@ -165,8 +165,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       }
     }
 
-    serverDrafts = ((draftResult.data ?? []) as unknown as TeaLabServerDraftRow[])
-      .map(row => mapServerDraftToOfflineDraft(user.id, row));
+    serverDrafts = ((draftResult.data ?? []) as unknown as TeaLabServerDraftRow[]).flatMap(row => {
+      const draft = mapServerDraftToOfflineDraft(user.id, row);
+      return draft ? [draft] : [];
+    });
     descriptorOptions = (descriptorResult.data ?? []) as TeaLabDescriptorOption[];
     const savedCanonicalIds = new Set(rows.flatMap(row => row.responses.flatMap(response =>
       response.saved && response.flight?.tea?.id ? [response.flight.tea.id] : []
@@ -211,5 +213,5 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const libraryItems = teaLabReady ? buildTeaLibrary(completed, personalRows, soloRows) : [];
   const passportSeals = teaLabReady ? buildPassportSeals(completed, soloRows) : [];
 
-  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} ownerUserId={user.id} events={completed} upcoming={upcoming} initialTab={parseCustomerDashboardSection(section)} teaLabEnabled={teaLabReady} journalSessions={journalSessions} archivedJournalSessions={archivedJournalSessions} libraryItems={libraryItems} passportSeals={passportSeals} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts.flatMap(draft => draft ? [draft] : [])} /></>;
+  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} ownerUserId={user.id} events={completed} upcoming={upcoming} initialTab={parseCustomerDashboardSection(section)} teaLabEnabled={teaLabReady} journalSessions={journalSessions} archivedJournalSessions={archivedJournalSessions} libraryItems={libraryItems} passportSeals={passportSeals} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} /></>;
 }

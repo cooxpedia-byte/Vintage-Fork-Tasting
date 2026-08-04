@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/browser";
 import { Brand } from "@/components/Brand";
-import { safeNextPath } from "@/lib/auth-redirect";
+import { safeNextPath, withNextPath } from "@/lib/auth-redirect";
 
 export function LoginForm({ staff = false }: { staff?: boolean }) {
   const params = useSearchParams();
@@ -15,6 +15,8 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const callbackError = params.get("authError") ? "That email link is invalid or has expired. Request a fresh one." : "";
+  const fallback = staff ? "/admin" : "/dashboard";
+  const next = safeNextPath(params.get("next"), fallback);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -22,8 +24,6 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
     const supabase = createClient();
     const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (authError || !data.session) { setError("The email or password was not accepted."); setBusy(false); return; }
-    const fallback = staff ? "/admin" : "/dashboard";
-    const next = safeNextPath(params.get("next"), fallback);
     window.location.assign(next);
   }
 
@@ -33,7 +33,7 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
     setError("");
     const supabase = createClient();
     const afterReset = `/reset-password?next=${staff ? "/admin" : "/dashboard"}`;
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(afterReset)}`;
+    const redirectTo = withNextPath(`${window.location.origin}/auth/callback`, afterReset);
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     setBusy(false);
     if (resetError) {
@@ -78,7 +78,7 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
           <button className="btn btn-primary btn-attention" style={{ width: "100%" }} disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
         </form>
         <button className="btn btn-quiet" type="button" disabled={busy} onClick={resetPassword}>Forgot your password?</button>
-        {!staff && <p className="help">New to the tasting cellar? <Link href="/signup">Create a customer account</Link>.</p>}
+        {!staff && <p className="help">New to the tasting cellar? <Link href={withNextPath("/signup", next)}>Create a customer account</Link>.</p>}
       </section>
     </main>
   );

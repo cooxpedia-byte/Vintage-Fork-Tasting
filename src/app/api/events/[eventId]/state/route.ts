@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireParticipant } from "@/lib/guest-token";
 import { maskEmail, protectGuestState } from "@/lib/guest-privacy";
+import { logger } from "@/lib/logger";
 import { createTriviaDeadlineToken } from "@/lib/trivia-token";
 
 export async function GET(_: Request, { params }: { params: Promise<{ eventId: string }> }) {
@@ -11,10 +12,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
   if (!participant) return NextResponse.json({ error: "Participation session expired." }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: event } = await admin.from("events").select("id,title,status,phase,sequence_number,current_flight_item_id,current_trivia_question_id,tasting_opened_flight_item_id,reveal_at,timer_started_at,timer_ends_at,trivia_opened_at,trivia_closes_at,starts_at,location_mode,video_call_url,venue_name,venue_address,completed_at").eq("id", eventId).single();
+  const { data: event, error: eventError } = await admin.from("events").select("id,title,status,phase,sequence_number,current_flight_item_id,current_trivia_question_id,tasting_opened_flight_item_id,reveal_at,timer_started_at,timer_ends_at,trivia_opened_at,trivia_closes_at,starts_at,location_mode,video_call_url,venue_name,venue_address,completed_at").eq("id", eventId).single();
+  if (!event && eventError?.code === "PGRST116") return NextResponse.json({ error: "Event not found." }, { status: 404 });
+  if (eventError) return stateLoadFailure(eventId, eventError);
   if (!event) return NextResponse.json({ error: "Event not found." }, { status: 404 });
 
-  const { data: flight } = await admin.from("event_flight_items").select("id,position,reveal_title,reveal_description,brewing_instructions,steep_seconds,temperature_c,leaf_grams,water_ml,tea:teas(name,origin,producer,tea_type)").eq("event_id", eventId).order("position");
+  const { data: flight, error: flightError } = await admin.from("event_flight_items").select("id,position,reveal_title,reveal_description,brewing_instructions,steep_seconds,temperature_c,leaf_grams,water_ml,tea:teas(name,origin,producer,tea_type)").eq("event_id", eventId).order("position");
+  if (flightError) return stateLoadFailure(eventId, flightError);
   const rawCurrent = (flight ?? []).find(item => item.id === event.current_flight_item_id) ?? null;
   const tastingIsOpen = Boolean(rawCurrent && event.tasting_opened_flight_item_id === rawCurrent.id);
   const betweenTeas = Boolean(rawCurrent && event.phase === "tasting" && !tastingIsOpen);
@@ -28,11 +32,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
 
   let trivia: Record<string, unknown> | null = null;
   if (rawCurrent && event.current_trivia_question_id && (event.phase === "trivia" || includeResults)) {
-    const { data: questions } = await admin.from("trivia_questions").select("id,position,question,options,correct_index,explanation,answer_window_seconds").eq("event_flight_item_id", rawCurrent.id).order("position");
+    const { data: questions, error: questionsError } = await admin.from("trivia_questions").select("id,position,question,options,correct_index,explanation,answer_window_seconds").eq("event_flight_item_id", rawCurrent.id).order("position");
+    if (questionsError) return stateLoadFailure(eventId, questionsError);
     const questionIndex = (questions ?? []).findIndex(candidate => candidate.id === event.current_trivia_question_id);
     const question = questionIndex >= 0 ? questions?.[questionIndex] : null;
     if (question) {
-      const { data: ownAnswer } = await admin.from("trivia_answers").select("selected_index").eq("participant_id", participant.id).eq("trivia_question_id", question.id).maybeSingle();
+      const { data: ownAnswer, error: ownAnswerError } = await admin.from("trivia_answers").select("selected_index").eq("participant_id", participant.id).eq("trivia_question_id", question.id).maybeSingle();
+      if (ownAnswerError) return stateLoadFailure(eventId, ownAnswerError);
       const closed = Boolean(event.trivia_closes_at && new Date(event.trivia_closes_at).getTime() <= Date.now());
       trivia = {
         id: question.id,
@@ -57,7 +63,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
     }
   }
 
-  const { data: responses } = await admin.from("tea_responses").select("id,event_flight_item_id,first_impression,descriptors,intensity,rating,personal_notes,saved,completed_at").eq("participant_id", participant.id);
+  const { data: responses, error: responsesError } = await admin.from("tea_responses").select("id,event_flight_item_id,first_impression,descriptors,intensity,rating,personal_notes,saved,completed_at").eq("participant_id", participant.id);
+  if (responsesError) return stateLoadFailure(eventId, responsesError);
   let analytics: { average_rating: number | null } | null = null;
   let participantTrivia: { answered: number; correct: number; total: number } | null = null;
   if (includeResults) {
@@ -68,14 +75,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
         ? admin.from("trivia_questions").select("id").in("event_flight_item_id", flightIds)
         : Promise.resolve({ data: [], error: null })
     ]);
-    if (aggregateResult.error) throw aggregateResult.error;
-    if (questionResult.error) throw questionResult.error;
+    if (aggregateResult.error) return stateLoadFailure(eventId, aggregateResult.error);
+    if (questionResult.error) return stateLoadFailure(eventId, questionResult.error);
     analytics = aggregateResult.data;
     const questionIds = (questionResult.data ?? []).map(question => question.id);
     const ownTriviaResult = questionIds.length
       ? await admin.from("trivia_answers").select("is_correct,on_time").eq("participant_id", participant.id).in("trivia_question_id", questionIds)
       : { data: [], error: null };
-    if (ownTriviaResult.error) throw ownTriviaResult.error;
+    if (ownTriviaResult.error) return stateLoadFailure(eventId, ownTriviaResult.error);
     const ownTriviaAnswers = ownTriviaResult.data;
     const countedAnswers = (ownTriviaAnswers ?? []).filter(answer => answer.on_time);
     participantTrivia = {
@@ -107,4 +114,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
     analytics,
     participantTrivia
   }), { headers: { "Cache-Control": "private, no-store, max-age=0" } });
+}
+
+function stateLoadFailure(eventId: string, error: unknown) {
+  logger.error("guest_state_load_failed", error, { eventId });
+  return NextResponse.json({ error: "We couldn’t load the current tasting state." }, {
+    status: 500,
+    headers: { "Cache-Control": "private, no-store, max-age=0" }
+  });
 }

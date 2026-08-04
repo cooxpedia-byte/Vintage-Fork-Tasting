@@ -2,7 +2,7 @@ import type { ReactNode, ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const hooks = vi.hoisted(() => ({
-  routerPush: vi.fn(),
+  historyPush: vi.fn(),
   search: ""
 }));
 
@@ -15,10 +15,7 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: hooks.routerPush }),
-  useSearchParams: () => new URLSearchParams(hooks.search)
-}));
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(hooks.search) }));
 
 import { CustomerDashboard } from "@/components/dashboard/CustomerDashboard";
 
@@ -47,8 +44,9 @@ function findButton(node: ReactNode, name: string): ReactElement<{ onClick: () =
 }
 
 beforeEach(() => {
-  hooks.routerPush.mockReset();
+  hooks.historyPush.mockReset();
   hooks.search = "";
+  vi.stubGlobal("window", { history: { pushState: hooks.historyPush } });
 });
 
 describe("customer dashboard route synchronization", () => {
@@ -60,13 +58,13 @@ describe("customer dashboard route synchronization", () => {
     expect(savedButton?.props["aria-pressed"]).toBe(true);
   });
 
-  it("uses the Next router when selecting a dashboard section", () => {
+  it("updates the URL without starting a server navigation", () => {
     const dashboard = CustomerDashboard({ name: "Alex", events: [], upcoming: [], initialTab: "home" });
     const savedButton = findButton(dashboard, "Saved teas");
 
     expect(savedButton).not.toBeNull();
     savedButton?.props.onClick();
 
-    expect(hooks.routerPush).toHaveBeenCalledWith("/dashboard?section=saved", { scroll: false });
+    expect(hooks.historyPush).toHaveBeenCalledWith(null, "", "/dashboard?section=saved");
   });
 });
