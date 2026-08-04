@@ -22,4 +22,10 @@ describe("Tea Lab tasting-card flip presentation", () => {
     expect(css).toContain(".tasting-card-detachable-seal.is-attached");
     expect(css).toContain(".tasting-card-detachable-seal.is-detached");
   });
+
+  it("keeps the long front-title cover clear of the artwork label", () => {
+    expect(css).toMatch(/\.tasting-card-live-front-name\.is-long\s*\{[^}]*top:\s*15\.2%;[^}]*height:\s*6\.5%;/);
+    expect(css).toMatch(/\.tasting-card-live-front-name\.is-long\s*\{[^}]*box-shadow:\s*0 0 \.72cqw \.6cqw/);
+    expect(css).toMatch(/\.tasting-card-live-front-name\.is-extra-long\s*\{[^}]*top:\s*14\.65%;[^}]*height:\s*7\.6%;/);
+  });
 });
