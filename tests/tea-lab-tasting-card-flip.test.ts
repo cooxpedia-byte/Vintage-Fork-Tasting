@@ -12,13 +12,16 @@ describe("Tea Lab tasting-card flip presentation", () => {
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
-  it("clips a single-layer 24K-style lustre to the supplied card linework and seal", () => {
+  it("clips the card effects to the supplied linework while keeping the detachable seal above them", () => {
     expect(css).toContain("anji-white-tea-front-gold-mask.png");
     expect(css).toContain("anji-white-tea-back-gold-mask.png");
     expect(css).toContain("@keyframes tasting-card-gold-lustre");
     expect(css).toContain("@keyframes tasting-card-seal-sweep");
-    expect(css).toContain(".tasting-card-face.tasting-card-artwork-face::after { content: none; display: none; }");
-    expect(css).toMatch(/\.tasting-card-detachable-seal\s*\{[^}]*position:\s*absolute/);
+    expect(css).toMatch(/\.tasting-card-face\.tasting-card-artwork-face::after\s*\{[^}]*z-index:\s*5;[^}]*inset:\s*2\.9% 3\.2% 4\.1%;/);
+    expect(css).toContain(".tasting-card-flip.is-seal-coupled .tasting-card-artwork-face::after { opacity: .22; }");
+    expect(css).toMatch(/\.tasting-card-flip\.is-seal-decoupled \.tasting-card-artwork-face::after\s*\{[^}]*opacity:\s*0;[^}]*animation-play-state:\s*paused;/);
+    expect(css).toMatch(/\.tasting-card-detachable-seal\s*\{[^}]*z-index:\s*6;/);
+    expect(css).toMatch(/\.tasting-card-secret-seal-target\s*\{[^}]*z-index:\s*7;/);
     expect(css).toContain(".tasting-card-detachable-seal.is-attached");
     expect(css).toContain(".tasting-card-detachable-seal.is-detached");
   });

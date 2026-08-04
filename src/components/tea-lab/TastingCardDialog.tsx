@@ -88,6 +88,33 @@ function brewDuration(seconds: number | null): string | null {
   return `${seconds} sec`;
 }
 
+type TastingCardBrewStage = NonNullable<JournalCard["brewing"]>["stages"][number];
+
+export type TastingCardInfusionDataSet = {
+  recordCount: number;
+  timing: string;
+  temperature: string;
+  notes: string;
+};
+
+function summarizedRange(values: number[], format: (value: number) => string): string {
+  if (values.length === 0) return "Not recorded";
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  return minimum === maximum ? format(minimum) : `${format(minimum)}–${format(maximum)}`;
+}
+
+export function tastingCardInfusionDataSet(stages: TastingCardBrewStage[]): TastingCardInfusionDataSet {
+  const nonRinseStages = stages.filter(stage => !/^rinse(?:\s|\(|$)/i.test(stage.label.trim()));
+  const records = nonRinseStages.length > 0 ? nonRinseStages : stages;
+  return {
+    recordCount: records.length,
+    timing: summarizedRange(records.flatMap(stage => stage.durationSeconds === null ? [] : [stage.durationSeconds]), seconds => brewDuration(seconds) ?? "Not recorded"),
+    temperature: summarizedRange(records.flatMap(stage => stage.temperatureC === null ? [] : [stage.temperatureC]), temperature => `${temperature} °C`),
+    notes: records.map(stage => stage.notes?.trim()).filter((note): note is string => Boolean(note)).join(" · ") || "No infusion notes recorded."
+  };
+}
+
 export function tastingCardTeaTheme(teaType: string | null | undefined): string {
   const normalized = teaType?.trim().toLocaleLowerCase("en-CA") ?? "";
   if (normalized.includes("green")) return "green";
@@ -113,6 +140,12 @@ export function tastingCardStyleLengthClass(styleLabel: string): string {
   if (length > 18) return "is-long is-extra-long";
   if (length > 12) return "is-long";
   return "";
+}
+
+export function isSecretSealDoubleTap(previousTapAt: number | null, currentTapAt: number, thresholdMs = 450): boolean {
+  if (previousTapAt === null) return false;
+  const elapsed = currentTapAt - previousTapAt;
+  return elapsed >= 0 && elapsed <= thresholdMs;
 }
 
 export function PhotoSlider({ photos, teaName }: { photos: JournalPhoto[]; teaName: string }) {
@@ -159,7 +192,7 @@ export function TastingCardPresentation({
   flipped: boolean;
 }) {
   const brewing = card.brewing;
-  const stages = Array.from({ length: 4 }, (_, index) => brewing?.stages[index] ?? null);
+  const infusionData = tastingCardInfusionDataSet(brewing?.stages ?? []);
   const rating = card.rating ?? 0;
   const sealLabel = card.sealClass ? SEAL_LABELS[card.sealClass] : "Private tasting";
   const sealDescription = card.source === "live" ? "Completed at a hosted tasting" : "Documented in your Tea Lab";
@@ -170,8 +203,22 @@ export function TastingCardPresentation({
   const brewingStyleLabel = teaLabBrewingStyleLabel(brewing?.style) ?? missing;
   const styleLengthClass = tastingCardStyleLengthClass(brewingStyleLabel);
   const dateLabel = new Date(earnedAt).toLocaleDateString("en-CA", { dateStyle: "long" });
+  const shieldEarned = card.sealClass !== null;
+  const [sealCoupledWhenEarned, setSealCoupledWhenEarned] = useState(true);
+  const lastSealTapAt = useRef<number | null>(null);
+  const sealCoupled = shieldEarned && sealCoupledWhenEarned;
 
-  return <div className={`tasting-card-flip tasting-card-theme-${theme}${flipped ? " is-flipped" : ""}`}>
+  function handleSecretSealTap(tapAt: number) {
+    if (!shieldEarned) return;
+    if (isSecretSealDoubleTap(lastSealTapAt.current, tapAt)) {
+      setSealCoupledWhenEarned(current => !current);
+      lastSealTapAt.current = null;
+      return;
+    }
+    lastSealTapAt.current = tapAt;
+  }
+
+  return <div className={`tasting-card-flip tasting-card-theme-${theme}${flipped ? " is-flipped" : ""}${sealCoupled ? " is-seal-coupled" : " is-seal-decoupled"}`}>
     <article className="tasting-card-face tasting-card-artwork-face tasting-card-front" aria-hidden={flipped} aria-label={`${card.teaName} tasting profile`}>
       {/* The supplied artwork remains the visual base. Only its variable fields are covered by live values. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -181,7 +228,16 @@ export function TastingCardPresentation({
       <p className="tasting-card-live tasting-card-live-session tasting-card-live-plum"><time dateTime={earnedAt}>{dateLabel}</time><span aria-hidden="true"> · </span><span>{contextLabel}</span></p>
       <span className="tasting-card-live-seal-old-cover" aria-hidden="true"/>
       <span className="tasting-card-live-tea-medallion-cover" aria-hidden="true"/>
-      <DetachableTastingSeal attached={card.sealClass !== null}/>
+      <DetachableTastingSeal attached={sealCoupled}/>
+      {shieldEarned && <span
+        className="tasting-card-secret-seal-target"
+        aria-hidden="true"
+        onPointerUp={event => {
+          event.stopPropagation();
+          handleSecretSealTap(event.timeStamp);
+        }}
+        onClick={event => event.stopPropagation()}
+      />}
       <section className="tasting-card-live tasting-card-live-seal tasting-card-live-paper" aria-label="Tasting seal">
         <strong>{sealLabel}</strong><small>{sealDescription}</small>
       </section>
@@ -193,12 +249,14 @@ export function TastingCardPresentation({
       <div className="tasting-card-live tasting-card-live-type tasting-card-live-paper"><span className="sr-only">Tea type: </span>{card.teaType ?? missing}</div>
       <div className="tasting-card-live tasting-card-live-intensity tasting-card-live-paper"><span className="sr-only">Intensity: </span>{card.intensity ?? missing}</div>
       <div className="tasting-card-live tasting-card-live-descriptors tasting-card-live-paper"><span className="sr-only">Descriptors: </span>{card.descriptors.map(descriptor => descriptor.label).join(" · ") || missing}</div>
+      <span className="tasting-card-live-footer-logo-cleanup" aria-hidden="true"/>
+      <span className="tasting-card-live-footer-logo" aria-hidden="true"/>
     </article>
 
     <article className="tasting-card-face tasting-card-artwork-face tasting-card-back" aria-hidden={!flipped} aria-label={`${card.teaName} brewing record`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className="tasting-card-artwork-image" src={`/tea-cards/anji-white-tea-back-${assetTheme}.png`} alt="" draggable="false" aria-hidden="true"/>
-      <span className="sr-only">Back of card. Brewing record. Brew stages.</span>
+      <span className="sr-only">Back of card. Brewing record. Infusion data set.</span>
       <h3 className={`tasting-card-live tasting-card-live-back-name tasting-card-live-paper ${titleLengthClass}`.trim()}>{card.teaName}</h3>
       <div className={`tasting-card-live tasting-card-live-style tasting-card-live-paper ${styleLengthClass}`.trim()}><span className="sr-only">Style: </span>{brewingStyleLabel}</div>
       <div className="tasting-card-live tasting-card-live-leaf tasting-card-live-paper"><span className="sr-only">Leaf: </span>{value(brewing?.leafGrams, " g leaf") ?? missing}</div>
@@ -207,14 +265,20 @@ export function TastingCardPresentation({
       <div className="tasting-card-live tasting-card-live-initial tasting-card-live-paper"><span className="sr-only">Initial steep: </span>{brewDuration(brewing?.initialSteepSeconds ?? null) ?? missing}</div>
       <div className="tasting-card-live tasting-card-live-vessel tasting-card-live-paper"><span className="sr-only">Vessel: </span>{brewing?.vessel ?? missing}</div>
       <div className="tasting-card-live tasting-card-live-source tasting-card-live-paper"><span className="sr-only">Water source: </span>{brewing?.waterSource ?? missing}</div>
-      <ol className="tasting-card-live-stages" aria-label="Brew stages">
-        {stages.map((stage, index) => <li key={index}>
-          <strong className="tasting-card-live-stage-label tasting-card-live-paper">{stage?.label ?? "—"}</strong>
-          <span className="tasting-card-live-stage-time tasting-card-live-paper">{brewDuration(stage?.durationSeconds ?? null) ?? "—"}</span>
-          <span className="tasting-card-live-stage-temp tasting-card-live-paper">{stage?.temperatureC !== null && stage?.temperatureC !== undefined ? `${stage.temperatureC} °C` : "—"}</span>
-          <small className="tasting-card-live-stage-note tasting-card-live-paper">{stage?.notes ?? ""}</small>
-        </li>)}
-      </ol>
+      <section className="tasting-card-live-infusion-data tasting-card-live-paper" aria-label="Infusion data set">
+        <h4>Infusion data set</h4>
+        <dl>
+          <div><dt>Records</dt><dd>{infusionData.recordCount || "—"}</dd></div>
+          <div><dt>Timing</dt><dd>{infusionData.timing}</dd></div>
+          <div><dt>Temperature</dt><dd>{infusionData.temperature}</dd></div>
+        </dl>
+        <div className="tasting-card-live-infusion-notes">
+          <strong>Combined tasting notes</strong>
+          <p>{infusionData.notes}</p>
+        </div>
+      </section>
+      <span className="tasting-card-live-footer-logo-cleanup" aria-hidden="true"/>
+      <span className="tasting-card-live-footer-logo" aria-hidden="true"/>
     </article>
   </div>;
 }

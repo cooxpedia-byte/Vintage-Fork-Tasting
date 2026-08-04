@@ -483,8 +483,13 @@ tr:last-child td { border-bottom: 0; }
 .tasting-card-journal-note p { margin: .16rem 0 0; white-space: pre-wrap; }
 .tasting-card-back .tasting-card-footer-ornament > span { width: clamp(42px,10.5vw,62px); }
 .tasting-card-face.tasting-card-artwork-face { container-type: inline-size; display: block; overflow: hidden; padding: 0; border: 0; border-radius: 3.8% / 2.15%; color: #241b16; background: #f6eedb; box-shadow: 0 3.5rem 7rem rgba(7,1,7,.32),0 1rem 2rem rgba(7,1,7,.26),0 0 0 1px rgba(201,162,39,.25); -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+.tasting-card-artwork-face { visibility: hidden; transition: visibility 0s linear 380ms; }
+.tasting-card-flip:not(.is-flipped) .tasting-card-front, .tasting-card-flip.is-flipped .tasting-card-back { visibility: visible; }
+.tasting-card-flip:not(.is-flipped) .tasting-card-back, .tasting-card-flip.is-flipped .tasting-card-front { visibility: hidden; }
 .tasting-card-face.tasting-card-artwork-face::before { content: ""; position: absolute; z-index: 1; inset: 0; display: block; pointer-events: none; background: linear-gradient(135deg,#5f3700 0%,#a96f00 18%,#ffd700 38%,#fff0a3 48%,#d4af37 58%,#865400 76%,#f7cf33 100%); opacity: .42; -webkit-backface-visibility: hidden; backface-visibility: hidden; will-change: filter,opacity; animation: tasting-card-gold-lustre 5.4s ease-in-out infinite; }
-.tasting-card-face.tasting-card-artwork-face::after { content: none; display: none; }
+.tasting-card-face.tasting-card-artwork-face::after { --tasting-card-polychrome-angle:0deg; content: ""; position: absolute; z-index: 5; inset: 2.9% 3.2% 4.1%; width: auto; height: auto; display: block; aspect-ratio: auto; border-radius: 3.7% / 2.1%; transform: none; transform-origin: 50% 50%; background: radial-gradient(circle at 50% 50%,rgba(255,255,255,.46) 0 7%,transparent 24%,rgba(255,214,67,.28) 39%,transparent 56%),conic-gradient(from var(--tasting-card-polychrome-angle) at 50% 50%,#2ce1ff 0deg,#6a59ff 58deg,#ff36ac 118deg,#ffd32f 180deg,#30e599 240deg,#3cadff 302deg,#2ce1ff 360deg); background-blend-mode: screen,normal; mix-blend-mode: normal; opacity: 0; filter: saturate(2.25) contrast(1.12) brightness(1.08); -webkit-mask-image: none; mask-image: none; transition: opacity 420ms ease; animation: tasting-card-polychrome 5.2s linear infinite; pointer-events: none; }
+.tasting-card-flip.is-seal-coupled .tasting-card-artwork-face::after { opacity: .22; }
+.tasting-card-flip.is-seal-decoupled .tasting-card-artwork-face::after { opacity: 0; animation-play-state: paused; }
 .tasting-card-flip:not(.is-flipped) .tasting-card-back::before, .tasting-card-flip.is-flipped .tasting-card-front::before { animation-play-state: paused; }
 .tasting-card-front::before { -webkit-mask: url("/tea-cards/anji-white-tea-front-gold-mask.png") center / 100% 100% no-repeat; mask: url("/tea-cards/anji-white-tea-front-gold-mask.png") center / 100% 100% no-repeat; }
 .tasting-card-back::before { -webkit-mask: url("/tea-cards/anji-white-tea-back-gold-mask.png") center / 100% 100% no-repeat; mask: url("/tea-cards/anji-white-tea-back-gold-mask.png") center / 100% 100% no-repeat; }
@@ -498,12 +503,13 @@ tr:last-child td { border-bottom: 0; }
 .tasting-card-live-session { top: 24.5%; left: 23%; width: 54%; height: 3.1%; gap: .7cqw; font-size: 2.55cqw; white-space: nowrap; }
 .tasting-card-live-seal-old-cover { position: absolute; z-index: 2; top: 49.5%; left: 20.8%; width: 12.5%; height: 7%; border-radius: 50%; background: rgba(250,245,232,.99); box-shadow: 0 0 .8cqw .8cqw rgba(250,245,232,.99); }
 .tasting-card-live-tea-medallion-cover { position: absolute; z-index: 2; top: 29.3%; left: 35.1%; width: 29.8%; box-sizing: border-box; aspect-ratio: 1; border: .48cqw solid transparent; border-radius: 50%; background: radial-gradient(circle at 50% 30%,rgba(255,253,246,.98),rgba(246,239,220,.99) 62%,rgba(235,224,198,.99)) padding-box,conic-gradient(from 210deg,#6d4100,#c28b00,#fff3a6,#ffd700,#8d5b00,#f8d34b,#fff5bc,#8b5700,#6d4100) border-box; box-shadow: inset 0 0 2.4cqw rgba(173,137,65,.12),inset 0 0 0 .18cqw rgba(255,248,196,.55),0 0 1.2cqw rgba(212,175,55,.34); }
-.tasting-card-detachable-seal { position: absolute; z-index: 4; top: 27.7%; left: 32%; width: 36%; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 50%; transform-origin: 50% 22%; filter: drop-shadow(0 1.25cqw 1.25cqw rgba(78,43,0,.32)) drop-shadow(0 0 .65cqw rgba(255,215,0,.24)); transition: opacity 420ms ease,transform 560ms cubic-bezier(.2,.76,.2,1),filter 420ms ease,visibility 0s; pointer-events: none; }
+.tasting-card-detachable-seal { position: absolute; z-index: 6; top: 27.7%; left: 32%; width: 36%; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 50%; transform-origin: 50% 22%; filter: drop-shadow(0 1.25cqw 1.25cqw rgba(78,43,0,.32)) drop-shadow(0 0 .65cqw rgba(255,215,0,.24)); transition: opacity 420ms ease,transform 560ms cubic-bezier(.2,.76,.2,1),filter 420ms ease,visibility 0s; pointer-events: none; }
 .tasting-card-detachable-seal img { position: relative; z-index: 0; width: 100%; height: 100%; display: block; object-fit: contain; user-select: none; }
 .tasting-card-detachable-seal::after { content: ""; position: absolute; z-index: 1; top: -35%; bottom: -35%; left: -90%; width: 35%; background: linear-gradient(90deg,transparent,rgba(255,244,174,.2),rgba(255,255,246,.68),rgba(255,220,47,.18),transparent); transform: skewX(-17deg); animation: tasting-card-seal-sweep 4.6s cubic-bezier(.4,0,.2,1) infinite; }
 .tasting-card-detachable-seal.is-attached { visibility: visible; opacity: 1; transform: translateY(0) rotate(0) scale(1); }
 .tasting-card-detachable-seal.is-detached { visibility: hidden; opacity: 0; transform: translateY(13cqw) rotate(7deg) scale(.74); filter: drop-shadow(0 .4cqw .5cqw rgba(78,43,0,.12)); transition-delay: 0s,0s,0s,560ms; }
 .tasting-card-detachable-seal.is-detached::after { animation-play-state: paused; }
+.tasting-card-secret-seal-target { position: absolute; z-index: 7; top: 27.7%; left: 32%; width: 36%; aspect-ratio: 1; border-radius: 50%; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .tasting-card-live-seal { top: 49.7%; left: 31.4%; width: 48.8%; height: 6.4%; align-items: flex-start; flex-direction: column; padding-left: .6cqw; text-align: left; }
 .tasting-card-live-seal strong { color: #3b1830; font-family: Georgia,"Times New Roman",serif; font-size: 3.3cqw; line-height: 1.1; white-space: nowrap; }
 .tasting-card-live-seal small { margin-top: .8cqw; color: #68594c; font-size: 2.45cqw; white-space: nowrap; }
@@ -527,16 +533,19 @@ tr:last-child td { border-bottom: 0; }
 .tasting-card-live-initial { top: 47.1%; left: 14.5%; width: 20%; }
 .tasting-card-live-vessel { top: 47.1%; left: 39%; width: 22%; }
 .tasting-card-live-source { top: 47.1%; left: 66%; width: 17%; }
-.tasting-card-live-stages { position: absolute; z-index: 2; inset: 0; margin: 0; padding: 0; list-style: none; pointer-events: none; }
-.tasting-card-live-stages li { --stage-y:58.55%; position: absolute; top: var(--stage-y); left: 0; width: 100%; height: 3.6%; margin: 0; padding: 0; }
-.tasting-card-live-stages li:nth-child(2) { --stage-y:65.1%; }
-.tasting-card-live-stages li:nth-child(3) { --stage-y:71.7%; }
-.tasting-card-live-stages li:nth-child(4) { --stage-y:78.3%; }
-.tasting-card-live-stage-label, .tasting-card-live-stage-time, .tasting-card-live-stage-temp, .tasting-card-live-stage-note { position: absolute; top: 0; height: 100%; display: flex; align-items: center; overflow: hidden; font-size: 2.45cqw; line-height: 1.08; text-overflow: ellipsis; white-space: nowrap; }
-.tasting-card-live-stage-label { left: 24.5%; width: 20.5%; justify-content: flex-start; font-family: Georgia,"Times New Roman",serif; font-size: 2.75cqw; font-weight: 500; }
-.tasting-card-live-stage-time { left: 53%; width: 9.5%; justify-content: flex-start; }
-.tasting-card-live-stage-temp { left: 69.5%; width: 9.5%; justify-content: flex-start; }
-.tasting-card-live-stage-note { left: 82.5%; width: 7.8%; justify-content: flex-start; color: #765b25; font-family: Georgia,"Times New Roman",serif; font-size: 2.1cqw; white-space: normal; }
+.tasting-card-live-infusion-data { position: absolute; z-index: 2; top: 52.1%; left: 9.8%; width: 80.4%; height: 32.1%; box-sizing: border-box; display: block; overflow: hidden; padding: 1.45cqw 2.1cqw 1.7cqw; border: .14cqw solid rgba(180,136,29,.34); border-radius: 1.2cqw; background: #faf5e8; box-shadow: 0 0 1cqw .85cqw #faf5e8; text-align: left; pointer-events: none; }
+.tasting-card-live-infusion-data h4 { margin: 0 0 1.15cqw; color: #4b203c; font-family: Georgia,"Times New Roman",serif; font-size: 3.05cqw; line-height: 1; text-align: center; }
+.tasting-card-live-infusion-data dl { display: grid; grid-template-columns: .55fr 1.25fr 1fr; gap: 1.1cqw; margin: 0; padding: 0 0 1.15cqw; border-bottom: .12cqw solid rgba(180,136,29,.34); }
+.tasting-card-live-infusion-data dl > div { min-width: 0; }
+.tasting-card-live-infusion-data dt, .tasting-card-live-infusion-notes > strong { display: block; margin: 0 0 .32cqw; color: #7b674f; font-size: 1.35cqw; font-weight: 800; letter-spacing: .12em; line-height: 1; text-transform: uppercase; }
+.tasting-card-live-infusion-data dd { margin: 0; overflow: hidden; color: #2d241d; font-size: 1.95cqw; font-weight: 750; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.tasting-card-live-infusion-notes { padding-top: 1.2cqw; }
+.tasting-card-live-infusion-notes p { display: -webkit-box; margin: 0; overflow: hidden; color: #47372a; font-family: Georgia,"Times New Roman",serif; font-size: 2.15cqw; line-height: 1.3; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 9; }
+.tasting-card-live-footer-logo-cleanup { position: absolute; z-index: 3; top: 82.7%; left: 42.5%; width: 15%; box-sizing: border-box; aspect-ratio: 1; border-radius: 50%; background: #faf5e8; pointer-events: none; }
+.tasting-card-live-footer-logo-cleanup::before, .tasting-card-live-footer-logo-cleanup::after { content: ""; position: absolute; bottom: 0; width: 6cqw; border-top: .3cqw double #c4931f; }
+.tasting-card-live-footer-logo-cleanup::before { right: 96%; }
+.tasting-card-live-footer-logo-cleanup::after { left: 96%; }
+.tasting-card-live-footer-logo { position: absolute; z-index: 4; top: 83.8%; left: 43.6%; width: 12.8%; box-sizing: border-box; aspect-ratio: 1; border: .42cqw double #c4931f; border-radius: 50%; background: url("/brand/vintage-fork-icon.jpg") center / cover no-repeat; box-shadow: 0 .45cqw .9cqw rgba(71,45,15,.24); pointer-events: none; }
 .artwork-card-preview { display: grid; justify-items: center; gap: 1.25rem; margin-top: 1.5rem; }
 .artwork-card-themes { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
 .artwork-card-themes button { min-height: 42px; display: inline-flex; align-items: center; gap: .45rem; padding: .5rem .75rem; border: 1px solid var(--vf-line); border-radius: 999px; color: var(--vf-walnut); background: rgba(251,247,236,.78); cursor: pointer; font-size: .76rem; font-weight: 800; }
@@ -552,6 +561,14 @@ tr:last-child td { border-bottom: 0; }
 .artwork-card-editor input { width: 100%; min-height: 42px; padding: .55rem .65rem; border: 1px solid var(--vf-line); border-radius: var(--radius-sm); color: var(--vf-ink); background: white; font: inherit; font-weight: 600; }
 .artwork-card-editor input:focus { border-color: var(--vf-gold-dark); outline: 2px solid rgba(200,162,57,.2); }
 .artwork-card-editor-wide { grid-column: span 2; }
+.artwork-infusion-editor { grid-column: 1 / -1; display: grid; gap: .7rem; margin: .25rem 0 0; padding: .85rem; border: 1px solid var(--vf-gold-dark); border-radius: var(--radius-sm); }
+.artwork-infusion-editor legend { padding: 0 .4rem; color: var(--vf-plum); font-family: Georgia,"Times New Roman",serif; font-size: 1rem; font-weight: 700; }
+.artwork-infusion-row { display: grid; grid-template-columns: 6rem minmax(6rem,.65fr) minmax(7rem,.85fr) minmax(12rem,2fr) auto; align-items: end; gap: .55rem; }
+.artwork-infusion-row strong { align-self: center; color: var(--vf-walnut); font-size: .8rem; }
+.artwork-infusion-row button, .artwork-add-infusion { min-height: 42px; padding: .55rem .75rem; border: 1px solid var(--vf-plum); border-radius: var(--radius-sm); color: var(--vf-plum); background: white; cursor: pointer; font-size: .75rem; font-weight: 800; }
+.artwork-infusion-row button:disabled { cursor: not-allowed; opacity: .45; }
+.artwork-add-infusion { justify-self: start; color: white; background: var(--vf-plum); }
+.artwork-add-infusion:hover { background: var(--vf-plum-aged); }
 .artwork-card-scene { width: min(100%,30rem); aspect-ratio: 941 / 1672; perspective: 1500px; }
 .artwork-live-card { position: relative; width: 100%; height: 100%; cursor: pointer; outline: none; }
 .artwork-live-card:hover .tasting-card-flip { transform: rotateY(-3deg) translateY(-.25rem); }
@@ -600,6 +617,15 @@ tr:last-child td { border-bottom: 0; }
 @keyframes tasting-card-seal-sweep {
   0%, 22% { left: -90%; }
   68%, 100% { left: 148%; }
+}
+@property --tasting-card-polychrome-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes tasting-card-polychrome {
+  from { --tasting-card-polychrome-angle:0deg; filter: saturate(2.25) contrast(1.12) brightness(1.08) hue-rotate(0deg); }
+  to { --tasting-card-polychrome-angle:360deg; filter: saturate(2.25) contrast(1.12) brightness(1.08) hue-rotate(360deg); }
 }
 .enter { animation: enter 260ms var(--settle); }
 
@@ -658,6 +684,8 @@ tr:last-child td { border-bottom: 0; }
   .tasting-card-face { padding-inline: .8rem; }
   .tasting-card-brew-grid .tasting-card-fact { padding-inline: .2rem; }
   .artwork-card-editor { grid-template-columns: repeat(2,minmax(0,1fr)); padding: .75rem; }
+  .artwork-infusion-row { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .artwork-infusion-row strong, .artwork-infusion-row label:last-of-type { grid-column: 1 / -1; }
   .journal-card-action .btn { min-width: 104px; }
   .journal-session-swipe-row { display: grid; grid-template-columns: 100% max-content; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: var(--radius-md); background: var(--vf-plum-aged); box-shadow: var(--shadow-1); }
   .journal-session-swipe-row::-webkit-scrollbar { display: none; }
