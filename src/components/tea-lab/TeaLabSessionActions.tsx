@@ -2,44 +2,23 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import type { JournalSession } from "@/lib/tea-lab/journal";
+import { TeaLabCardEditor } from "@/components/tea-lab/TeaLabCardEditor";
+import { soloJournalSessionToDraft, type JournalSession } from "@/lib/tea-lab/journal";
+import type { TeaLabDescriptorOption } from "@/lib/tea-lab/lab";
 import { IndexedDbTeaLabOfflineStore } from "@/lib/tea-lab/indexed-db";
 import type { TeaLabSoloDraft } from "@/lib/tea-lab/offline";
-import { queueTeaLabArchive, queueTeaLabDeletion, syncTeaLabOutbox } from "@/lib/tea-lab/outbox";
+import { queueTeaLabArchive, queueTeaLabDeletion, queueTeaLabDraftSave, syncTeaLabOutbox } from "@/lib/tea-lab/outbox";
 
 type TeaLabSessionActionsProps = {
   ownerUserId: string;
   session: JournalSession;
+  descriptorOptions: TeaLabDescriptorOption[];
 };
 
-function actionDraft(ownerUserId: string, session: JournalSession): TeaLabSoloDraft {
-  const card = session.cards[0];
-  return {
-    schemaVersion: 1,
-    ownerUserId,
-    sessionId: session.sourceId,
-    cardId: card?.sourceId ?? crypto.randomUUID(),
-    serverRevision: session.revision ?? 0,
-    status: "completed",
-    archived: session.archivedAt !== null,
-    tea: null,
-    brewing: {},
-    tasting: {
-      firstImpression: card?.firstImpression ?? null,
-      descriptorIds: card?.descriptors.flatMap(descriptor => descriptor.stableId ? [descriptor.stableId] : []) ?? [],
-      intensity: card?.intensity === "subtle" || card?.intensity === "clear" || card?.intensity === "dominant" ? card.intensity : null,
-      rating: card?.rating ?? null,
-      personalNotes: card?.personalNotes ?? null
-    },
-    createdAt: session.occurredAt,
-    updatedAt: session.completedAt ?? session.occurredAt,
-    lastSyncedAt: session.completedAt
-  };
-}
-
-export function TeaLabSessionActions({ ownerUserId, session }: TeaLabSessionActionsProps) {
+export function TeaLabSessionActions({ ownerUserId, session, descriptorOptions }: TeaLabSessionActionsProps) {
   const router = useRouter();
-  const [busy, setBusy] = useState<"archive" | "delete" | null>(null);
+  const [busy, setBusy] = useState<"edit" | "archive" | "delete" | null>(null);
+  const [editingDraft, setEditingDraft] = useState<TeaLabSoloDraft | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -55,17 +34,52 @@ export function TeaLabSessionActions({ ownerUserId, session }: TeaLabSessionActi
     queueMicrotask(() => deleteTriggerRef.current?.focus());
   }
 
-  async function prepareDraft(store: IndexedDbTeaLabOfflineStore) {
+  async function prepareDraft(store: IndexedDbTeaLabOfflineStore, replacement?: TeaLabSoloDraft) {
     const existing = await store.getDraft(ownerUserId, session.sourceId);
-    const fallback = actionDraft(ownerUserId, session);
-    const next = existing ? {
-      ...existing,
-      serverRevision: Math.max(existing.serverRevision, session.revision ?? 0),
+    const fallback = soloJournalSessionToDraft(ownerUserId, session);
+    const base = replacement ?? existing ?? fallback;
+    const next = {
+      ...base,
+      serverRevision: Math.max(base.serverRevision, existing?.serverRevision ?? 0, session.revision ?? 0),
       status: "completed" as const,
       archived: session.archivedAt !== null
-    } : fallback;
+    };
     await store.putDraft(next);
     return next;
+  }
+
+  function beginEdit() {
+    setError("");
+    setMessage("");
+    setConfirmingDelete(false);
+    setEditingDraft(soloJournalSessionToDraft(ownerUserId, session));
+  }
+
+  async function saveEdit() {
+    if (!editingDraft?.tea || !editingDraft.tasting.rating) return;
+    setBusy("edit");
+    setError("");
+    setMessage("");
+    try {
+      const store = new IndexedDbTeaLabOfflineStore();
+      const draft = await prepareDraft(store, editingDraft);
+      await queueTeaLabDraftSave(store, draft);
+      await syncTeaLabOutbox(store, ownerUserId);
+      const remaining = (await store.listOperations(ownerUserId)).filter(operation => operation.sessionId === session.sourceId);
+      if (remaining.length === 0) {
+        setMessage("Tasting card updated. Its Passport seal and original completion date are unchanged.");
+        setEditingDraft(null);
+        router.refresh();
+      } else if (remaining.some(operation => operation.state === "conflict" || operation.state === "failed")) {
+        setError("This tasting changed elsewhere. Reload the Journal before trying again; your edits remain on this device.");
+      } else {
+        setMessage("Your edits are saved on this device and will synchronize when available.");
+      }
+    } catch {
+      setError("This tasting card could not be updated just now. Your existing card has not been discarded.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function run(kind: "archive" | "delete") {
@@ -100,11 +114,20 @@ export function TeaLabSessionActions({ ownerUserId, session }: TeaLabSessionActi
 
   return <div className="tea-lab-record-actions">
     <div className="row">
-      <button className="btn btn-secondary" type="button" disabled={busy !== null} onClick={() => void run("archive")}>
+      <button className="btn btn-primary" type="button" disabled={busy !== null || editingDraft !== null} onClick={beginEdit}>Edit tasting card</button>
+      <button className="btn btn-secondary" type="button" disabled={busy !== null || editingDraft !== null} onClick={() => void run("archive")}>
         {busy === "archive" ? "Saving…" : session.archivedAt ? "Restore tasting" : "Archive tasting"}
       </button>
-      <button className="btn btn-quiet danger" type="button" ref={deleteTriggerRef} disabled={busy !== null} onClick={() => setConfirmingDelete(true)}>Delete permanently</button>
+      <button className="btn btn-quiet danger" type="button" ref={deleteTriggerRef} disabled={busy !== null || editingDraft !== null} onClick={() => setConfirmingDelete(true)}>Delete permanently</button>
     </div>
+    {editingDraft && <TeaLabCardEditor
+      draft={editingDraft}
+      descriptorOptions={descriptorOptions}
+      busy={busy === "edit"}
+      onChange={setEditingDraft}
+      onCancel={() => setEditingDraft(null)}
+      onSave={() => void saveEdit()}
+    />}
     {confirmingDelete && <div className="notice error" role="alertdialog" aria-labelledby={`delete-${session.sourceId}`}>
       <strong id={`delete-${session.sourceId}`}>Permanently delete this tasting?</strong>
       <p style={{ margin: "6px 0 12px" }}>Its brew, descriptors, private notes, Journal card, and Documented Tasting seal will be removed. This cannot be undone.</p>

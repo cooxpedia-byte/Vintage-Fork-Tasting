@@ -1,4 +1,4 @@
-import type { TeaLabBrewingStyle } from "@/lib/tea-lab/offline";
+import type { TeaLabBrewingStyle, TeaLabSoloDraft } from "@/lib/tea-lab/offline";
 import { findTeaDescriptor } from "@/lib/tea-lab/descriptors";
 
 export type JournalSource = "live" | "solo";
@@ -40,6 +40,8 @@ export type JournalCard = {
   id: string;
   source: JournalSource;
   sourceId: string;
+  canonicalTeaId?: string | null;
+  personalTeaId?: string | null;
   teaName: string;
   origin: string | null;
   producer?: string | null;
@@ -201,6 +203,8 @@ export function mapLiveEventToJournalSession(event: LiveJournalEventRow): Journa
     id: `live:${response.id}`,
     source: "live" as const,
     sourceId: response.id,
+    canonicalTeaId: null,
+    personalTeaId: null,
     teaName: response.flight?.tea?.name ?? response.flight?.reveal_title ?? "Tea",
     origin: response.flight?.tea?.origin ?? null,
     producer: response.flight?.tea?.producer ?? null,
@@ -264,6 +268,8 @@ export function mapSoloSessionToJournalSession(row: SoloJournalSessionRow): Jour
       id: `solo:${card.id}`,
       source: "solo" as const,
       sourceId: card.id,
+      canonicalTeaId: card.canonical_tea_id ?? null,
+      personalTeaId: card.personal_tea_record_id ?? null,
       teaName: card.tea_name_snapshot,
       origin: card.origin_snapshot,
       producer: card.producer_snapshot ?? null,
@@ -322,6 +328,57 @@ export function mapSoloSessionToJournalSession(row: SoloJournalSessionRow): Jour
     status,
     contextLabel: "Personal session",
     cards
+  };
+}
+
+export function soloJournalSessionToDraft(ownerUserId: string, session: JournalSession): TeaLabSoloDraft {
+  const card = session.cards[0];
+  const tea = card?.canonicalTeaId
+    ? { kind: "canonical" as const, canonicalTeaId: card.canonicalTeaId }
+    : card?.personalTeaId ? {
+      kind: "personal" as const,
+      personalTeaId: card.personalTeaId,
+      name: card.teaName,
+      producer: card.producer ?? null,
+      origin: card.origin,
+      teaType: card.teaType ?? null,
+      cultivar: card.cultivar ?? null,
+      harvest: card.harvest ?? null,
+      productIdentifier: card.productIdentifier ?? null,
+      lotCode: card.lotCode ?? null
+    } : null;
+  const brewing = card?.brewing;
+
+  return {
+    schemaVersion: 1,
+    ownerUserId,
+    sessionId: session.sourceId,
+    cardId: card?.sourceId ?? session.sourceId,
+    serverRevision: session.revision ?? 0,
+    status: "completed",
+    archived: session.archivedAt !== null,
+    tea,
+    brewing: brewing ? {
+      style: brewing.style,
+      leafGrams: brewing.leafGrams,
+      waterMl: brewing.waterMl,
+      waterTemperatureC: brewing.waterTemperatureC,
+      waterSource: brewing.waterSource,
+      vessel: brewing.vessel,
+      initialSteepSeconds: brewing.initialSteepSeconds,
+      preparationNotes: brewing.preparationNotes,
+      stages: brewing.stages.map(stage => ({ ...stage }))
+    } : {},
+    tasting: {
+      firstImpression: card?.firstImpression ?? null,
+      descriptorIds: card?.descriptors.flatMap(descriptor => descriptor.stableId ? [descriptor.stableId] : []) ?? [],
+      intensity: card?.intensity === "subtle" || card?.intensity === "clear" || card?.intensity === "dominant" ? card.intensity : null,
+      rating: card?.rating ?? null,
+      personalNotes: card?.personalNotes ?? null
+    },
+    createdAt: session.occurredAt,
+    updatedAt: session.completedAt ?? session.occurredAt,
+    lastSyncedAt: session.completedAt
   };
 }
 

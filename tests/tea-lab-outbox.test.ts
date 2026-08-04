@@ -337,6 +337,33 @@ describe("Tea Lab offline outbox", () => {
     expect(savedDraft).toMatchObject({ serverRevision: 2, status: "completed" });
   });
 
+  it("keeps a corrected completed card completed after saving", async () => {
+    const store = new MemoryTeaLabStore();
+    const completed = { ...tastingDraft(), status: "completed" as const, serverRevision: 2 };
+    const corrected = {
+      ...completed,
+      tasting: { ...completed.tasting, personalNotes: "Corrected private notes" }
+    };
+    await queueTeaLabDraftSave(store, corrected, idFactory("correction-1"), clockFactory());
+
+    await syncTeaLabOutbox(store, "owner-1", async operation => ({
+      outcome: "success",
+      session: {
+        id: operation.sessionId,
+        status: "completed",
+        revision: 3,
+        completedAt: "2026-08-03T12:05:00.000Z",
+        archivedAt: null
+      }
+    }), clockFactory());
+
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({
+      serverRevision: 3,
+      status: "completed",
+      tasting: { personalNotes: "Corrected private notes" }
+    });
+  });
+
   it("replays the same operation and revision after an unconfirmed network attempt", async () => {
     const store = new MemoryTeaLabStore();
     const clock = clockFactory();

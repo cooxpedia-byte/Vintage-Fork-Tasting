@@ -8,7 +8,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { CustomerDashboard } from "@/components/dashboard/CustomerDashboard";
-import type { JournalSession } from "@/lib/tea-lab/journal";
+import { TeaLabCardEditor } from "@/components/tea-lab/TeaLabCardEditor";
+import { soloJournalSessionToDraft, type JournalSession } from "@/lib/tea-lab/journal";
 import type { TeaLibraryItem } from "@/lib/tea-lab/library";
 import type { PassportSeal } from "@/lib/tea-lab/passport";
 
@@ -28,7 +29,7 @@ const soloSession: JournalSession = {
   occurredAt: "2026-08-03T11:00:00.000Z", completedAt: "2026-08-03T12:00:00.000Z", archivedAt: null,
   revision: 2, status: "completed", contextLabel: "Personal session",
   cards: [{
-    id: "solo:card-1", source: "solo", sourceId: "card-1", teaName: "Moonlight White", origin: "Yunnan", rating: 4,
+    id: "solo:card-1", source: "solo", sourceId: "card-1", canonicalTeaId: null, personalTeaId: "personal-1", teaName: "Moonlight White", origin: "Yunnan", rating: 4,
     intensity: "clear", descriptors: [], firstImpression: "Soft", personalNotes: "Private", completedAt: "2026-08-03T12:00:00.000Z",
     saved: false, position: 1, sealClass: "documented_tasting"
   }]
@@ -62,15 +63,37 @@ describe("Tea Lab customer assets", () => {
     expect(html).toContain("Open tasting card for Moonlight White");
   });
 
-  it("offers archive and guarded permanent deletion only for owned solo sessions", () => {
+  it("offers editing, archive, and guarded permanent deletion only for owned solo sessions", () => {
     const archived = { ...soloSession, id: "solo-session:archived", sourceId: "archived", archivedAt: "2026-08-04T12:00:00.000Z", revision: 3 };
     const html = render("journal", { journalSessions: [soloSession], archivedJournalSessions: [archived] });
 
+    expect(html).toContain("Edit tasting card");
     expect(html).toContain("Archive tasting");
     expect(html).toContain("Delete permanently");
     expect(html).toContain("Show archived tastings (1)");
     expect(html).toContain("View card");
     expect(html).toContain("View tasting card for Moonlight White");
     expect(html).not.toContain("Restore tasting");
+  });
+
+  it("renders the completed-card editor with tasting, brewing, and Passport safeguards", () => {
+    const draft = soloJournalSessionToDraft("owner-1", soloSession);
+    const html = renderToStaticMarkup(createElement(TeaLabCardEditor, {
+      draft,
+      descriptorOptions: [],
+      busy: false,
+      onChange: vi.fn(),
+      onCancel: vi.fn(),
+      onSave: vi.fn()
+    }));
+
+    expect(html).toContain("Edit tasting card");
+    expect(html).toContain("Tea details");
+    expect(html).toContain("Rating and intensity");
+    expect(html).toContain("Flavour descriptors");
+    expect(html).toContain("Brewing record");
+    expect(html).toContain("Brew stages");
+    expect(html).toContain("Passport stays intact.");
+    expect(html).toContain("Save card");
   });
 });

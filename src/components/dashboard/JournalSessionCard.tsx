@@ -2,6 +2,7 @@ import type { JournalCard, JournalSealClass, JournalSession } from "@/lib/tea-la
 import { TeaLabSessionActions } from "@/components/tea-lab/TeaLabSessionActions";
 import { TastingCardDialog } from "@/components/tea-lab/TastingCardDialog";
 import { formatCustomerEventDate } from "@/lib/customer-dashboard";
+import type { TeaLabDescriptorOption } from "@/lib/tea-lab/lab";
 
 const SEAL_LABELS: Record<JournalSealClass, string> = {
   live_event_verified: "Live Event Verified",
@@ -23,7 +24,7 @@ function TeaRow({ card, contextLabel, occurredAt }: { card: JournalCard; context
   </tr>;
 }
 
-export function JournalSessionCard({ session, ownerUserId }: { session: JournalSession; ownerUserId?: string }) {
+export function JournalSessionCard({ session, ownerUserId, descriptorOptions = [] }: { session: JournalSession; ownerUserId?: string; descriptorOptions?: TeaLabDescriptorOption[] }) {
   const cardsWithNotes = session.cards.filter(card => card.firstImpression || card.personalNotes);
 
   return <article className="card">
@@ -50,6 +51,6 @@ export function JournalSessionCard({ session, ownerUserId }: { session: JournalS
       <span className="muted">Your words are never shown to other guests.</span>
       {session.source === "live" && <span>{session.cards.filter(card => card.saved).length} saved</span>}
     </div>
-    {session.source === "solo" && ownerUserId && session.revision !== null && <TeaLabSessionActions ownerUserId={ownerUserId} session={session} />}
+    {session.source === "solo" && ownerUserId && session.revision !== null && <TeaLabSessionActions ownerUserId={ownerUserId} session={session} descriptorOptions={descriptorOptions} />}
   </article>;
 }

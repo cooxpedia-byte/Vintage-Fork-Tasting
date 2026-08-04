@@ -107,12 +107,12 @@ export function CustomerDashboard({ name, ownerUserId, events, upcoming, initial
         {tab === "journal" && <>
           <h1 className="page-title">Your Tasting Journal</h1><p className="page-lede">Historical notes are private to you.</p>
           <div className="stack" style={{ marginTop: 20 }}>{teaLabEnabled
-            ? journalSessions.length ? journalSessions.map(session => <JournalSessionCard session={session} ownerUserId={ownerUserId} key={session.id} />) : <div className="empty-state"><h2>No tasting history yet.</h2></div>
+            ? journalSessions.length ? journalSessions.map(session => <JournalSessionCard session={session} ownerUserId={ownerUserId} descriptorOptions={descriptorOptions} key={session.id} />) : <div className="empty-state"><h2>No tasting history yet.</h2></div>
             : events.length ? events.map(event => <EventCard event={event} key={event.id} />) : <div className="empty-state"><h2>No tasting history yet.</h2></div>}
           </div>
           {teaLabEnabled && archivedJournalSessions.length > 0 && <section className="archived-journal">
             <button className="btn btn-quiet" type="button" aria-expanded={showArchivedJournal} onClick={() => setShowArchivedJournal(value => !value)}>{showArchivedJournal ? "Hide archived tastings" : `Show archived tastings (${archivedJournalSessions.length})`}</button>
-            {showArchivedJournal && <div className="stack" style={{ marginTop: 12 }}>{archivedJournalSessions.map(session => <JournalSessionCard session={session} ownerUserId={ownerUserId} key={session.id} />)}</div>}
+            {showArchivedJournal && <div className="stack" style={{ marginTop: 12 }}>{archivedJournalSessions.map(session => <JournalSessionCard session={session} ownerUserId={ownerUserId} descriptorOptions={descriptorOptions} key={session.id} />)}</div>}
           </section>}
         </>}
         {tab === "passport" && teaLabEnabled && <TeaPassport seals={passportSeals} />}

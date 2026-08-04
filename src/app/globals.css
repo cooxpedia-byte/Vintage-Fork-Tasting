@@ -329,6 +329,9 @@ tr:last-child td { border-bottom: 0; }
 .page-heading-row > .btn { flex: 0 0 auto; }
 .tea-lab-record-actions { width: 100%; display: grid; gap: .65rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--vf-line); }
 .tea-lab-record-actions .help { margin: 0; }
+.tea-lab-card-editor { min-width: 0; display: grid; gap: 1rem; margin-top: .5rem; padding: clamp(.85rem,2vw,1.25rem); border: 1px solid var(--vf-line-gold); border-radius: var(--radius-md); background: rgba(251,247,236,.72); }
+.tea-lab-card-editor > .section-label { margin: 0; }
+.tea-lab-card-editor > .card-footer { margin-top: 0; }
 .btn-quiet.danger, .error-text { color: var(--vf-danger); }
 .archived-journal { margin-top: 1.5rem; }
 .tea-library-card.archived { opacity: .82; }
@@ -465,6 +468,9 @@ tr:last-child td { border-bottom: 0; }
   .tasting-card-seal-row { grid-template-columns: auto 1fr; }
   .tasting-card-rating { grid-column: 1 / -1; }
   .journal-card-action .btn { min-width: 104px; }
+  .tea-lab-record-actions > .row { align-items: stretch; flex-direction: column; }
+  .tea-lab-record-actions > .row .btn { width: 100%; }
+  .tea-lab-card-editor { padding: .75rem; }
   .tea-library-card .card-footer { align-items: stretch; flex-direction: column; }
   .tea-library-card .tea-lab-record-actions .btn { width: 100%; }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }

@@ -5,6 +5,7 @@ import {
   mapLegacyJournalDescriptor,
   mapLiveEventToJournalSession,
   mapSoloSessionToJournalSession,
+  soloJournalSessionToDraft,
   type LiveJournalEventRow,
   type SoloJournalSessionRow
 } from "@/lib/tea-lab/journal";
@@ -54,8 +55,11 @@ function soloSession(overrides: Partial<SoloJournalSessionRow> = {}): SoloJourna
     cards: [{
       id: "card-1",
       position: 1,
+      personal_tea_record_id: "personal-tea-1",
       tea_name_snapshot: "Moonlight White",
+      producer_snapshot: "White2Tea",
       origin_snapshot: "Yunnan",
+      tea_type_snapshot: "White",
       rating: 4,
       intensity: "clear",
       completed_at: "2026-08-02T10:30:00.000Z",
@@ -162,6 +166,44 @@ describe("Tea Lab Journal adapters", () => {
       { stableId: "descriptor-2", label: "Stone fruit", mapped: true }
     ]);
     expect(input.cards?.[0].descriptor_links?.[0].position).toBe(2);
+  });
+
+  it("reconstructs an editable completed draft without changing its completion evidence", () => {
+    const session = mapSoloSessionToJournalSession(soloSession());
+    const draft = soloJournalSessionToDraft("owner-1", session);
+
+    expect(draft).toMatchObject({
+      ownerUserId: "owner-1",
+      sessionId: "session-1",
+      cardId: "card-1",
+      serverRevision: 2,
+      status: "completed",
+      tea: {
+        kind: "personal",
+        personalTeaId: "personal-tea-1",
+        name: "Moonlight White",
+        producer: "White2Tea",
+        origin: "Yunnan",
+        teaType: "White"
+      },
+      brewing: {
+        style: "gongfu",
+        leafGrams: 5,
+        waterMl: 100,
+        stages: [
+          { label: "Infusion 1", notes: "Apricot" },
+          { label: "Infusion 2", notes: "Floral" }
+        ]
+      },
+      tasting: {
+        firstImpression: "Soft apricot",
+        descriptorIds: ["descriptor-1", "descriptor-2"],
+        rating: 4,
+        personalNotes: "Excellent on steep three"
+      },
+      createdAt: "2026-08-02T10:30:00.000Z",
+      lastSyncedAt: "2026-08-02T10:30:00.000Z"
+    });
   });
 
   it("combines sources newest-first and excludes draft, archived, and incomplete solo records", () => {
