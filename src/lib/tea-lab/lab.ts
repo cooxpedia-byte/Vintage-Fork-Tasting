@@ -20,6 +20,35 @@ export type TeaLabTeaOption = {
   selection: TeaLabTeaSelection;
 };
 
+function normalizeTeaSearch(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
+
+export function searchTeaOptions(options: TeaLabTeaOption[], query: string, limit = 8): TeaLabTeaOption[] {
+  const normalizedQuery = normalizeTeaSearch(query);
+  if (!normalizedQuery || limit < 1) return [];
+
+  return options
+    .map((option, position) => {
+      const name = normalizeTeaSearch(option.name);
+      const supporting = [option.producer, option.origin, option.teaType]
+        .flatMap(value => value ? [normalizeTeaSearch(value)] : []);
+      const matches = name.includes(normalizedQuery) || supporting.some(value => value.includes(normalizedQuery));
+      const score = name === normalizedQuery ? 0
+        : name.startsWith(normalizedQuery) ? 1
+          : supporting.some(value => value.startsWith(normalizedQuery)) ? 2 : 3;
+      return { option, position, matches, score };
+    })
+    .filter(candidate => candidate.matches)
+    .sort((left, right) => left.score - right.score
+      || Number(right.option.saved) - Number(left.option.saved)
+      || Number(right.option.selection.kind === "personal") - Number(left.option.selection.kind === "personal")
+      || left.option.name.localeCompare(right.option.name)
+      || left.position - right.position)
+    .slice(0, limit)
+    .map(candidate => candidate.option);
+}
+
 export type TeaLabServerDraftRow = {
   id: string;
   status: string;

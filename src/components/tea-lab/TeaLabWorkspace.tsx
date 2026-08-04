@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { TeaLabPhotoCapture } from "@/components/tea-lab/TeaLabPhotoCapture";
 import { FlavorDescriptorPicker } from "@/components/tea-lab/FlavorDescriptorPicker";
 import { formatCustomerEventDateTime } from "@/lib/customer-dashboard";
@@ -28,7 +28,7 @@ import {
   toggleTeaLabDescriptor,
   type TeaLabFlowStep
 } from "@/lib/tea-lab/lab-flow";
-import { chooseDraftForHydration, type TeaLabDescriptorOption, type TeaLabTeaOption } from "@/lib/tea-lab/lab";
+import { chooseDraftForHydration, searchTeaOptions, type TeaLabDescriptorOption, type TeaLabTeaOption } from "@/lib/tea-lab/lab";
 import { createSoloTeaDraft, resolveTeaLabSaveIndicator, type TeaLabBrewStageDraft, type TeaLabBrewingStyle, type TeaLabOutboxOperation, type TeaLabSoloDraft } from "@/lib/tea-lab/offline";
 import type { TeaLabOfflineStore } from "@/lib/tea-lab/offline-store";
 import {
@@ -392,25 +392,56 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
   </div>;
 }
 
-function ChooseTeaStep({ draft, options, update, next }: { draft: TeaLabSoloDraft; options: TeaLabTeaOption[]; update: (recipe: (draft: TeaLabSoloDraft) => TeaLabSoloDraft) => void; next: () => void }) {
-  const matchingKey = draft.tea?.kind === "canonical"
-    ? `canonical:${draft.tea.canonicalTeaId}`
-    : draft.tea?.kind === "personal" && options.some(option => option.key === `personal:${draft.tea && "personalTeaId" in draft.tea ? draft.tea.personalTeaId : ""}`)
-      ? `personal:${draft.tea.personalTeaId}` : draft.tea ? "manual" : "";
-  const saved = options.filter(option => option.saved);
-  const personal = options.filter(option => option.selection.kind === "personal");
-  const catalogue = options.filter(option => option.selection.kind === "canonical" && !option.saved);
+function teaSearchValue(draft: TeaLabSoloDraft, options: TeaLabTeaOption[]): string {
+  if (!draft.tea) return "";
+  if (draft.tea.kind === "personal") return draft.tea.name;
+  const canonicalTeaId = draft.tea.canonicalTeaId;
+  return options.find(option => option.selection.kind === "canonical"
+    && option.selection.canonicalTeaId === canonicalTeaId)?.name ?? "";
+}
 
-  function selectTea(key: string) {
-    if (key === "manual") {
-      update(current => ({
-        ...current,
-        tea: current.tea?.kind === "personal" ? current.tea : { kind: "personal", personalTeaId: crypto.randomUUID(), name: "" }
-      }));
-      return;
-    }
-    const option = options.find(candidate => candidate.key === key);
-    if (!option) return;
+function teaSearchSource(option: TeaLabTeaOption): string {
+  if (option.saved) return "Saved tea";
+  return option.selection.kind === "personal" ? "Your tea" : "Catalogue";
+}
+
+export function ChooseTeaStep({ draft, options, update, next }: { draft: TeaLabSoloDraft; options: TeaLabTeaOption[]; update: (recipe: (draft: TeaLabSoloDraft) => TeaLabSoloDraft) => void; next: () => void }) {
+  const listboxId = useId();
+  const helpId = useId();
+  const blurTimer = useRef<number | null>(null);
+  const [query, setQuery] = useState(() => teaSearchValue(draft, options));
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const suggestions = useMemo(() => searchTeaOptions(options, query), [options, query]);
+  const activeSuggestion = open ? suggestions[activeIndex] : undefined;
+
+  function typeTea(value: string) {
+    setQuery(value);
+    setOpen(Boolean(value.trim()));
+    setActiveIndex(0);
+    update(current => ({
+      ...current,
+      tea: current.tea?.kind === "personal"
+        ? { ...current.tea, name: value }
+        : {
+            kind: "personal",
+            personalTeaId: crypto.randomUUID(),
+            name: value,
+            producer: null,
+            origin: null,
+            teaType: null,
+            cultivar: null,
+            harvest: null,
+            productIdentifier: null,
+            lotCode: null
+          }
+    }));
+  }
+
+  function selectTea(option: TeaLabTeaOption) {
+    setQuery(option.name);
+    setOpen(false);
+    setActiveIndex(0);
     update(current => ({
       ...current,
       tea: { ...option.selection },
@@ -420,31 +451,92 @@ function ChooseTeaStep({ draft, options, update, next }: { draft: TeaLabSoloDraf
     }));
   }
 
-  function updatePersonal(field: "name" | "producer" | "origin" | "teaType" | "harvest" | "lotCode", value: string) {
+  function updatePersonal(field: "producer" | "origin" | "teaType" | "harvest" | "lotCode", value: string) {
     update(current => current.tea?.kind === "personal" ? {
       ...current,
-      tea: { ...current.tea, [field]: value || null, ...(field === "name" ? { name: value } : {}) }
+      tea: { ...current.tea, [field]: value || null }
     } : current);
   }
 
+  function handleSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if ((event.key === "ArrowDown" || event.key === "ArrowUp") && suggestions.length > 0) {
+      event.preventDefault();
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      setOpen(true);
+      setActiveIndex(current => (current + direction + suggestions.length) % suggestions.length);
+      return;
+    }
+    if (event.key === "Enter" && activeSuggestion) {
+      event.preventDefault();
+      selectTea(activeSuggestion);
+      return;
+    }
+    if (event.key === "Escape") {
+      setOpen(false);
+      setActiveIndex(0);
+    }
+  }
+
   return <section className="card tea-lab-step">
-    <p className="eyebrow">Step 1</p><h1 className="page-title">Choose the tea</h1><p className="page-lede">Use a saved or catalogue tea, reuse a personal tea, or document something new.</p>
-    <div className="field"><label htmlFor="tea-lab-tea">Tea</label><select className="select" id="tea-lab-tea" value={matchingKey} onChange={event => selectTea(event.target.value)}>
-      <option value="">Select a tea…</option>
-      {saved.length > 0 && <optgroup label="Saved teas">{saved.map(option => <option value={option.key} key={option.key}>{option.name}{option.origin ? ` · ${option.origin}` : ""}</option>)}</optgroup>}
-      {personal.length > 0 && <optgroup label="Your personal teas">{personal.map(option => <option value={option.key} key={option.key}>{option.name}{option.origin ? ` · ${option.origin}` : ""}</option>)}</optgroup>}
-      {catalogue.length > 0 && <optgroup label="Vintage Fork catalogue">{catalogue.map(option => <option value={option.key} key={option.key}>{option.name}{option.origin ? ` · ${option.origin}` : ""}</option>)}</optgroup>}
-      <option value="manual">Enter a tea manually</option>
-    </select></div>
-    {draft.tea?.kind === "personal" && <div className="grid grid-2">
-      <div className="field"><label htmlFor="tea-name">Tea name</label><input className="input" id="tea-name" maxLength={160} required value={draft.tea.name} onChange={event => updatePersonal("name", event.target.value)} /></div>
-      <div className="field"><label htmlFor="tea-producer">Producer</label><input className="input" id="tea-producer" maxLength={160} value={draft.tea.producer ?? ""} onChange={event => updatePersonal("producer", event.target.value)} /></div>
-      <div className="field"><label htmlFor="tea-origin">Origin</label><input className="input" id="tea-origin" maxLength={160} value={draft.tea.origin ?? ""} onChange={event => updatePersonal("origin", event.target.value)} /></div>
-      <div className="field"><label htmlFor="tea-type">Tea type</label><input className="input" id="tea-type" maxLength={80} value={draft.tea.teaType ?? ""} onChange={event => updatePersonal("teaType", event.target.value)} /></div>
-      <div className="field"><label htmlFor="tea-harvest">Harvest</label><input className="input" id="tea-harvest" maxLength={120} value={draft.tea.harvest ?? ""} onChange={event => updatePersonal("harvest", event.target.value)} /></div>
-      <div className="field"><label htmlFor="tea-lot">Lot or batch <span className="muted">(unverified)</span></label><input className="input" id="tea-lot" maxLength={160} value={draft.tea.lotCode ?? ""} onChange={event => updatePersonal("lotCode", event.target.value)} /></div>
-    </div>}
-    <div className="card-footer"><span className="muted">Manual tea details remain private to you.</span><button className="btn btn-primary btn-attention" type="button" disabled={!isTeaSelectionReady(draft)} onClick={next}>Continue to brew</button></div>
+    <p className="eyebrow">Step 1</p><h1 className="page-title">Choose the tea</h1><p className="page-lede">Search your saved teas and the Vintage Fork catalogue, or type any tea name—even if it is not in our inventory.</p>
+    <div className="field tea-search-field">
+      <label htmlFor="tea-lab-tea-search">Choose your tea</label>
+      <div className="tea-search-control">
+        <input
+          className="input"
+          id="tea-lab-tea-search"
+          type="search"
+          role="combobox"
+          autoComplete="off"
+          maxLength={160}
+          value={query}
+          placeholder="Start typing a tea name…"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={open && suggestions.length > 0 ? listboxId : undefined}
+          aria-activedescendant={activeSuggestion ? `${listboxId}-option-${activeIndex}` : undefined}
+          aria-describedby={helpId}
+          onFocus={() => {
+            if (blurTimer.current !== null) window.clearTimeout(blurTimer.current);
+            setOpen(Boolean(query.trim()));
+          }}
+          onBlur={() => { blurTimer.current = window.setTimeout(() => setOpen(false), 100); }}
+          onChange={event => typeTea(event.target.value)}
+          onKeyDown={handleSearchKeyDown}
+        />
+        {open && query.trim() && <div className="tea-search-popover">
+          {suggestions.length > 0 ? <ul className="tea-search-listbox" id={listboxId} role="listbox" aria-label="Matching teas">
+            {suggestions.map((option, index) => <li
+              id={`${listboxId}-option-${index}`}
+              className="tea-search-option"
+              role="option"
+              aria-selected={index === activeIndex}
+              key={option.key}
+              onPointerDown={event => event.preventDefault()}
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => selectTea(option)}
+            >
+              <span><strong>{option.name}</strong><small>{[option.producer, option.origin, option.teaType].filter(Boolean).join(" · ") || "Tea details available"}</small></span>
+              <span className="tea-search-source">{teaSearchSource(option)}</span>
+            </li>)}
+          </ul> : <div className="tea-search-no-match" role="status"><strong>No inventory match</strong><span>Continue with “{query.trim()}” as your private tea.</span></div>}
+        </div>}
+      </div>
+      <p className="help" id={helpId}>{query.trim() && suggestions.length === 0
+        ? "No match is required. Your typed tea name can continue to brewing."
+        : "Start typing, then choose a suggestion or keep your own full tea name."}</p>
+    </div>
+    {draft.tea?.kind === "personal" && <>
+      <p className="help tea-search-private-note">Optional details for your private tea</p>
+      <div className="grid grid-2">
+        <div className="field"><label htmlFor="tea-producer">Producer</label><input className="input" id="tea-producer" maxLength={160} value={draft.tea.producer ?? ""} onChange={event => updatePersonal("producer", event.target.value)} /></div>
+        <div className="field"><label htmlFor="tea-origin">Origin</label><input className="input" id="tea-origin" maxLength={160} value={draft.tea.origin ?? ""} onChange={event => updatePersonal("origin", event.target.value)} /></div>
+        <div className="field"><label htmlFor="tea-type">Tea type</label><input className="input" id="tea-type" maxLength={80} value={draft.tea.teaType ?? ""} onChange={event => updatePersonal("teaType", event.target.value)} /></div>
+        <div className="field"><label htmlFor="tea-harvest">Harvest</label><input className="input" id="tea-harvest" maxLength={120} value={draft.tea.harvest ?? ""} onChange={event => updatePersonal("harvest", event.target.value)} /></div>
+        <div className="field"><label htmlFor="tea-lot">Lot or batch <span className="muted">(unverified)</span></label><input className="input" id="tea-lot" maxLength={160} value={draft.tea.lotCode ?? ""} onChange={event => updatePersonal("lotCode", event.target.value)} /></div>
+      </div>
+    </>}
+    <div className="card-footer"><span className="muted">Teas outside our inventory remain private to you.</span><button className="btn btn-primary btn-attention" type="button" disabled={!isTeaSelectionReady(draft)} onClick={next}>Continue to brew</button></div>
   </section>;
 }
 
