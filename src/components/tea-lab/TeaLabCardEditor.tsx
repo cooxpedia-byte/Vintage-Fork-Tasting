@@ -56,7 +56,7 @@ export function TeaLabCardEditor({ draft, descriptorOptions, busy, onChange, onC
   const brewingStyle = getTeaLabBrewingStyle(brewingStyleId);
   const preferredDurationUnit = brewingStyle?.durationUnit ?? "seconds";
   const addStage = () => {
-    if (!brewingStyleId || !brewingStyle?.repeatable || stages.length >= 20) return;
+    if (!brewingStyleId || !brewingStyle || stages.length >= 20) return;
     setBrewing("stages", [...stages, {
       label: nextTeaLabBrewStageLabel(brewingStyleId, stages),
       durationSeconds: null,
@@ -119,7 +119,7 @@ export function TeaLabCardEditor({ draft, descriptorOptions, busy, onChange, onC
     </fieldset>
 
     <fieldset className="tea-lab-fieldset">
-      <legend>Brew stages {brewingStyle?.repeatable && <span className="muted">Up to 20</span>}</legend>
+      <legend>Brew stages {brewingStyle && <span className="muted">Up to 20</span>}</legend>
       <div className="stack">{stages.map((stage, index) => <article className="tea-lab-stage" key={index}>
         <div className="card-header"><strong>Stage {index + 1}</strong>{stages.length > 1 && <button className="btn btn-quiet danger" type="button" disabled={busy} onClick={() => setBrewing("stages", stages.filter((_, stageIndex) => stageIndex !== index))}>Remove</button>}</div>
         <div className="grid grid-3">
@@ -129,7 +129,7 @@ export function TeaLabCardEditor({ draft, descriptorOptions, busy, onChange, onC
         </div>
         <div className="field"><label htmlFor={`edit-stage-notes-${draft.cardId}-${index}`}>Notes</label><textarea className="textarea" id={`edit-stage-notes-${draft.cardId}-${index}`} maxLength={600} value={stage.notes ?? ""} onChange={event => updateStage(index, { notes: event.target.value || null })} /></div>
       </article>)}</div>
-      {brewingStyle?.repeatable && stages.length < 20 && <button className="btn btn-secondary" type="button" disabled={busy} onClick={addStage}>Add {brewingStyle.nextStageLabel?.toLocaleLowerCase("en-CA") ?? brewingStyle.stageNoun}</button>}
+      {brewingStyle && stages.length < 20 && <button className="btn btn-secondary" type="button" disabled={busy} onClick={addStage}>+ Add {brewingStyle.nextStageLabel?.toLocaleLowerCase("en-CA") ?? "infusion"}</button>}
     </fieldset>
 
     <div className="notice"><strong>Passport stays intact.</strong><p style={{ margin: "6px 0 0" }}>Editing updates this card without changing its original completion date or Documented Tasting seal.</p></div>

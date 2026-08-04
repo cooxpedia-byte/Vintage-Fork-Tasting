@@ -28,6 +28,7 @@ describe("Tea Lab brewing flows", () => {
 
     expect(stages.map(stage => stage.label)).toEqual(["Rinse (optional)", "Infusion 1", "Infusion 2", "Infusion 3"]);
     expect(nextTeaLabBrewStageLabel("gongfu", stages)).toBe("Infusion 4");
+    expect(nextTeaLabBrewStageLabel("matcha_usucha", createDefaultTeaLabBrewStages("matcha_usucha"))).toBe("Infusion 1");
   });
 
   it("keeps display-unit conversion lossless at persisted second precision", () => {

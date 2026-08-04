@@ -250,7 +250,7 @@ export function createDefaultTeaLabBrewStages(style: TeaLabBrewingStyle): TeaLab
 
 export function nextTeaLabBrewStageLabel(style: TeaLabBrewingStyle, stages: TeaLabBrewStageDraft[]): string {
   const definition = getTeaLabBrewingStyle(style);
-  const base = definition?.nextStageLabel ?? "Stage";
+  const base = definition?.nextStageLabel ?? "Infusion";
   const number = stages.filter(stage => stage.label.toLocaleLowerCase("en-CA").includes(base.toLocaleLowerCase("en-CA"))).length + 1;
   return `${base} ${number}`;
 }
