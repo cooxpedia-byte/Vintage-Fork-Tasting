@@ -493,6 +493,8 @@ tr:last-child td { border-bottom: 0; }
 .tasting-card-live-plum { color: #fff8e9; background: var(--tc-panel-bg,#431832); box-shadow: 0 0 1.15cqw 1.1cqw var(--tc-panel-bg,#431832); }
 .tasting-card-live-paper { color: #241b16; background: rgba(250,245,232,.99); box-shadow: 0 0 .8cqw .72cqw rgba(250,245,232,.99); }
 .tasting-card-live-front-name { top: 15.5%; left: 14%; width: 72%; height: 6%; font-family: Georgia,"Times New Roman",serif; font-size: 7.7cqw; font-weight: 500; white-space: nowrap; }
+.tasting-card-live-front-name.is-long { top: 14.35%; left: 12%; width: 76%; height: 8.4%; display: block; align-content: center; padding-inline: 1cqw; font-size: 5.7cqw; line-height: .98; overflow-wrap: anywhere; text-wrap: balance; white-space: normal; }
+.tasting-card-live-front-name.is-extra-long { top: 14%; left: 11%; width: 78%; height: 9.1%; font-size: 4.5cqw; line-height: 1; }
 .tasting-card-live-session { top: 24.5%; left: 23%; width: 54%; height: 3.1%; gap: .7cqw; font-size: 2.55cqw; white-space: nowrap; }
 .tasting-card-live-seal-old-cover { position: absolute; z-index: 2; top: 49.5%; left: 20.8%; width: 12.5%; height: 7%; border-radius: 50%; background: rgba(250,245,232,.99); box-shadow: 0 0 .8cqw .8cqw rgba(250,245,232,.99); }
 .tasting-card-live-tea-medallion-cover { position: absolute; z-index: 2; top: 29.3%; left: 35.1%; width: 29.8%; box-sizing: border-box; aspect-ratio: 1; border: .48cqw solid transparent; border-radius: 50%; background: radial-gradient(circle at 50% 30%,rgba(255,253,246,.98),rgba(246,239,220,.99) 62%,rgba(235,224,198,.99)) padding-box,conic-gradient(from 210deg,#6d4100,#c28b00,#fff3a6,#ffd700,#8d5b00,#f8d34b,#fff5bc,#8b5700,#6d4100) border-box; box-shadow: inset 0 0 2.4cqw rgba(173,137,65,.12),inset 0 0 0 .18cqw rgba(255,248,196,.55),0 0 1.2cqw rgba(212,175,55,.34); }
@@ -513,6 +515,8 @@ tr:last-child td { border-bottom: 0; }
 .tasting-card-live-intensity { top: 78%; left: 19.5%; width: 21%; height: 3.5%; justify-content: flex-start; font-size: 2.65cqw; font-weight: 700; text-align: left; }
 .tasting-card-live-descriptors { top: 78%; left: 54.5%; width: 34%; height: 3.5%; justify-content: flex-start; font-size: 2.5cqw; font-weight: 700; text-align: left; white-space: nowrap; }
 .tasting-card-live-back-name { top: 13.2%; left: 19%; width: 62%; height: 5.5%; color: #431832; font-family: Georgia,"Times New Roman",serif; font-size: 7.2cqw; font-weight: 500; white-space: nowrap; }
+.tasting-card-live-back-name.is-long { top: 12.35%; left: 15%; width: 70%; height: 7.2%; display: block; align-content: center; padding-inline: 1cqw; font-size: 5.3cqw; line-height: .98; overflow-wrap: anywhere; text-wrap: balance; white-space: normal; }
+.tasting-card-live-back-name.is-extra-long { top: 12%; left: 13%; width: 74%; height: 8%; font-size: 4.2cqw; line-height: 1; }
 .tasting-card-live-style, .tasting-card-live-leaf, .tasting-card-live-water, .tasting-card-live-temperature, .tasting-card-live-initial, .tasting-card-live-vessel, .tasting-card-live-source { height: 2.7%; font-size: 2.75cqw; white-space: nowrap; }
 .tasting-card-live-style { top: 35.1%; left: 12.3%; width: 17.5%; }
 .tasting-card-live-leaf { top: 35.1%; left: 32.4%; width: 17%; }
