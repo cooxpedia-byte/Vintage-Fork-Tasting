@@ -18,10 +18,13 @@ import {
   teaLabBrewingStyleLabel
 } from "@/lib/tea-lab/brewing";
 import {
+  canNavigateTeaLabFlowStep,
+  furthestTeaLabFlowStep,
   inferTeaLabFlowStep,
   isTeaSelectionReady,
   nextTeaLabRating,
   parseOptionalNumber,
+  TEA_LAB_FLOW_STEPS,
   toggleTeaLabDescriptor,
   type TeaLabFlowStep
 } from "@/lib/tea-lab/lab-flow";
@@ -58,6 +61,37 @@ export function teaLabDraftTeaName(draft: TeaLabSoloDraft, options: TeaLabTeaOpt
     && option.selection.canonicalTeaId === canonicalTeaId)?.name ?? "Vintage Fork tea";
 }
 
+const teaLabProgressLabels: Record<TeaLabFlowStep, string> = {
+  choose: "Tea",
+  brew: "Brew",
+  taste: "Taste",
+  review: "Review"
+};
+
+export function TeaLabProgress({ step, furthestStep, onNavigate }: {
+  step: TeaLabFlowStep;
+  furthestStep: TeaLabFlowStep;
+  onNavigate: (step: TeaLabFlowStep) => void;
+}) {
+  return <ol className="tea-lab-progress" aria-label="Tasting session progress">
+    {TEA_LAB_FLOW_STEPS.map((value, index) => {
+      const label = teaLabProgressLabels[value];
+      const current = step === value;
+      const available = canNavigateTeaLabFlowStep(furthestStep, value);
+      return <li className={`${current ? "active " : ""}${available ? "visited" : "locked"}`.trim()} key={value}>
+        <button
+          type="button"
+          data-step={value}
+          aria-current={current ? "step" : undefined}
+          aria-label={current ? `${label}, current step` : available ? `Edit ${label} step` : `${label} step, complete earlier steps first`}
+          disabled={!available}
+          onClick={() => onNavigate(value)}
+        ><span aria-hidden="true">{index + 1}</span><span>{label}</span></button>
+      </li>;
+    })}
+  </ol>;
+}
+
 function numericValue(value: number | null | undefined): string | number {
   return value ?? "";
 }
@@ -73,6 +107,7 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
   const [operations, setOperations] = useState<TeaLabOutboxOperation[]>([]);
   const [draft, setDraft] = useState<TeaLabSoloDraft | null>(null);
   const [step, setStep] = useState<TeaLabFlowStep>("choose");
+  const [furthestStep, setFurthestStep] = useState<TeaLabFlowStep>("choose");
   const [ready, setReady] = useState(false);
   const [online, setOnline] = useState(true);
   const [storageError, setStorageError] = useState("");
@@ -198,15 +233,30 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
     currentDraftRef.current = next;
     setDraft(next);
     setStep("choose");
+    setFurthestStep("choose");
     setFormError("");
     await refreshDeviceState(store);
   }
 
   function resumeTasting(selected: TeaLabSoloDraft) {
+    const resumedStep = inferTeaLabFlowStep(selected);
     currentDraftRef.current = selected;
     setDraft(selected);
-    setStep(inferTeaLabFlowStep(selected));
+    setStep(resumedStep);
+    setFurthestStep(resumedStep);
     setFormError("");
+  }
+
+  function advanceToStep(nextStep: TeaLabFlowStep) {
+    setFormError("");
+    setStep(nextStep);
+    setFurthestStep(current => furthestTeaLabFlowStep(current, nextStep));
+  }
+
+  function navigateToVisitedStep(nextStep: TeaLabFlowStep) {
+    if (!canNavigateTeaLabFlowStep(furthestStep, nextStep)) return;
+    setFormError("");
+    setStep(nextStep);
   }
 
   async function leaveTasting() {
@@ -332,15 +382,13 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
       <button className="btn btn-quiet" type="button" onClick={leaveTasting}>← Lab</button>
       <p className={`help tea-lab-save-state ${saveIndicator.state}`} role="status" aria-live="polite">{saveIndicator.label}</p>
     </div>
-    <ol className="tea-lab-progress" aria-label="Tasting session progress">
-      {(["choose", "brew", "taste", "review"] as TeaLabFlowStep[]).map((value, index) => <li className={step === value ? "active" : ""} aria-current={step === value ? "step" : undefined} key={value}><span>{index + 1}</span>{value === "choose" ? "Tea" : value === "brew" ? "Brew" : value === "taste" ? "Taste" : "Review"}</li>)}
-    </ol>
+    <TeaLabProgress step={step} furthestStep={furthestStep} onNavigate={navigateToVisitedStep} />
     {blocked && <div className="notice error" role="alert"><p>This draft changed elsewhere. Your device copy is safe, but syncing is paused until the conflict is reviewed.</p>{revisionConflict && <button className="btn btn-secondary" type="button" disabled={completing} onClick={retryDeviceCopy}>{canRetryDeviceCopy ? "Use this device copy" : "Check latest version"}</button>}</div>}
     {formError && <div className="notice error" role="alert">{formError}</div>}
-    {step === "choose" && <ChooseTeaStep draft={draft} options={teaOptions} update={replaceDraft} next={() => isTeaSelectionReady(draft) ? setStep("brew") : setFormError("Choose a tea or enter its name to continue.")} />}
-    {step === "brew" && <BrewStep draft={draft} update={replaceDraft} back={() => setStep("choose")} next={() => setStep("taste")} />}
-    {step === "taste" && <TasteStep draft={draft} descriptors={descriptorOptions} update={replaceDraft} back={() => setStep("brew")} next={() => setStep("review")} online={online} photoBusy={photoBusy} preparePhotoCard={preparePhotoCard} onPhotoBusyChange={setPhotoBusy} />}
-    {step === "review" && <ReviewStep draft={draft} teaOptions={teaOptions} descriptors={descriptorOptions} back={() => setStep("taste")} complete={completeTasting} busy={completing || photoBusy} blocked={blocked} />}
+    {step === "choose" && <ChooseTeaStep draft={draft} options={teaOptions} update={replaceDraft} next={() => isTeaSelectionReady(draft) ? advanceToStep("brew") : setFormError("Choose a tea or enter its name to continue.")} />}
+    {step === "brew" && <BrewStep draft={draft} update={replaceDraft} back={() => navigateToVisitedStep("choose")} next={() => advanceToStep("taste")} />}
+    {step === "taste" && <TasteStep draft={draft} descriptors={descriptorOptions} update={replaceDraft} back={() => navigateToVisitedStep("brew")} next={() => advanceToStep("review")} online={online} photoBusy={photoBusy} preparePhotoCard={preparePhotoCard} onPhotoBusyChange={setPhotoBusy} />}
+    {step === "review" && <ReviewStep draft={draft} teaOptions={teaOptions} descriptors={descriptorOptions} back={() => navigateToVisitedStep("taste")} complete={completeTasting} busy={completing || photoBusy} blocked={blocked} />}
   </div>;
 }
 

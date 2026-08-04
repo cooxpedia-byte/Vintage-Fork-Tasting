@@ -1,6 +1,19 @@
 import type { TeaLabSoloDraft } from "@/lib/tea-lab/offline";
 
-export type TeaLabFlowStep = "choose" | "brew" | "taste" | "review";
+export const TEA_LAB_FLOW_STEPS = ["choose", "brew", "taste", "review"] as const;
+export type TeaLabFlowStep = typeof TEA_LAB_FLOW_STEPS[number];
+
+export function teaLabFlowStepIndex(step: TeaLabFlowStep): number {
+  return TEA_LAB_FLOW_STEPS.indexOf(step);
+}
+
+export function furthestTeaLabFlowStep(current: TeaLabFlowStep, candidate: TeaLabFlowStep): TeaLabFlowStep {
+  return teaLabFlowStepIndex(candidate) > teaLabFlowStepIndex(current) ? candidate : current;
+}
+
+export function canNavigateTeaLabFlowStep(furthest: TeaLabFlowStep, target: TeaLabFlowStep): boolean {
+  return teaLabFlowStepIndex(target) <= teaLabFlowStepIndex(furthest);
+}
 
 export function isTeaSelectionReady(draft: TeaLabSoloDraft): boolean {
   return draft.tea?.kind === "canonical" || Boolean(draft.tea?.name.trim());

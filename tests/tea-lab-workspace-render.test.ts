@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { BrewStep, TasteStep, TeaLabWorkspace, teaLabDraftTeaName } from "@/components/tea-lab/TeaLabWorkspace";
+import { BrewStep, TasteStep, TeaLabProgress, TeaLabWorkspace, teaLabDraftTeaName } from "@/components/tea-lab/TeaLabWorkspace";
 import { FlavorDescriptorPicker, flavorWheelIndex, flavorWheelRotation } from "@/components/tea-lab/FlavorDescriptorPicker";
 import { TEA_DESCRIPTOR_PALETTE } from "@/lib/tea-lab/descriptors";
 import { createDefaultTeaLabBrewStages } from "@/lib/tea-lab/brewing";
@@ -101,6 +101,20 @@ describe("Tea Lab workspace", () => {
     expect(html).toContain("Take photo");
     expect(html).toContain('capture="environment"');
     expect(html).toContain("Add from library");
+  });
+
+  it("renders visited progress steps as edit buttons and locks unvisited steps", () => {
+    const html = renderToStaticMarkup(createElement(TeaLabProgress, {
+      step: "brew",
+      furthestStep: "taste",
+      onNavigate: vi.fn()
+    }));
+
+    expect(html).toContain('aria-label="Edit Tea step"');
+    expect(html).toContain('aria-current="step"');
+    expect(html).toContain('aria-label="Brew, current step"');
+    expect(html).toContain('aria-label="Edit Taste step"');
+    expect(html).toContain('aria-label="Review step, complete earlier steps first" disabled=""');
   });
 
   it("renders a rotary category picker, drop zone, and five-choice focus", () => {

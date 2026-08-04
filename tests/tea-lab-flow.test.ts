@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSoloTeaDraft } from "@/lib/tea-lab/offline";
-import { inferTeaLabFlowStep, isTeaSelectionReady, nextTeaLabRating, parseOptionalNumber, toggleTeaLabDescriptor } from "@/lib/tea-lab/lab-flow";
+import { canNavigateTeaLabFlowStep, furthestTeaLabFlowStep, inferTeaLabFlowStep, isTeaSelectionReady, nextTeaLabRating, parseOptionalNumber, toggleTeaLabDescriptor } from "@/lib/tea-lab/lab-flow";
 
 function draft() {
   return createSoloTeaDraft("owner-1", (() => {
@@ -30,6 +30,14 @@ describe("Tea Lab solo flow", () => {
     expect(toggleTeaLabDescriptor(["one", "two", "three", "four", "five"], "six")).toEqual(["one", "two", "three", "four", "five"]);
     expect(toggleTeaLabDescriptor(["one", "two", "three", "four"], "five")).toEqual(["one", "two", "three", "four", "five"]);
     expect(toggleTeaLabDescriptor(["one", "two"], "one")).toEqual(["two"]);
+  });
+
+  it("keeps visited tasting steps available while locking unvisited future steps", () => {
+    expect(canNavigateTeaLabFlowStep("taste", "choose")).toBe(true);
+    expect(canNavigateTeaLabFlowStep("taste", "taste")).toBe(true);
+    expect(canNavigateTeaLabFlowStep("taste", "review")).toBe(false);
+    expect(furthestTeaLabFlowStep("review", "brew")).toBe("review");
+    expect(furthestTeaLabFlowStep("brew", "taste")).toBe("taste");
   });
 
   it("normalizes optional numeric inputs", () => {
