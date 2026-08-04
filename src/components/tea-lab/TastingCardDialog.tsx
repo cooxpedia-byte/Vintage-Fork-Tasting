@@ -108,6 +108,13 @@ export function tastingCardTitleLengthClass(teaName: string): string {
   return "";
 }
 
+export function tastingCardStyleLengthClass(styleLabel: string): string {
+  const length = Array.from(styleLabel.trim()).length;
+  if (length > 18) return "is-long is-extra-long";
+  if (length > 12) return "is-long";
+  return "";
+}
+
 export function PhotoSlider({ photos, teaName }: { photos: JournalPhoto[]; teaName: string }) {
   const [index, setIndex] = useState(0);
   if (photos.length === 0) return null;
@@ -159,8 +166,10 @@ export function TastingCardPresentation({
   const theme = tastingCardTeaTheme(card.teaType);
   const assetTheme = theme === "classic" ? "green" : theme;
   const titleLengthClass = tastingCardTitleLengthClass(card.teaName);
-  const dateLabel = new Date(earnedAt).toLocaleDateString("en-CA", { dateStyle: "long" });
   const missing = "Not recorded";
+  const brewingStyleLabel = teaLabBrewingStyleLabel(brewing?.style) ?? missing;
+  const styleLengthClass = tastingCardStyleLengthClass(brewingStyleLabel);
+  const dateLabel = new Date(earnedAt).toLocaleDateString("en-CA", { dateStyle: "long" });
 
   return <div className={`tasting-card-flip tasting-card-theme-${theme}${flipped ? " is-flipped" : ""}`}>
     <article className="tasting-card-face tasting-card-artwork-face tasting-card-front" aria-hidden={flipped} aria-label={`${card.teaName} tasting profile`}>
@@ -191,7 +200,7 @@ export function TastingCardPresentation({
       <img className="tasting-card-artwork-image" src={`/tea-cards/anji-white-tea-back-${assetTheme}.png`} alt="" draggable="false" aria-hidden="true"/>
       <span className="sr-only">Back of card. Brewing record. Brew stages.</span>
       <h3 className={`tasting-card-live tasting-card-live-back-name tasting-card-live-paper ${titleLengthClass}`.trim()}>{card.teaName}</h3>
-      <div className="tasting-card-live tasting-card-live-style tasting-card-live-paper"><span className="sr-only">Style: </span>{teaLabBrewingStyleLabel(brewing?.style) ?? missing}</div>
+      <div className={`tasting-card-live tasting-card-live-style tasting-card-live-paper ${styleLengthClass}`.trim()}><span className="sr-only">Style: </span>{brewingStyleLabel}</div>
       <div className="tasting-card-live tasting-card-live-leaf tasting-card-live-paper"><span className="sr-only">Leaf: </span>{value(brewing?.leafGrams, " g leaf") ?? missing}</div>
       <div className="tasting-card-live tasting-card-live-water tasting-card-live-paper"><span className="sr-only">Water: </span>{value(brewing?.waterMl, " ml water") ?? missing}</div>
       <div className="tasting-card-live tasting-card-live-temperature tasting-card-live-paper"><span className="sr-only">Temperature: </span>{value(brewing?.waterTemperatureC, " °C") ?? missing}</div>

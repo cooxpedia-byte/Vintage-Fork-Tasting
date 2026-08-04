@@ -519,6 +519,8 @@ tr:last-child td { border-bottom: 0; }
 .tasting-card-live-back-name.is-extra-long { top: 12%; left: 13%; width: 74%; height: 8%; font-size: 4.2cqw; line-height: 1; }
 .tasting-card-live-style, .tasting-card-live-leaf, .tasting-card-live-water, .tasting-card-live-temperature, .tasting-card-live-initial, .tasting-card-live-vessel, .tasting-card-live-source { height: 2.7%; font-size: 2.75cqw; white-space: nowrap; }
 .tasting-card-live-style { top: 35.1%; left: 12.3%; width: 17.5%; }
+.tasting-card-live-style.is-long { left: 11.5%; width: 19.4%; font-size: 2.2cqw; }
+.tasting-card-live-style.is-extra-long { top: 34.25%; height: 4.4%; display: block; align-content: center; font-size: 1.75cqw; line-height: 1.02; overflow-wrap: anywhere; text-wrap: balance; white-space: normal; }
 .tasting-card-live-leaf { top: 35.1%; left: 32.4%; width: 17%; }
 .tasting-card-live-water { top: 35.1%; left: 51%; width: 19.5%; }
 .tasting-card-live-temperature { top: 35.1%; left: 73%; width: 15%; }
