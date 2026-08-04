@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { DetachableTastingSeal, PhotoSlider, TastingCardPresentation, tastingCardTeaTheme } from "@/components/tea-lab/TastingCardDialog";
+import { DetachableTastingSeal, PhotoSlider, TastingCardPresentation, tastingCardTeaTheme, tastingCardTitleLengthClass } from "@/components/tea-lab/TastingCardDialog";
 import type { JournalCard } from "@/lib/tea-lab/journal";
 
 const card: JournalCard = {
@@ -101,5 +101,21 @@ describe("Tea Lab tasting-card photo slider", () => {
     expect(["Green", "Black", "Oolong", "White", "Yellow", "Red", "Pu-erh", "Herbal"].map(tastingCardTeaTheme))
       .toEqual(["green", "black", "oolong", "white", "yellow", "red", "dark", "herbal"]);
     expect(tastingCardTeaTheme(null)).toBe("classic");
+  });
+
+  it("uses compact wrapping styles for long tea names on both card faces", () => {
+    const longName = "Bai Mudan – White Peony";
+    const html = renderToStaticMarkup(createElement(TastingCardPresentation, {
+      card: { ...card, teaName: longName },
+      contextLabel: "Personal session",
+      earnedAt: "2026-08-03T12:00:00.000Z",
+      flipped: false
+    }));
+
+    expect(tastingCardTitleLengthClass("Anji White Tea")).toBe("");
+    expect(tastingCardTitleLengthClass(longName)).toBe("is-long");
+    expect(tastingCardTitleLengthClass("A Very Long Tea Name From a Small Mountain Garden Lot Seven")).toBe("is-long is-extra-long");
+    expect(html.match(/is-long/g)).toHaveLength(2);
+    expect(html.match(new RegExp(longName, "g"))).toHaveLength(4);
   });
 });

@@ -101,6 +101,13 @@ export function tastingCardTeaTheme(teaType: string | null | undefined): string 
   return "classic";
 }
 
+export function tastingCardTitleLengthClass(teaName: string): string {
+  const length = Array.from(teaName.trim()).length;
+  if (length > 40) return "is-long is-extra-long";
+  if (length > 18) return "is-long";
+  return "";
+}
+
 export function PhotoSlider({ photos, teaName }: { photos: JournalPhoto[]; teaName: string }) {
   const [index, setIndex] = useState(0);
   if (photos.length === 0) return null;
@@ -151,6 +158,7 @@ export function TastingCardPresentation({
   const sealDescription = card.source === "live" ? "Completed at a hosted tasting" : "Documented in your Tea Lab";
   const theme = tastingCardTeaTheme(card.teaType);
   const assetTheme = theme === "classic" ? "green" : theme;
+  const titleLengthClass = tastingCardTitleLengthClass(card.teaName);
   const dateLabel = new Date(earnedAt).toLocaleDateString("en-CA", { dateStyle: "long" });
   const missing = "Not recorded";
 
@@ -160,7 +168,7 @@ export function TastingCardPresentation({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className="tasting-card-artwork-image" src={`/tea-cards/anji-white-tea-front-${assetTheme}.png`} alt="" draggable="false" aria-hidden="true"/>
       <span className="sr-only">Digital tasting card. Flip for brewing details.</span>
-      <h3 className="tasting-card-live tasting-card-live-front-name tasting-card-live-plum">{card.teaName}</h3>
+      <h3 className={`tasting-card-live tasting-card-live-front-name tasting-card-live-plum ${titleLengthClass}`.trim()}>{card.teaName}</h3>
       <p className="tasting-card-live tasting-card-live-session tasting-card-live-plum"><time dateTime={earnedAt}>{dateLabel}</time><span aria-hidden="true"> · </span><span>{contextLabel}</span></p>
       <span className="tasting-card-live-seal-old-cover" aria-hidden="true"/>
       <span className="tasting-card-live-tea-medallion-cover" aria-hidden="true"/>
@@ -182,7 +190,7 @@ export function TastingCardPresentation({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className="tasting-card-artwork-image" src={`/tea-cards/anji-white-tea-back-${assetTheme}.png`} alt="" draggable="false" aria-hidden="true"/>
       <span className="sr-only">Back of card. Brewing record. Brew stages.</span>
-      <h3 className="tasting-card-live tasting-card-live-back-name tasting-card-live-paper">{card.teaName}</h3>
+      <h3 className={`tasting-card-live tasting-card-live-back-name tasting-card-live-paper ${titleLengthClass}`.trim()}>{card.teaName}</h3>
       <div className="tasting-card-live tasting-card-live-style tasting-card-live-paper"><span className="sr-only">Style: </span>{teaLabBrewingStyleLabel(brewing?.style) ?? missing}</div>
       <div className="tasting-card-live tasting-card-live-leaf tasting-card-live-paper"><span className="sr-only">Leaf: </span>{value(brewing?.leafGrams, " g leaf") ?? missing}</div>
       <div className="tasting-card-live tasting-card-live-water tasting-card-live-paper"><span className="sr-only">Water: </span>{value(brewing?.waterMl, " ml water") ?? missing}</div>
