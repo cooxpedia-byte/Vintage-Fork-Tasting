@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { Brand } from "@/components/Brand";
+import { withNextPath } from "@/lib/auth-redirect";
 import { correctedNow, estimateClockOffset, TRIVIA_GRACE_MS } from "@/lib/live-timing";
 import { shouldHoldGuestTransition } from "@/lib/guest-notes";
 import { clearGuestDeviceData } from "@/lib/guest-privacy";
@@ -628,7 +629,7 @@ function ClaimButton({ eventId, linked }: { eventId: string; linked: boolean }) 
       const response = await fetch(`/api/events/${eventId}/claim`, { method: "POST" });
       const result = await response.json().catch(() => ({}));
       if (response.status >= 500) reportConnectionIssue(source); else reportConnectionHealthy(source);
-      if (response.status === 401) { window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`; return; }
+      if (response.status === 401) { window.location.href = withNextPath("/login", window.location.pathname); return; }
       if (!response.ok) { setMessage(result.error ?? "The tasting could not be linked."); return; }
       window.location.href = "/dashboard";
     } catch {

@@ -1,6 +1,7 @@
 :root {
   --vf-plum: #4b1638;
   --vf-plum-aged: #33102a;
+  --vf-wall-purple: #5e285e;
   --vf-gold: #c9a227;
   --vf-gold-light: #e0be6b;
   --vf-parchment: #f7f1e4;
@@ -84,10 +85,25 @@ h1, h2, h3, p { margin-top: 0; }
 .dashboard-shell { min-height: calc(100vh - 64px); display: grid; grid-template-columns: 230px minmax(0, 1fr); }
 .sidebar { background: linear-gradient(180deg, var(--vf-plum), var(--vf-plum-aged)); color: var(--vf-ivory); padding: 1rem .75rem; }
 .sidebar nav { position: sticky; top: 80px; display: grid; gap: .25rem; }
-.sidebar a, .sidebar nav > .btn { width: 100%; min-height: 48px; display: flex; align-items: center; gap: .75rem; padding: .65rem .8rem; border-radius: var(--radius-md); text-decoration: none; font-weight: 700; color: rgba(251,247,236,.82); }
-.sidebar a:hover, .sidebar a.active, .sidebar nav > .btn:hover, .sidebar nav > .btn.active { color: white; background: rgba(255,255,255,.1); }
-.dashboard-content { min-width: 0; padding: 2rem 1.25rem 4rem; }
+.sidebar nav > .btn { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: flex-start; gap: .75rem; padding: .65rem .8rem; border-radius: var(--radius-md); font-weight: 700; color: rgba(251,247,236,.82); }
+.sidebar nav > .btn:hover, .sidebar nav > .btn.active { color: white; background: rgba(255,255,255,.1); }
+.dashboard-content {
+  min-width: 0;
+  padding: 2rem 1.25rem 4rem;
+  background-color: var(--vf-wall-purple);
+  background-image: url("/brand/customer-dashboard-purple-gold-wall.webp");
+  background-position: center;
+  background-size: cover;
+  background-attachment: fixed;
+}
 .dashboard-content > * { width: min(100%, var(--content-max)); margin-inline: auto; }
+.dashboard-content > .page-title,
+.dashboard-content > .page-heading-row .page-title { color: var(--vf-ivory); text-shadow: 0 2px 18px rgba(20,4,17,.62); }
+.dashboard-content > .page-lede,
+.dashboard-content > .page-heading-row .page-lede { color: rgba(251,247,236,.88); text-shadow: 0 2px 12px rgba(20,4,17,.55); }
+.dashboard-content > .section-label { color: var(--vf-gold-light); text-shadow: 0 1px 8px rgba(20,4,17,.68); }
+.dashboard-content > .section-label::after { background: linear-gradient(90deg, rgba(224,190,107,.72), transparent); }
+.dashboard-content > section > .btn-quiet { color: var(--vf-ivory); }
 .customer-mobile-nav { display: none; }
 
 .card { background: rgba(251,247,236,.96); border: 1px solid var(--vf-line); border-radius: var(--radius-md); box-shadow: var(--shadow-1); padding: 1.25rem; }
@@ -638,8 +654,8 @@ tr:last-child td { border-bottom: 0; }
 
 @media (max-width: 900px) {
   .dashboard-shell { grid-template-columns: 72px minmax(0, 1fr); }
-  .sidebar a, .sidebar nav > .btn { justify-content: center !important; flex-direction: column; gap: .15rem; padding: .45rem .15rem !important; font-size: .66rem !important; line-height: 1.1; text-align: center; }
-  .sidebar a span, .sidebar nav > .btn span { font-size: 1.1rem; }
+  .sidebar nav > .btn { justify-content: center; flex-direction: column; gap: .15rem; padding: .45rem .15rem; font-size: .66rem; line-height: 1.1; text-align: center; }
+  .sidebar nav > .btn span { font-size: 1.1rem; }
   .split, .live-grid { grid-template-columns: 1fr; }
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .flavor-picker-stage { grid-template-columns: minmax(250px,.75fr) minmax(0,1fr); }
@@ -657,7 +673,7 @@ tr:last-child td { border-bottom: 0; }
   .connection-banner .btn { width: 100%; }
   .dashboard-shell { display: block; }
   .sidebar { display: none; }
-  .dashboard-content { padding: 1.25rem .8rem 6rem; }
+  .dashboard-content { padding: 1.25rem .8rem 6rem; background-position: center top; background-size: auto 1100px; background-attachment: scroll; background-repeat: repeat-y; }
   .customer-mobile-nav { position: fixed; z-index: 90; left: 0; right: 0; bottom: 0; min-height: 68px; padding-bottom: env(safe-area-inset-bottom); display: grid; grid-template-columns: repeat(4,1fr); background: var(--vf-plum-aged); border-top: 1px solid var(--vf-line-gold); }
   .customer-mobile-nav button { position: relative; min-height: 68px; border: 0; background: transparent; color: rgba(251,247,236,.72); display: grid; place-items: center; align-content: center; gap: .2rem; cursor: pointer; }
   .customer-mobile-nav button span { color: var(--vf-gold-light); font-size: 1.1rem; }

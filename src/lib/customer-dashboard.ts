@@ -1,7 +1,7 @@
 const UPCOMING_EVENT_STATUSES = new Set(["scheduled", "live"]);
 const INACTIVE_PARTICIPANT_STATUSES = new Set(["left", "removed"]);
 const CUSTOMER_DASHBOARD_SECTIONS = new Set(["home", "journal", "passport", "saved"]);
-export const DEFAULT_EVENT_TIME_ZONE = "America/Edmonton";
+const DEFAULT_EVENT_TIME_ZONE = "America/Edmonton";
 
 export type CustomerDashboardSection = "home" | "journal" | "passport" | "saved";
 

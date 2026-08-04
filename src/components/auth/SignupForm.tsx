@@ -2,8 +2,10 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { Brand } from "@/components/Brand";
+import { safeNextPath, withNextPath } from "@/lib/auth-redirect";
 import {
   beginSignupSubmission,
   finishSignupSubmission,
@@ -12,6 +14,7 @@ import {
 } from "@/lib/signup";
 
 export function SignupForm() {
+  const params = useSearchParams();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,6 +22,7 @@ export function SignupForm() {
   const [busy, setBusy] = useState(false);
   const [complete, setComplete] = useState(false);
   const submissionLock = useRef(false);
+  const next = safeNextPath(params.get("next"), "/dashboard");
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -29,15 +33,19 @@ export function SignupForm() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { display_name: name },
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+          emailRedirectTo: withNextPath(`${window.location.origin}/auth/callback`, next),
         },
       });
 
+      if (!error && data.session) {
+        window.location.assign(next);
+        return;
+      }
       setComplete(!error);
       setMessage(signupResultMessage(error));
     } finally {
@@ -76,7 +84,7 @@ export function SignupForm() {
             {busy ? "Creating…" : complete ? "Check your email" : "Create My Account"}
           </button>
         </form>
-        <p className="help">Already have an account? <Link href="/login">Sign in</Link>.</p>
+        <p className="help">Already have an account? <Link href={withNextPath("/login", next)}>Sign in</Link>.</p>
       </section>
     </main>
   );

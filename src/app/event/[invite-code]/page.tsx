@@ -1,13 +1,18 @@
 import { GuestExperience } from "@/components/guest/GuestExperience";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireParticipant } from "@/lib/guest-token";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
 export default async function EventPage({ params }: { params: Promise<{ "invite-code": string }> }) {
   const { "invite-code": inviteCode } = await params;
   const admin = createAdminClient();
-  const { data: event } = await admin.from("events").select("id,title,invite_code,status,starts_at,location_mode,capacity").eq("invite_code", inviteCode.toUpperCase()).maybeSingle();
+  const { data: event, error: eventError } = await admin.from("events").select("id,title,invite_code,status,starts_at,location_mode,capacity").eq("invite_code", inviteCode.toUpperCase()).maybeSingle();
+  if (eventError) {
+    logger.error("guest_event_preview_load_failed", eventError, { inviteCodeLength: inviteCode.length });
+    throw new Error("Unable to load this tasting.");
+  }
   if (!event) return <Blocked title="We couldn’t find that invitation." copy="Check the link you received, or ask your host to resend it." />;
   if (event.status === "cancelled") return <Blocked title="This tasting was cancelled." copy="Your host will be in touch." />;
   if (!["scheduled","live","completed"].includes(event.status)) return <Blocked title="This tasting hasn’t opened yet." copy="Check the invitation or ask your host when registration opens." />;

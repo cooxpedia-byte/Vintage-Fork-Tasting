@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { JournalSessionCard } from "@/components/dashboard/JournalSessionCard";
 import { TeaLabWorkspace } from "@/components/tea-lab/TeaLabWorkspace";
 import { TeaLibrary } from "@/components/tea-lab/TeaLibrary";
@@ -14,14 +14,27 @@ import type { TeaLabSoloDraft } from "@/lib/tea-lab/offline";
 import type { TeaLibraryItem } from "@/lib/tea-lab/library";
 import { buildPassportSeals, type PassportSeal } from "@/lib/tea-lab/passport";
 
-type EventRow = LiveJournalEventRow;
-
 type Upcoming = { id: string; title: string; starts_at: string; timezone?: string | null; location_mode: string; invite_code: string | null };
+
+const DASHBOARD_NAV_ITEMS = {
+  standard: [
+    { section: "home", icon: "⌂", label: "Home" },
+    { section: "journal", icon: "▤", label: "Tastings" },
+    { section: "passport", icon: "✦", label: "Passport" },
+    { section: "saved", icon: "♡", label: "Saved teas", mobileLabel: "Saved" }
+  ],
+  teaLab: [
+    { section: "home", icon: "⌂", label: "Lab" },
+    { section: "journal", icon: "▤", label: "Journal" },
+    { section: "saved", icon: "♡", label: "Library" },
+    { section: "passport", icon: "✦", label: "Passport" }
+  ]
+} as const;
 
 type CustomerDashboardProps = {
   name: string;
   ownerUserId?: string;
-  events: EventRow[];
+  events: LiveJournalEventRow[];
   upcoming: Upcoming[];
   initialTab: CustomerDashboardSection;
   teaLabEnabled?: boolean;
@@ -35,53 +48,34 @@ type CustomerDashboardProps = {
 };
 
 export function CustomerDashboard({ name, ownerUserId, events, upcoming, initialTab, teaLabEnabled = false, journalSessions = [], archivedJournalSessions = [], libraryItems = [], passportSeals = [], teaOptions = [], descriptorOptions = [], serverDrafts = [] }: CustomerDashboardProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [showArchivedJournal, setShowArchivedJournal] = useState(false);
-  const allResponses = useMemo(() => events.flatMap(e => e.responses.map(r => ({ ...r, event: e }))), [events]);
-  const { completed, saved, average } = useMemo(() => summarizeCustomerResponses(allResponses), [allResponses]);
-  const fallbackJournalSessions = useMemo(() => events.map(mapLiveEventToJournalSession), [events]);
-  const fallbackPassportSeals = useMemo(() => buildPassportSeals(events, []), [events]);
   const routeSection = searchParams.get("section");
   const tab = routeSection === null ? initialTab : parseCustomerDashboardSection(routeSection);
+  const navigationItems = DASHBOARD_NAV_ITEMS[teaLabEnabled ? "teaLab" : "standard"];
+  const { completed, saved, average } = useMemo(() => teaLabEnabled && ownerUserId
+    ? { completed: [], saved: [], average: 0 }
+    : summarizeCustomerResponses(events.flatMap(event => event.responses)), [events, ownerUserId, teaLabEnabled]);
+  const fallbackJournalSessions = useMemo(() => !teaLabEnabled && tab === "journal" ? events.map(mapLiveEventToJournalSession) : [], [events, tab, teaLabEnabled]);
+  const fallbackPassportSeals = useMemo(() => !teaLabEnabled && tab === "passport" ? buildPassportSeals(events, []) : [], [events, tab, teaLabEnabled]);
 
   function selectTab(nextTab: CustomerDashboardSection) {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     if (nextTab === "home") nextSearchParams.delete("section");
     else nextSearchParams.set("section", nextTab);
     const query = nextSearchParams.toString();
-    router.push(query ? `/dashboard?${query}` : "/dashboard", { scroll: false });
+    window.history.pushState(null, "", query ? `/dashboard?${query}` : "/dashboard");
   }
 
   return (
     <div className="dashboard-shell">
       <aside className="sidebar" aria-label="Customer dashboard">
         <nav>
-          {teaLabEnabled ? <>
-            <button className={`btn btn-quiet ${tab === "home" ? "active" : ""}`} aria-pressed={tab === "home"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span> Lab</button>
-            <button className={`btn btn-quiet ${tab === "journal" ? "active" : ""}`} aria-pressed={tab === "journal"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span> Journal</button>
-            <button className={`btn btn-quiet ${tab === "saved" ? "active" : ""}`} aria-pressed={tab === "saved"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span> Library</button>
-            <button className={`btn btn-quiet ${tab === "passport" ? "active" : ""}`} aria-pressed={tab === "passport"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span> Passport</button>
-          </> : <>
-            <button className={`btn btn-quiet ${tab === "home" ? "active" : ""}`} aria-pressed={tab === "home"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span> Home</button>
-            <button className={`btn btn-quiet ${tab === "journal" ? "active" : ""}`} aria-pressed={tab === "journal"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span> Tastings</button>
-            <button className={`btn btn-quiet ${tab === "passport" ? "active" : ""}`} aria-pressed={tab === "passport"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span> Passport</button>
-            <button className={`btn btn-quiet ${tab === "saved" ? "active" : ""}`} aria-pressed={tab === "saved"} style={{ color: "inherit", justifyContent: "flex-start" }} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span> Saved teas</button>
-          </>}
+          {navigationItems.map(item => <button className={`btn btn-quiet ${tab === item.section ? "active" : ""}`} aria-pressed={tab === item.section} onClick={() => selectTab(item.section)} key={item.section}><span aria-hidden="true">{item.icon}</span> {item.label}</button>)}
         </nav>
       </aside>
       <nav className="customer-mobile-nav" aria-label="Customer dashboard mobile">
-        {teaLabEnabled ? <>
-          <button className={tab === "home" ? "active" : ""} aria-pressed={tab === "home"} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span><small>Lab</small></button>
-          <button className={tab === "journal" ? "active" : ""} aria-pressed={tab === "journal"} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span><small>Journal</small></button>
-          <button className={tab === "saved" ? "active" : ""} aria-pressed={tab === "saved"} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span><small>Library</small></button>
-          <button className={tab === "passport" ? "active" : ""} aria-pressed={tab === "passport"} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span><small>Passport</small></button>
-        </> : <>
-          <button className={tab === "home" ? "active" : ""} aria-pressed={tab === "home"} onClick={() => selectTab("home")}><span aria-hidden="true">⌂</span><small>Home</small></button>
-          <button className={tab === "journal" ? "active" : ""} aria-pressed={tab === "journal"} onClick={() => selectTab("journal")}><span aria-hidden="true">▤</span><small>Tastings</small></button>
-          <button className={tab === "passport" ? "active" : ""} aria-pressed={tab === "passport"} onClick={() => selectTab("passport")}><span aria-hidden="true">✦</span><small>Passport</small></button>
-          <button className={tab === "saved" ? "active" : ""} aria-pressed={tab === "saved"} onClick={() => selectTab("saved")}><span aria-hidden="true">♡</span><small>Saved</small></button>
-        </>}
+        {navigationItems.map(item => <button className={tab === item.section ? "active" : ""} aria-pressed={tab === item.section} onClick={() => selectTab(item.section)} key={item.section}><span aria-hidden="true">{item.icon}</span><small>{"mobileLabel" in item ? item.mobileLabel : item.label}</small></button>)}
       </nav>
       <main className="dashboard-content" id="main-content">
         {tab === "home" && teaLabEnabled && ownerUserId && <TeaLabWorkspace ownerUserId={ownerUserId} name={name} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} upcoming={upcoming} onOpenJournal={() => selectTab("journal")} />}
@@ -130,7 +124,7 @@ export function CustomerDashboard({ name, ownerUserId, events, upcoming, initial
   );
 }
 
-function EventCard({ event }: { event: EventRow }) {
+function EventCard({ event }: { event: LiveJournalEventRow }) {
   return <article className="card"><div className="card-header"><div><h2 className="card-title">{event.title}</h2><p className="card-meta">{formatCustomerEventDate(event.starts_at, event.timezone)} · {event.location_mode === "remote" ? "Remote" : "In person"}</p></div><span className="chip chip-success">Completed</span></div>
     <div className="table-wrap"><table><thead><tr><th>Tea</th><th>Rating</th><th>Intensity</th><th>Your descriptors</th></tr></thead><tbody>{[...event.responses].sort((a,b) => (a.flight?.position ?? 0) - (b.flight?.position ?? 0)).map(r => <tr key={r.id}><td>{r.flight?.tea?.name ?? r.flight?.reveal_title}</td><td>{r.rating ? `${"★".repeat(r.rating)}${"☆".repeat(5-r.rating)}` : "—"}</td><td>{r.intensity ?? "—"}</td><td>{r.descriptors.join(", ") || "—"}</td></tr>)}</tbody></table></div>
     {event.responses.some(r => r.first_impression || r.personal_notes) && <div><div className="section-label"><span>Your private notes</span></div><div className="stack">{event.responses.filter(r => r.first_impression || r.personal_notes).map(r => <article key={`note-${r.id}`} className="notice"><strong>{r.flight?.tea?.name ?? r.flight?.reveal_title}</strong>{r.first_impression && <p style={{ marginTop: 6 }}>“{r.first_impression}”</p>}{r.personal_notes && <p className="muted" style={{ marginTop: 6 }}>{r.personal_notes}</p>}</article>)}</div></div>}
