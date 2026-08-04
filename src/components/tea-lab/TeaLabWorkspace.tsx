@@ -9,6 +9,7 @@ import { TeaLabDurationSlider, TeaLabTemperatureSlider } from "@/components/tea-
 import { formatCustomerEventDateTime } from "@/lib/customer-dashboard";
 import { IndexedDbTeaLabOfflineStore } from "@/lib/tea-lab/indexed-db";
 import {
+  collapseUneditedDefaultInfusions,
   createDefaultTeaLabBrewStages,
   formatTeaLabDuration,
   getTeaLabBrewingStyle,
@@ -248,9 +249,16 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
   }
 
   function resumeTasting(selected: TeaLabSoloDraft) {
-    const resumedStep = inferTeaLabFlowStep(selected);
-    currentDraftRef.current = selected;
-    setDraft(selected);
+    const compactedStages = selected.brewing.style && selected.brewing.stages
+      ? collapseUneditedDefaultInfusions(selected.brewing.style, selected.brewing.stages)
+      : selected.brewing.stages;
+    const resumed = compactedStages && compactedStages.length !== selected.brewing.stages?.length
+      ? { ...selected, brewing: { ...selected.brewing, stages: compactedStages } }
+      : selected;
+    const resumedStep = inferTeaLabFlowStep(resumed);
+    currentDraftRef.current = resumed;
+    setDraft(resumed);
+    if (resumed !== selected) autosaveRef.current?.schedule(resumed);
     setStep(resumedStep);
     setFurthestStep(resumedStep);
     setFormError("");

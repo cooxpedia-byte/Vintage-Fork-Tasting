@@ -240,12 +240,42 @@ export function teaLabBrewingStyleLabel(style: TeaLabBrewingStyle | null | undef
 }
 
 export function createDefaultTeaLabBrewStages(style: TeaLabBrewingStyle): TeaLabBrewStageDraft[] {
-  return getTeaLabBrewingStyle(style)?.stages.map(({ label, durationSeconds, temperatureC, notes }) => ({
-    label,
-    durationSeconds: durationSeconds ?? null,
-    temperatureC: temperatureC ?? null,
-    notes: notes ?? null
-  })) ?? [];
+  const stages: TeaLabBrewStageDraft[] = [];
+  let hasNumberedInfusion = false;
+
+  for (const { label, durationSeconds, temperatureC, notes } of getTeaLabBrewingStyle(style)?.stages ?? []) {
+    const isNumberedInfusion = /^infusion\s+\d+$/i.test(label.trim());
+    if (isNumberedInfusion && hasNumberedInfusion) continue;
+    if (isNumberedInfusion) hasNumberedInfusion = true;
+    stages.push({
+      label,
+      durationSeconds: durationSeconds ?? null,
+      temperatureC: temperatureC ?? null,
+      notes: notes ?? null
+    });
+  }
+
+  return stages;
+}
+
+export function collapseUneditedDefaultInfusions(style: TeaLabBrewingStyle, stages: TeaLabBrewStageDraft[]): TeaLabBrewStageDraft[] {
+  const definition = getTeaLabBrewingStyle(style);
+  let hasNumberedInfusion = false;
+
+  return stages.filter(stage => {
+    if (!/^infusion\s+\d+$/i.test(stage.label.trim())) return true;
+    if (!hasNumberedInfusion) {
+      hasNumberedInfusion = true;
+      return true;
+    }
+
+    const defaultStage = definition?.stages.find(candidate => candidate.label === stage.label);
+    if (!defaultStage) return true;
+    const isUneditedDefault = (stage.durationSeconds ?? null) === (defaultStage.durationSeconds ?? null)
+      && (stage.temperatureC ?? null) === (defaultStage.temperatureC ?? null)
+      && !stage.notes?.trim();
+    return !isUneditedDefault;
+  });
 }
 
 export function nextTeaLabBrewStageLabel(style: TeaLabBrewingStyle, stages: TeaLabBrewStageDraft[]): string {
