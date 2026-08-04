@@ -188,6 +188,7 @@ describe("Tea Lab workspace", () => {
     expect(tasteHtml).not.toContain("Gongfu wash / infusion notes");
     expect(tasteHtml).toContain("Rinse (optional)");
     expect(tasteHtml).toContain("Infusion 3");
+    expect(tasteHtml).toContain(">Add infusion</button>");
     expect(brewHtml).toMatch(/id="water-temperature" type="range" min="0" max="100"/);
     expect(brewHtml).toMatch(/id="steep-seconds" type="range" min="0" max="60" step="1"/);
     expect(tasteHtml).toMatch(/id="brew-stage-duration-1" type="range" min="0" max="60"/);
@@ -199,6 +200,28 @@ describe("Tea Lab workspace", () => {
     expect(tasteHtml.match(/How’s your first infusion\?/g)).toHaveLength(1);
     expect(tasteHtml).toMatch(/How’s your first infusion\?<\/label><textarea[^>]*id="brew-stage-notes-0"/);
     expect(tasteHtml).toMatch(/What’s changed\?<\/label><textarea[^>]*id="brew-stage-notes-1"/);
+  });
+
+  it("only offers additional stages for repeatable brewing methods", () => {
+    const base = createSoloTeaDraft("owner-1", (() => {
+      const ids = ["session-1", "card-1"];
+      return () => ids.shift() ?? "unused";
+    })());
+    const matchaDraft = {
+      ...base,
+      brewing: { style: "matcha_usucha" as const, stages: createDefaultTeaLabBrewStages("matcha_usucha") }
+    };
+    const html = renderToStaticMarkup(createElement(TasteStep, {
+      draft: matchaDraft,
+      descriptors: [],
+      update: vi.fn(),
+      back: vi.fn(),
+      next: vi.fn()
+    }));
+
+    expect(html).toContain("Matcha — usucha phase notes");
+    expect(html).not.toContain(">Add phase</button>");
+    expect(html).not.toContain("up to 20");
   });
 
   it("keeps the primary completion action available for a reviewable revision conflict", () => {
