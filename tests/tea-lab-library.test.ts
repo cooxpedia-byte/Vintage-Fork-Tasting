@@ -12,16 +12,19 @@ const liveEvents: LiveJournalEventRow[] = [{
     {
       id: "response-1", rating: 4, first_impression: null, personal_notes: null, descriptors: [], intensity: "clear", saved: true,
       completed_at: "2026-08-01T18:30:00.000Z",
+      stamp_released_at: "2026-08-01T18:35:00.000Z",
       flight: { id: "flight-1", reveal_title: "Golden", position: 1, tea: { id: "tea-1", name: "Golden Yunnan", producer: "Farm", origin: "Yunnan", tea_type: "Black" } }
     },
     {
       id: "response-2", rating: 5, first_impression: null, personal_notes: null, descriptors: [], intensity: "dominant", saved: true,
       completed_at: "2026-08-01T18:40:00.000Z",
+      stamp_released_at: "2026-08-01T18:45:00.000Z",
       flight: { id: "flight-2", reveal_title: "Golden again", position: 2, tea: { id: "tea-1", name: "Golden Yunnan", producer: "Farm", origin: "Yunnan", tea_type: "Black" } }
     },
     {
       id: "response-3", rating: 3, first_impression: null, personal_notes: null, descriptors: [], intensity: "subtle", saved: false,
       completed_at: "2026-08-01T18:50:00.000Z",
+      stamp_released_at: "2026-08-01T18:55:00.000Z",
       flight: { id: "flight-3", reveal_title: "Not saved", position: 3, tea: { id: "tea-2", name: "Not saved", origin: null } }
     }
   ]

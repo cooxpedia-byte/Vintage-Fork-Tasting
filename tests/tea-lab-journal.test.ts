@@ -27,6 +27,7 @@ const liveEvent: LiveJournalEventRow = {
       intensity: null,
       saved: false,
       completed_at: null,
+      stamp_released_at: null,
       flight: { id: "flight-2", reveal_title: "Second tea", position: 2, tea: null }
     },
     {
@@ -38,6 +39,7 @@ const liveEvent: LiveJournalEventRow = {
       intensity: "dominant",
       saved: true,
       completed_at: "2026-08-01T18:30:00.000Z",
+      stamp_released_at: "2026-08-01T18:35:00.000Z",
       flight: { id: "flight-1", reveal_title: "First tea", position: 1, tea: { name: "Golden Yunnan", origin: "Yunnan" } }
     }
   ]
@@ -226,6 +228,15 @@ describe("Tea Lab Journal adapters", () => {
       "live:response-1",
       "live:response-2"
     ]);
+  });
+
+  it("keeps a submitted live card unstamped until the host releases it", () => {
+    const pending = structuredClone(liveEvent);
+    pending.responses[1].stamp_released_at = null;
+
+    const session = mapLiveEventToJournalSession(pending);
+
+    expect(session.cards[0]).toMatchObject({ completedAt: null, sealClass: null });
   });
 
   it("offers completed archived solo sessions through a separate reversible view", () => {

@@ -3,6 +3,7 @@
 Production-oriented launch codebase for `tasting.vintagefork.ca`, consolidated from the four supplied standalone prototypes. The repository is ready for staging integration, but it is not already deployed because hosting, database and DNS credentials are not included:
 
 - Guest Live Tasting → `/event/[invite-code]`
+- Member Live Events hub (Mobile Home entry) → `/live-events`
 - Customer Dashboard → `/dashboard`
 - Admin Dashboard → `/admin`
 - Live Host Console → `/admin/events/[event-id]/live`

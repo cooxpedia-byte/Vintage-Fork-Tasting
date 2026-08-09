@@ -34,7 +34,7 @@ describe("Tea Lab workspace", () => {
     expect(teaLabDraftTeaName(draft, options)).toBe("Jin Mei");
   });
 
-  it("renders the landing action, a resumable private draft, and live tasting context", () => {
+  it("renders the landing action and a resumable private draft without live-event navigation", () => {
     const draft = {
       ...createSoloTeaDraft("owner-1", (() => {
         const ids = ["session-1", "card-1"];
@@ -50,13 +50,6 @@ describe("Tea Lab workspace", () => {
       teaOptions: [],
       descriptorOptions: [],
       serverDrafts: [draft],
-      upcoming: [{
-        id: "event-1",
-        title: "Saturday tea table",
-        starts_at: "2026-08-09T18:00:00.000Z",
-        location_mode: "remote",
-        invite_code: "JOINME"
-      }],
       onOpenJournal: vi.fn()
     }));
 
@@ -64,8 +57,8 @@ describe("Tea Lab workspace", () => {
     expect(html).toContain("Create a Tasting Session");
     expect(html).toContain("Continue a draft");
     expect(html).toContain("Moonlight White");
-    expect(html).toContain("Saturday tea table");
-    expect(html).toContain("/event/JOINME");
+    expect(html).not.toContain("Next at the table");
+    expect(html).not.toContain("/event/");
   });
 
   it("renders a roving-tabindex rating group for keyboard and screen-reader use", () => {

@@ -1,7 +1,7 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { CustomerDashboard } from "@/components/dashboard/CustomerDashboard";
 import { requireUser } from "@/lib/auth";
-import { parseCustomerDashboardSection, shouldShowJournalEvent, shouldShowUpcomingEvent } from "@/lib/customer-dashboard";
+import { parseCustomerDashboardSection, shouldShowJournalEvent } from "@/lib/customer-dashboard";
 import { getServerFeatureFlags } from "@/lib/feature-flags";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -52,7 +52,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     supabase.from("participants").select(`
       id,event_id,status,
       event:events!inner(id,title,starts_at,timezone,location_mode,status,invite_code),
-      responses:tea_responses(id,rating,first_impression,personal_notes,descriptors,intensity,saved,completed_at,
+      responses:tea_responses(id,rating,first_impression,personal_notes,descriptors,intensity,saved,completed_at,stamp_released_at,
         flight:event_flight_items(id,reveal_title,position,brewing_instructions,steep_seconds,temperature_c,leaf_grams,water_ml,tea:teas(id,name,producer,origin,tea_type,default_steep_seconds)))
     `).eq("user_id", user.id).order("created_at", { ascending: false })
   ]);
@@ -74,7 +74,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const participants = participantsResult.data;
   const rows = (participants ?? []) as unknown as Array<{ id: string; event_id: string; status: string; event: { id: string; title: string; starts_at: string; timezone: string | null; location_mode: string; status: string; invite_code: string | null }; responses: DashboardResponse[] }>;
   const completed = rows.filter(row => shouldShowJournalEvent(row.event.status)).map(row => ({ ...row.event, participant_id: row.id, responses: row.responses }));
-  const upcoming = rows.filter(row => shouldShowUpcomingEvent(row.status, row.event.status)).map(row => row.event);
   let soloRows: SoloJournalSessionRow[] = [];
   let personalRows: PersonalTeaRecordRow[] = [];
   let teaOptions: TeaLabTeaOption[] = [];
@@ -213,5 +212,5 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const libraryItems = teaLabReady ? buildTeaLibrary(completed, personalRows, soloRows) : [];
   const passportSeals = teaLabReady ? buildPassportSeals(completed, soloRows) : [];
 
-  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} ownerUserId={user.id} events={completed} upcoming={upcoming} initialTab={parseCustomerDashboardSection(section)} teaLabEnabled={teaLabReady} journalSessions={journalSessions} archivedJournalSessions={archivedJournalSessions} libraryItems={libraryItems} passportSeals={passportSeals} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} /></>;
+  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} ownerUserId={user.id} events={completed} initialTab={parseCustomerDashboardSection(section)} teaLabEnabled={teaLabReady} journalSessions={journalSessions} archivedJournalSessions={archivedJournalSessions} libraryItems={libraryItems} passportSeals={passportSeals} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} /></>;
 }

@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { TeaLabPhotoCapture } from "@/components/tea-lab/TeaLabPhotoCapture";
 import { FlavorDescriptorPicker } from "@/components/tea-lab/FlavorDescriptorPicker";
 import { TeaLabDurationSlider, TeaLabTemperatureSlider } from "@/components/tea-lab/TeaLabBrewSliders";
-import { formatCustomerEventDateTime } from "@/lib/customer-dashboard";
 import { IndexedDbTeaLabOfflineStore } from "@/lib/tea-lab/indexed-db";
 import {
   collapseUneditedDefaultInfusions,
@@ -43,15 +41,12 @@ import {
   startTeaLabSyncTriggers
 } from "@/lib/tea-lab/outbox";
 
-type Upcoming = { id: string; title: string; starts_at: string; timezone?: string | null; location_mode: string; invite_code: string | null };
-
 type TeaLabWorkspaceProps = {
   ownerUserId: string;
   name: string;
   teaOptions: TeaLabTeaOption[];
   descriptorOptions: TeaLabDescriptorOption[];
   serverDrafts: TeaLabSoloDraft[];
-  upcoming: Upcoming[];
   onOpenJournal: () => void;
 };
 
@@ -98,7 +93,7 @@ function numericValue(value: number | null | undefined): string | number {
   return value ?? "";
 }
 
-export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptions, serverDrafts, upcoming, onOpenJournal }: TeaLabWorkspaceProps) {
+export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptions, serverDrafts, onOpenJournal }: TeaLabWorkspaceProps) {
   const router = useRouter();
   const storeRef = useRef<TeaLabOfflineStore | null>(null);
   const currentDraftRef = useRef<TeaLabSoloDraft | null>(null);
@@ -395,11 +390,6 @@ export function TeaLabWorkspace({ ownerUserId, name, teaOptions, descriptorOptio
           <button className="btn btn-primary btn-attention" type="button" onClick={() => resumeTasting(savedDraft)}>Continue tasting</button>
         </article>)}</div>
       </>}
-      <div className="section-label"><span>Next at the table</span></div>
-      {upcoming.length ? upcoming.map(event => <article className="card" key={event.id}>
-        <div className="card-header"><div><h2 className="card-title">{event.title}</h2><p className="card-meta">{formatCustomerEventDateTime(event.starts_at, event.timezone)} · {event.location_mode === "remote" ? "Remote" : "In person"}</p></div><span className="chip chip-success">Booked</span></div>
-        <div className="card-footer"><span>Your seat is linked to this account.</span>{event.invite_code && <Link className="btn btn-primary btn-attention" href={`/event/${event.invite_code}`}>Open event</Link>}</div>
-      </article>) : <div className="empty-state"><h2>No upcoming live tastings.</h2><p>You can still document a tea at home.</p></div>}
     </div>;
   }
 

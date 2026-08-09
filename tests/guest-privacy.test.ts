@@ -30,7 +30,8 @@ describe("guest state privacy boundary", () => {
         rating: 4,
         descriptors: ["honeyed"],
         saved: true,
-        completed_at: "2026-08-02T18:00:00.000Z"
+        completed_at: "2026-08-02T18:00:00.000Z",
+        stamp_released_at: "2026-08-02T18:05:00.000Z"
       }],
       allItems: [
         { id: "tea-1", reveal_title: "Golden Dawn", tea: { origin: "Yunnan" } },

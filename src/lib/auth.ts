@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { safeNextPath } from "@/lib/auth-redirect";
 import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/types/domain";
 
@@ -8,9 +9,9 @@ export async function getCurrentUser() {
   return user;
 }
 
-export async function requireUser() {
+export async function requireUser(next = "/dashboard") {
   const user = await getCurrentUser();
-  if (!user) redirect("/login?next=/dashboard");
+  if (!user) redirect(`/login?next=${encodeURIComponent(safeNextPath(next, "/dashboard"))}`);
   return user;
 }
 
