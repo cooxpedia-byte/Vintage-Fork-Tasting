@@ -14,6 +14,12 @@ const csp=siteResponse.headers.get("content-security-policy")??"";
 if(!csp.includes("frame-ancestors 'none'")||!csp.includes("object-src 'none'")) fail("Production CSP is missing frame/object protection.");
 if(siteResponse.headers.get("x-frame-options")!=="DENY") fail("Production X-Frame-Options is not DENY.");
 
+const tastingRoomResponse=await fetch(new URL("/event/header-verification",site),{redirect:"manual"});
+const tastingRoomCsp=tastingRoomResponse.headers.get("content-security-policy")??"";
+if(!tastingRoomCsp.includes("https://*.agora.io")||!tastingRoomCsp.includes("wss://*.agora.io")||!tastingRoomCsp.includes("https://*.sd-rtn.com")||!tastingRoomCsp.includes("wss://*.sd-rtn.com")) fail("Live tasting CSP is missing Agora RTC connections.");
+const tastingRoomPermissions=tastingRoomResponse.headers.get("permissions-policy")??"";
+if(!tastingRoomPermissions.includes("camera=(self)")||!tastingRoomPermissions.includes("microphone=(self)")) fail("Live tasting Permissions-Policy blocks camera or microphone access.");
+
 const publicStateResponse=await fetch(`${supabaseUrl}/rest/v1/event_public_state?select=event_id&limit=1`,{headers:{apikey:publishableKey,Authorization:`Bearer ${publishableKey}`}});
 if(publicStateResponse.ok) fail("Anonymous select access to event_public_state is still permitted.");
 

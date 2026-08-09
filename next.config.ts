@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import {
+  AGORA_CSP_CONNECT_SOURCES,
+  LIVE_TASTING_HEADER_ROUTES,
+  LIVE_TASTING_PERMISSIONS_POLICY
+} from "./src/lib/security-headers";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 const supabaseOrigin = (() => {
@@ -7,35 +12,55 @@ const supabaseOrigin = (() => {
   catch { return ""; }
 })();
 const supabaseSocket = supabaseOrigin.replace(/^http/, "ws");
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' blob: data: https:",
-  "font-src 'self' data:",
-  `connect-src 'self'${supabaseOrigin ? ` ${supabaseOrigin} ${supabaseSocket}` : ""} https://*.ingest.sentry.io https://*.ingest.us.sentry.io`,
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-  ...(isDevelopment ? [] : ["upgrade-insecure-requests"])
-].join("; ");
+const defaultConnectSources = [
+  "'self'",
+  ...(supabaseOrigin ? [supabaseOrigin, supabaseSocket] : []),
+  "https://*.ingest.sentry.io",
+  "https://*.ingest.us.sentry.io"
+];
+
+function createContentSecurityPolicy(extraConnectSources: readonly string[] = []) {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data: https:",
+    "font-src 'self' data:",
+    `connect-src ${[...defaultConnectSources, ...extraConnectSources].join(" ")}`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    ...(isDevelopment ? [] : ["upgrade-insecure-requests"])
+  ].join("; ");
+}
+
+const contentSecurityPolicy = createContentSecurityPolicy();
+const liveTastingCsp = createContentSecurityPolicy(AGORA_CSP_CONNECT_SOURCES);
+
+const liveTastingHeaders = [
+  { key: "Permissions-Policy", value: LIVE_TASTING_PERMISSIONS_POLICY },
+  { key: "Content-Security-Policy", value: liveTastingCsp }
+];
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   output: "standalone",
-  headers: async () => [{
-    source: "/(.*)",
-    headers: [
-      { key: "X-Content-Type-Options", value: "nosniff" },
-      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-      { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
-      { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-      { key: "X-Frame-Options", value: "DENY" },
-      { key: "Content-Security-Policy", value: contentSecurityPolicy }
-    ]
-  }]
+  headers: async () => [
+    {
+      source: "/(.*)",
+      headers: [
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
+        { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "Content-Security-Policy", value: contentSecurityPolicy }
+      ]
+    },
+    ...LIVE_TASTING_HEADER_ROUTES.map(source => ({ source, headers: liveTastingHeaders }))
+  ]
 };
 
 export default withSentryConfig(nextConfig, {
