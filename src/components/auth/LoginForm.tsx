@@ -1,53 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/browser";
 import { Brand } from "@/components/Brand";
-import { safeNextPath, withNextPath } from "@/lib/auth-redirect";
+import { safeNextPath } from "@/lib/auth-redirect";
+import { sharedWordPressLoginUrl } from "@/lib/shared-login";
 
 export function LoginForm({ staff = false }: { staff?: boolean }) {
   const params = useSearchParams();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const callbackError = params.get("authError") ? "That email link is invalid or has expired. Request a fresh one." : "";
+  const callbackError = params.get("authError")
+    ? "Vintage Fork could not complete sign-in. Please try again."
+    : "";
   const fallback = staff ? "/admin" : "/dashboard";
   const next = safeNextPath(params.get("next"), fallback);
+  const signInUrl = sharedWordPressLoginUrl(next);
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    setBusy(true); setError("");
-    const supabase = createClient();
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    if (authError || !data.session) { setError("The email or password was not accepted."); setBusy(false); return; }
-    window.location.assign(next);
-  }
-
-  async function resetPassword() {
-    if (!email) { setError("Enter your email first."); return; }
+  function beginSharedSignIn() {
     setBusy(true);
-    setError("");
-    const supabase = createClient();
-    const afterReset = `/reset-password?next=${staff ? "/admin" : "/dashboard"}`;
-    const redirectTo = withNextPath(`${window.location.origin}/auth/callback`, afterReset);
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-    setBusy(false);
-    if (resetError) {
-      if (resetError.code === "over_email_send_rate_limit") {
-        setError("The password-reset email service is temporarily at capacity. Please contact Vintage Fork for help.");
-      } else if (resetError.code === "over_request_rate_limit") {
-        setError("Too many reset requests were made recently. Please wait briefly and try again.");
-      } else {
-        setError("The reset email could not be sent. Please try again or contact Vintage Fork.");
-      }
-      return;
-    }
-    setError("If that account exists, a reset link is on its way.");
+    window.location.assign(signInUrl);
   }
+
+  useEffect(() => {
+    if (!callbackError) {
+      window.location.replace(signInUrl);
+    }
+  }, [callbackError, signInUrl]);
 
   return (
     <main className="auth-page" id="main-content">
@@ -56,29 +34,17 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
         <p className="eyebrow">{staff ? "Tasting administration" : "Customer dashboard"}</p>
         <h1 className="page-title">{staff ? "Staff sign in" : "Welcome back"}</h1>
         <p className="page-lede">{staff ? "Use your assigned Vintage Fork staff account." : "Your tasting notes, Passport and saved teas are waiting."}</p>
-        {(error||callbackError) && <div className={error.startsWith("If") ? "notice success" : "form-error"} role="status">{error||callbackError}</div>}
-        <form onSubmit={submit} style={{ marginTop: 20 }}>
-          <div className="field"><label htmlFor="email">Email</label><input className="input" id="email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} /></div>
-          <div className="field">
-            <label htmlFor="password">Password</label>
-            <div className="password-control">
-              <input className="input" id="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} />
-              <button
-                aria-controls="password"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-                className="password-visibility-toggle"
-                type="button"
-                onClick={() => setShowPassword(current => !current)}
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-          </div>
-          <button className="btn btn-primary btn-attention" style={{ width: "100%" }} disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
-        </form>
-        <button className="btn btn-quiet" type="button" disabled={busy} onClick={resetPassword}>Forgot your password?</button>
-        {!staff && <p className="help">New to the tasting cellar? <Link href={withNextPath("/signup", next)}>Create a customer account</Link>.</p>}
+        {callbackError && <div className="form-error" role="status">{callbackError}</div>}
+        <button
+          className="btn btn-primary btn-attention"
+          style={{ width: "100%", marginTop: 20 }}
+          type="button"
+          disabled={busy}
+          onClick={beginSharedSignIn}
+        >
+          {busy ? "Connecting…" : "Continue with Vintage Fork"}
+        </button>
+        <p className="help">Use the same Vintage Fork password for Tea Lab, Tea Merchant and your mobile account.</p>
       </section>
     </main>
   );
