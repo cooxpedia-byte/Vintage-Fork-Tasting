@@ -23,13 +23,22 @@ function cardForSeal(seal: PassportSeal): JournalCard {
   };
 }
 
-export function TeaPassport({ seals }: { seals: PassportSeal[] }) {
+export function TeaPassport({ seals, onOpenMerchant }: { seals: PassportSeal[]; onOpenMerchant: () => void }) {
   const liveCount = seals.filter(seal => seal.sealClass === "live_event_verified").length;
   const soloCount = seals.filter(seal => seal.sealClass === "documented_tasting").length;
 
   return <>
     <h1 className="page-title">Your Tea Cellar</h1>
     <p className="page-lede">A source-qualified seal for every completed tea. Seals describe the evidence; they are not points or expertise claims.</p>
+    <section className="tea-merchant-entry" aria-labelledby="tea-merchant-entry-title">
+      <div className="tea-merchant-entry-mark" aria-hidden="true"><span /></div>
+      <div className="tea-merchant-entry-copy">
+        <span className="eyebrow">From your Tea Cellar</span>
+        <h2 id="tea-merchant-entry-title">Tea Merchant</h2>
+        <p>Turn the tasting cards you have collected into a market shelf and run a private demo market day.</p>
+      </div>
+      <button className="btn btn-gold" type="button" onClick={onOpenMerchant}>Open Tea Merchant</button>
+    </section>
     <div className="grid grid-2 passport-summary" style={{ marginTop: 20 }}>
       <div className="card"><strong className="display">{liveCount}</strong><p>Live Event Verified</p></div>
       <div className="card"><strong className="display">{soloCount}</strong><p>Documented Tasting</p></div>

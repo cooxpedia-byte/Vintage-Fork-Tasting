@@ -40,7 +40,7 @@ const soloSession: JournalSession = {
   }]
 };
 
-function render(section: "journal" | "passport" | "saved", extras: Partial<Parameters<typeof CustomerDashboard>[0]>) {
+function render(section: "journal" | "passport" | "saved" | "merchant", extras: Partial<Parameters<typeof CustomerDashboard>[0]>) {
   return renderToStaticMarkup(createElement(CustomerDashboard, {
     name: "Alex", ownerUserId: "owner-1", events: [], initialTab: section, teaLabEnabled: true, ...extras
   }));
@@ -61,6 +61,8 @@ describe("Tea Lab customer assets", () => {
     const html = render("passport", { passportSeals: seals });
 
     expect(html).toContain("Tea Cellar");
+    expect(html).toContain("Tea Merchant");
+    expect(html).toContain("Open Tea Merchant");
     expect(html).not.toContain(">Passport<");
     expect(html).toContain("Your Tea Cellar");
     expect(html).toContain("Live Event Verified");
@@ -69,6 +71,16 @@ describe("Tea Lab customer assets", () => {
     expect(html).toContain("documented_tasting");
     expect(html).toContain("Tap to view card");
     expect(html).toContain("Open tasting card for Moonlight White");
+  });
+
+  it("opens Tea Merchant as a Tea Cellar subview", () => {
+    const html = render("merchant", { passportSeals: seals });
+    expect(html).toContain("Your private market table");
+    expect(html).toContain("Tea Merchant");
+    expect(html).toContain("Return to Tea Cellar");
+    expect(html).toContain("Moonlight White");
+    expect(html).toContain("Golden Yunnan");
+    expect(html).toContain("Run market day");
   });
 
   it("offers editing, archive, and guarded permanent deletion only for owned solo sessions", () => {

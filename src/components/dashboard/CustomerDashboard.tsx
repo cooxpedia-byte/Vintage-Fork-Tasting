@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { JournalSessionCard } from "@/components/dashboard/JournalSessionCard";
 import { TeaLabWorkspace } from "@/components/tea-lab/TeaLabWorkspace";
 import { TeaLibrary } from "@/components/tea-lab/TeaLibrary";
+import { TeaMerchant } from "@/components/tea-lab/TeaMerchant";
 import { TeaPassport } from "@/components/tea-lab/TeaPassport";
 import { formatCustomerEventDate, parseCustomerDashboardSection, summarizeCustomerResponses, type CustomerDashboardSection } from "@/lib/customer-dashboard";
 import { mapLiveEventToJournalSession, type JournalSession, type LiveJournalEventRow } from "@/lib/tea-lab/journal";
@@ -53,12 +54,12 @@ export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLa
     ? { completed: [], saved: [], average: 0 }
     : summarizeCustomerResponses(events.flatMap(event => event.responses)), [events, ownerUserId, teaLabEnabled]);
   const fallbackJournalSessions = useMemo(() => !teaLabEnabled && tab === "journal" ? events.map(mapLiveEventToJournalSession) : [], [events, tab, teaLabEnabled]);
-  const fallbackPassportSeals = useMemo(() => !teaLabEnabled && tab === "passport" ? buildPassportSeals(events, []) : [], [events, tab, teaLabEnabled]);
+  const fallbackPassportSeals = useMemo(() => !teaLabEnabled && (tab === "passport" || tab === "merchant") ? buildPassportSeals(events, []) : [], [events, tab, teaLabEnabled]);
 
   function selectTab(nextTab: CustomerDashboardSection) {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     if (nextTab === "home") nextSearchParams.delete("section");
-    else nextSearchParams.set("section", nextTab === "passport" ? "tea-cellar" : nextTab);
+    else nextSearchParams.set("section", nextTab === "passport" ? "tea-cellar" : nextTab === "merchant" ? "tea-merchant" : nextTab);
     const query = nextSearchParams.toString();
     window.history.pushState(null, "", query ? `/dashboard?${query}` : "/dashboard");
   }
@@ -67,11 +68,17 @@ export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLa
     <div className="dashboard-shell">
       <aside className="sidebar" aria-label="Customer dashboard">
         <nav>
-          {navigationItems.map(item => <button className={`btn btn-quiet ${tab === item.section ? "active" : ""}`} aria-pressed={tab === item.section} onClick={() => selectTab(item.section)} key={item.section}><span aria-hidden="true">{item.icon}</span> {item.label}</button>)}
+          {navigationItems.map(item => {
+            const active = tab === item.section || (tab === "merchant" && item.section === "passport");
+            return <button className={`btn btn-quiet ${active ? "active" : ""}`} aria-pressed={active} onClick={() => selectTab(item.section)} key={item.section}><span aria-hidden="true">{item.icon}</span> {item.label}</button>;
+          })}
         </nav>
       </aside>
       <nav className="customer-mobile-nav" aria-label="Customer dashboard mobile">
-        {navigationItems.map(item => <button className={tab === item.section ? "active" : ""} aria-pressed={tab === item.section} onClick={() => selectTab(item.section)} key={item.section}><span aria-hidden="true">{item.icon}</span><small>{"mobileLabel" in item ? item.mobileLabel : item.label}</small></button>)}
+        {navigationItems.map(item => {
+          const active = tab === item.section || (tab === "merchant" && item.section === "passport");
+          return <button className={active ? "active" : ""} aria-pressed={active} onClick={() => selectTab(item.section)} key={item.section}><span aria-hidden="true">{item.icon}</span><small>{"mobileLabel" in item ? item.mobileLabel : item.label}</small></button>;
+        })}
       </nav>
       <main className="dashboard-content" id="main-content">
         {tab === "home" && teaLabEnabled && ownerUserId && <TeaLabWorkspace ownerUserId={ownerUserId} name={name} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} onOpenJournal={() => selectTab("journal")} />}
@@ -101,8 +108,9 @@ export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLa
             {showArchivedJournal && <div className="stack" style={{ marginTop: 12 }}>{archivedJournalSessions.map(session => <JournalSessionCard session={session} ownerUserId={ownerUserId} descriptorOptions={descriptorOptions} key={session.id} />)}</div>}
           </section>}
         </>}
-        {tab === "passport" && teaLabEnabled && <TeaPassport seals={passportSeals} />}
-        {tab === "passport" && !teaLabEnabled && <TeaPassport seals={fallbackPassportSeals} />}
+        {tab === "passport" && teaLabEnabled && <TeaPassport seals={passportSeals} onOpenMerchant={() => selectTab("merchant")} />}
+        {tab === "passport" && !teaLabEnabled && <TeaPassport seals={fallbackPassportSeals} onOpenMerchant={() => selectTab("merchant")} />}
+        {tab === "merchant" && <TeaMerchant seals={teaLabEnabled ? passportSeals : fallbackPassportSeals} onReturnToCellar={() => selectTab("passport")} />}
         {tab === "saved" && teaLabEnabled && <TeaLibrary items={libraryItems} onOpenLab={() => selectTab("home")} />}
         {tab === "saved" && !teaLabEnabled && <>
           <h1 className="page-title">Saved to Remember</h1><p className="page-lede">Saving never adds a product to a cart or charges you.</p>
