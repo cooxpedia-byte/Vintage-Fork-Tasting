@@ -17,14 +17,14 @@ const DASHBOARD_NAV_ITEMS = {
   standard: [
     { section: "home", icon: "⌂", label: "Home" },
     { section: "journal", icon: "▤", label: "Tastings" },
-    { section: "passport", icon: "✦", label: "Passport" },
+    { section: "passport", icon: "✦", label: "Tea Cellar" },
     { section: "saved", icon: "♡", label: "Saved teas", mobileLabel: "Saved" }
   ],
   teaLab: [
     { section: "home", icon: "⌂", label: "Lab" },
     { section: "journal", icon: "▤", label: "Journal" },
     { section: "saved", icon: "♡", label: "Library" },
-    { section: "passport", icon: "✦", label: "Passport" }
+    { section: "passport", icon: "✦", label: "Tea Cellar" }
   ]
 } as const;
 
@@ -58,7 +58,7 @@ export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLa
   function selectTab(nextTab: CustomerDashboardSection) {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     if (nextTab === "home") nextSearchParams.delete("section");
-    else nextSearchParams.set("section", nextTab);
+    else nextSearchParams.set("section", nextTab === "passport" ? "tea-cellar" : nextTab);
     const query = nextSearchParams.toString();
     window.history.pushState(null, "", query ? `/dashboard?${query}` : "/dashboard");
   }

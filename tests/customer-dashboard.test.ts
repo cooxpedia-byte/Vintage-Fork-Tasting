@@ -44,6 +44,7 @@ describe("customer dashboard section URLs", () => {
     expect(parseCustomerDashboardSection("home")).toBe("home");
     expect(parseCustomerDashboardSection("journal")).toBe("journal");
     expect(parseCustomerDashboardSection("passport")).toBe("passport");
+    expect(parseCustomerDashboardSection("tea-cellar")).toBe("passport");
     expect(parseCustomerDashboardSection("saved")).toBe("saved");
   });
 

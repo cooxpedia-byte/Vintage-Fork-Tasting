@@ -28,7 +28,7 @@ export function TeaPassport({ seals }: { seals: PassportSeal[] }) {
   const soloCount = seals.filter(seal => seal.sealClass === "documented_tasting").length;
 
   return <>
-    <h1 className="page-title">Your Passport</h1>
+    <h1 className="page-title">Your Tea Cellar</h1>
     <p className="page-lede">A source-qualified seal for every completed tea. Seals describe the evidence; they are not points or expertise claims.</p>
     <div className="grid grid-2 passport-summary" style={{ marginTop: 20 }}>
       <div className="card"><strong className="display">{liveCount}</strong><p>Live Event Verified</p></div>
@@ -50,6 +50,6 @@ export function TeaPassport({ seals }: { seals: PassportSeal[] }) {
       <small className="passport-open-card">Tap to view card</small>
       {seal.archived && <small className="muted">Source tasting archived</small>}
     </TastingCardDialog>)}</div>
-    {!seals.length && <div className="empty-state"><h2>No seals yet.</h2><p>Complete a tea in the Lab or at a live tasting to begin your Passport.</p></div>}
+    {!seals.length && <div className="empty-state"><h2>No seals yet.</h2><p>Complete a tea in the Lab or at a live tasting to begin your Tea Cellar.</p></div>}
   </>;
 }

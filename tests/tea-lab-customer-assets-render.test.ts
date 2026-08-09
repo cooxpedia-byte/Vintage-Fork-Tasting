@@ -60,6 +60,9 @@ describe("Tea Lab customer assets", () => {
   it("renders visibly distinct source-qualified Passport seals", () => {
     const html = render("passport", { passportSeals: seals });
 
+    expect(html).toContain("Tea Cellar");
+    expect(html).not.toContain(">Passport<");
+    expect(html).toContain("Your Tea Cellar");
     expect(html).toContain("Live Event Verified");
     expect(html).toContain("Documented Tasting");
     expect(html).toContain("live_event_verified");

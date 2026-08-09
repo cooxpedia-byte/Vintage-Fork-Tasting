@@ -57,5 +57,6 @@ export function summarizeCustomerResponses<T extends CustomerResponseSummary>(re
 
 export function parseCustomerDashboardSection(value: string | string[] | undefined): CustomerDashboardSection {
   const section = Array.isArray(value) ? value[0] : value;
+  if (section === "tea-cellar") return "passport";
   return section && CUSTOMER_DASHBOARD_SECTIONS.has(section) ? section as CustomerDashboardSection : "home";
 }
