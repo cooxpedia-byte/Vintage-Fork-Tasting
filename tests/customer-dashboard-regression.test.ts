@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { CustomerDashboard } from "@/components/dashboard/CustomerDashboard";
+import { LiveEventsHub } from "@/components/live-events/LiveEventsHub";
 import { buildJournalSessions } from "@/lib/tea-lab/journal";
 
 vi.mock("next/navigation", () => ({
@@ -27,6 +28,7 @@ const event: DashboardProps["events"][number] = {
       intensity: "dominant",
       saved: true,
       completed_at: "2026-08-02T18:05:00.000Z",
+      stamp_released_at: "2026-08-02T18:10:00.000Z",
       flight: { id: "flight-1", reveal_title: "Golden Dawn", position: 1, tea: { name: "Golden Dawn", origin: "Yunnan" } }
     },
     {
@@ -38,6 +40,7 @@ const event: DashboardProps["events"][number] = {
       intensity: null,
       saved: false,
       completed_at: null,
+      stamp_released_at: null,
       flight: { id: "flight-2", reveal_title: "Cloud Mist", position: 2, tea: { name: "Cloud Mist", origin: "Zhejiang" } }
     }
   ]
@@ -47,30 +50,32 @@ function render(initialTab: DashboardProps["initialTab"], overrides: Partial<Das
   return renderToStaticMarkup(createElement(CustomerDashboard, {
     name: "Alex",
     events: [event],
-    upcoming: [],
     initialTab,
     ...overrides
   }));
 }
 
 describe("shipped customer dashboard presentation", () => {
-  it("renders upcoming events in the event timezone in both dashboard modes", () => {
-    const upcoming = [{
+  it("renders upcoming events in the dedicated Live Events hub timezone", () => {
+    const events = [{
       id: "upcoming-1",
       title: "Mountain tea table",
-      starts_at: "2026-08-02T18:00:00.000Z",
+      startsAt: "2026-08-02T18:00:00.000Z",
       timezone: "America/Edmonton",
-      location_mode: "in_person",
-      invite_code: "MOUNTAIN"
+      locationMode: "in_person",
+      status: "scheduled",
+      inviteCode: "MOUNTAIN",
+      venueName: "Vintage Fork"
     }];
 
-    const standardHtml = render("home", { events: [], upcoming });
-    const teaLabHtml = render("home", { events: [], upcoming, teaLabEnabled: true, ownerUserId: "owner-1" });
+    const liveEventsHtml = renderToStaticMarkup(createElement(LiveEventsHub, { events }));
+    const teaLabHtml = render("home", { events: [], teaLabEnabled: true, ownerUserId: "owner-1" });
 
-    expect(standardHtml).toContain("12:00 p.m.");
-    expect(teaLabHtml).toContain("12:00 p.m.");
-    expect(standardHtml).not.toContain("6:00 p.m.");
-    expect(teaLabHtml).not.toContain("6:00 p.m.");
+    expect(liveEventsHtml).toContain("12:00 p.m.");
+    expect(liveEventsHtml).not.toContain("6:00 p.m.");
+    expect(liveEventsHtml).toContain("/event/MOUNTAIN");
+    expect(teaLabHtml).not.toContain("Mountain tea table");
+    expect(teaLabHtml).not.toContain("Next at the table");
   });
 
   it("integrates the digital card into existing live-event Journal history", () => {

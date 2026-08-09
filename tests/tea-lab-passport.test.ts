@@ -5,8 +5,8 @@ import type { LiveJournalEventRow, SoloJournalSessionRow } from "@/lib/tea-lab/j
 const live: LiveJournalEventRow = {
   id: "event-1", title: "Live table", starts_at: "2026-08-01T18:00:00.000Z", location_mode: "in_person", participant_id: "participant-1",
   responses: [
-    { id: "response-1", rating: 5, first_impression: null, personal_notes: null, descriptors: [], intensity: "dominant", saved: false, completed_at: "2026-08-01T18:30:00.000Z", flight: { id: "flight-1", reveal_title: "Golden", position: 1, tea: { name: "Golden Yunnan", origin: "Yunnan" } } },
-    { id: "response-2", rating: null, first_impression: null, personal_notes: null, descriptors: [], intensity: null, saved: false, completed_at: null, flight: { id: "flight-2", reveal_title: "Skipped", position: 2, tea: null } }
+    { id: "response-1", rating: 5, first_impression: null, personal_notes: null, descriptors: [], intensity: "dominant", saved: false, completed_at: "2026-08-01T18:30:00.000Z", stamp_released_at: "2026-08-01T18:35:00.000Z", flight: { id: "flight-1", reveal_title: "Golden", position: 1, tea: { name: "Golden Yunnan", origin: "Yunnan" } } },
+    { id: "response-2", rating: null, first_impression: null, personal_notes: null, descriptors: [], intensity: null, saved: false, completed_at: null, stamp_released_at: null, flight: { id: "flight-2", reveal_title: "Skipped", position: 2, tea: null } }
   ]
 };
 
@@ -31,6 +31,13 @@ describe("Tea Lab Passport derivation", () => {
     expect(seals.map(seal => seal.label)).toEqual(["Documented Tasting", "Live Event Verified"]);
     expect(seals.map(seal => seal.id)).toEqual(["documented_tasting:card-1", "live_event_verified:response-1"]);
     expect(seals.some(seal => seal.teaName === "Skipped")).toBe(false);
+  });
+
+  it("does not issue a live Passport stamp before the host release", () => {
+    const pending = structuredClone(live);
+    pending.responses[0].stamp_released_at = null;
+
+    expect(buildPassportSeals([pending], [])).toEqual([]);
   });
 
   it("retains a solo seal when its source session is archived", () => {

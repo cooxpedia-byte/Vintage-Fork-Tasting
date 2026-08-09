@@ -48,20 +48,29 @@ const checks = [
     query: () => supabase.from("participants").select(`
       id,event_id,user_id,status,
       event:events!inner(id,title,starts_at,timezone,location_mode,status,invite_code),
-      responses:tea_responses(id,rating,first_impression,personal_notes,descriptors,intensity,saved,completed_at,
+      responses:tea_responses(id,rating,first_impression,personal_notes,descriptors,intensity,saved,completed_at,stamp_released_at,
         flight:event_flight_items(id,reveal_title,position,brewing_instructions,steep_seconds,temperature_c,leaf_grams,water_ml,tea:teas(id,name,producer,origin,tea_type,default_steep_seconds)))
     `).limit(0)
   }
 ];
 
-const results = await Promise.all(checks.map(async ({ surface, query }) => {
-  const { error } = await query();
-  return error ? { surface, code: error.code || "unknown" } : null;
-}));
+const results = [];
+for (const { surface, query } of checks) {
+  let { error } = await query();
+  if (error?.code === "PGRST303" && error.message?.includes("issued at future")) {
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    ({ error } = await query());
+  }
+  results.push(error ? {
+    surface,
+    code: error.code || "unknown",
+    message: error.message || "No error message returned"
+  } : null);
+}
 const failures = results.filter(Boolean);
 
 if (failures.length > 0) {
-  console.error(`Dashboard contract failed: ${failures.map(({ surface, code }) => `${surface} (${code})`).join(", ")}.`);
+  console.error(`Dashboard contract failed: ${failures.map(({ surface, code, message }) => `${surface} (${code}: ${message})`).join(", ")}.`);
   process.exit(1);
 }
 

@@ -52,14 +52,14 @@ beforeEach(() => {
 describe("customer dashboard route synchronization", () => {
   it("uses the current route section after client navigation", () => {
     hooks.search = "section=saved";
-    const dashboard = CustomerDashboard({ name: "Alex", events: [], upcoming: [], initialTab: "home" });
+    const dashboard = CustomerDashboard({ name: "Alex", events: [], initialTab: "home" });
     const savedButton = findButton(dashboard, "Saved teas");
 
     expect(savedButton?.props["aria-pressed"]).toBe(true);
   });
 
   it("updates the URL without starting a server navigation", () => {
-    const dashboard = CustomerDashboard({ name: "Alex", events: [], upcoming: [], initialTab: "home" });
+    const dashboard = CustomerDashboard({ name: "Alex", events: [], initialTab: "home" });
     const savedButton = findButton(dashboard, "Saved teas");
 
     expect(savedButton).not.toBeNull();

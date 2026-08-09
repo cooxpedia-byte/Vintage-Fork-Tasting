@@ -1,20 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { JournalSessionCard } from "@/components/dashboard/JournalSessionCard";
 import { TeaLabWorkspace } from "@/components/tea-lab/TeaLabWorkspace";
 import { TeaLibrary } from "@/components/tea-lab/TeaLibrary";
 import { TeaPassport } from "@/components/tea-lab/TeaPassport";
-import { formatCustomerEventDate, formatCustomerEventDateTime, parseCustomerDashboardSection, summarizeCustomerResponses, type CustomerDashboardSection } from "@/lib/customer-dashboard";
+import { formatCustomerEventDate, parseCustomerDashboardSection, summarizeCustomerResponses, type CustomerDashboardSection } from "@/lib/customer-dashboard";
 import { mapLiveEventToJournalSession, type JournalSession, type LiveJournalEventRow } from "@/lib/tea-lab/journal";
 import type { TeaLabDescriptorOption, TeaLabTeaOption } from "@/lib/tea-lab/lab";
 import type { TeaLabSoloDraft } from "@/lib/tea-lab/offline";
 import type { TeaLibraryItem } from "@/lib/tea-lab/library";
 import { buildPassportSeals, type PassportSeal } from "@/lib/tea-lab/passport";
-
-type Upcoming = { id: string; title: string; starts_at: string; timezone?: string | null; location_mode: string; invite_code: string | null };
 
 const DASHBOARD_NAV_ITEMS = {
   standard: [
@@ -35,7 +32,6 @@ type CustomerDashboardProps = {
   name: string;
   ownerUserId?: string;
   events: LiveJournalEventRow[];
-  upcoming: Upcoming[];
   initialTab: CustomerDashboardSection;
   teaLabEnabled?: boolean;
   journalSessions?: JournalSession[];
@@ -47,7 +43,7 @@ type CustomerDashboardProps = {
   serverDrafts?: TeaLabSoloDraft[];
 };
 
-export function CustomerDashboard({ name, ownerUserId, events, upcoming, initialTab, teaLabEnabled = false, journalSessions = [], archivedJournalSessions = [], libraryItems = [], passportSeals = [], teaOptions = [], descriptorOptions = [], serverDrafts = [] }: CustomerDashboardProps) {
+export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLabEnabled = false, journalSessions = [], archivedJournalSessions = [], libraryItems = [], passportSeals = [], teaOptions = [], descriptorOptions = [], serverDrafts = [] }: CustomerDashboardProps) {
   const searchParams = useSearchParams();
   const [showArchivedJournal, setShowArchivedJournal] = useState(false);
   const routeSection = searchParams.get("section");
@@ -78,7 +74,7 @@ export function CustomerDashboard({ name, ownerUserId, events, upcoming, initial
         {navigationItems.map(item => <button className={tab === item.section ? "active" : ""} aria-pressed={tab === item.section} onClick={() => selectTab(item.section)} key={item.section}><span aria-hidden="true">{item.icon}</span><small>{"mobileLabel" in item ? item.mobileLabel : item.label}</small></button>)}
       </nav>
       <main className="dashboard-content" id="main-content">
-        {tab === "home" && teaLabEnabled && ownerUserId && <TeaLabWorkspace ownerUserId={ownerUserId} name={name} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} upcoming={upcoming} onOpenJournal={() => selectTab("journal")} />}
+        {tab === "home" && teaLabEnabled && ownerUserId && <TeaLabWorkspace ownerUserId={ownerUserId} name={name} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} onOpenJournal={() => selectTab("journal")} />}
         {tab === "home" && (!teaLabEnabled || !ownerUserId) && <>
           <section className="card" style={{ borderLeft: "5px solid var(--vf-gold)" }}>
             <p className="eyebrow">Your personal tea cellar</p>
@@ -91,12 +87,6 @@ export function CustomerDashboard({ name, ownerUserId, events, upcoming, initial
             <div className="card"><strong className="display" style={{ fontSize: 34 }}>{saved.length}</strong><p className="muted">saved teas</p></div>
             <div className="card"><strong className="display" style={{ fontSize: 34 }}>{average ? average.toFixed(1) : "—"}</strong><p className="muted">average rating</p></div>
           </div>
-          <div className="section-label"><span>Next at the table</span></div>
-          {upcoming.length ? upcoming.map(event => <article className="card" key={event.id}>
-            <div className="card-header"><div><h2 className="card-title">{event.title}</h2><p className="card-meta">{formatCustomerEventDateTime(event.starts_at, event.timezone)} · {event.location_mode === "remote" ? "Remote" : "In person"}</p></div><span className="chip chip-success">Booked</span></div>
-            <div className="notice">{event.location_mode === "remote" ? "Join the video call on a computer or tablet, and keep the tasting open on your phone." : "Your in-person seat is linked. Open the event on the day for the latest tasting details."}</div>
-            <div className="card-footer"><span>Your seat is linked to this account.</span>{event.invite_code && <Link className="btn btn-primary btn-attention" href={`/event/${event.invite_code}`}>Open event</Link>}</div>
-          </article>) : <div className="empty-state"><h2>No upcoming tastings yet.</h2><p>Events linked to your verified email will appear here.</p><a className="btn btn-secondary" href="https://vintagefork.ca/" target="_blank" rel="noreferrer">Browse Vintage Fork tastings</a></div>}
           <div className="section-label"><span>Your last evening</span></div>
           {events[0] ? <EventCard event={events[0]} /> : <div className="empty-state"><h2>Your cellar is ready.</h2><p>Join a tasting to begin your journal and Passport.</p></div>}
         </>}

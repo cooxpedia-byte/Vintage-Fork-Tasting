@@ -42,7 +42,7 @@ const soloSession: JournalSession = {
 
 function render(section: "journal" | "passport" | "saved", extras: Partial<Parameters<typeof CustomerDashboard>[0]>) {
   return renderToStaticMarkup(createElement(CustomerDashboard, {
-    name: "Alex", ownerUserId: "owner-1", events: [], upcoming: [], initialTab: section, teaLabEnabled: true, ...extras
+    name: "Alex", ownerUserId: "owner-1", events: [], initialTab: section, teaLabEnabled: true, ...extras
   }));
 }
 

@@ -87,6 +87,7 @@ export type LiveJournalResponseRow = {
   intensity: string | null;
   saved: boolean;
   completed_at: string | null;
+  stamp_released_at: string | null;
   flight: {
     id: string;
     reveal_title: string;
@@ -214,10 +215,10 @@ export function mapLiveEventToJournalSession(event: LiveJournalEventRow): Journa
     descriptors: response.descriptors.map(mapLegacyJournalDescriptor),
     firstImpression: response.first_impression,
     personalNotes: response.personal_notes,
-    completedAt: response.completed_at,
+    completedAt: response.stamp_released_at,
     saved: response.saved,
     position: response.flight?.position ?? 0,
-    sealClass: response.completed_at ? "live_event_verified" as const : null,
+    sealClass: response.stamp_released_at ? "live_event_verified" as const : null,
     brewing: response.flight ? {
       style: null,
       leafGrams: response.flight.leaf_grams ?? null,

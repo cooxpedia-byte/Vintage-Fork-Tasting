@@ -63,7 +63,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
     }
   }
 
-  const { data: responses, error: responsesError } = await admin.from("tea_responses").select("id,event_flight_item_id,first_impression,descriptors,intensity,rating,personal_notes,saved,completed_at").eq("participant_id", participant.id);
+  const { data: responses, error: responsesError } = await admin.from("tea_responses").select("id,event_flight_item_id,first_impression,descriptors,intensity,rating,personal_notes,saved,completed_at,stamp_released_at").eq("participant_id", participant.id);
   if (responsesError) return stateLoadFailure(eventId, responsesError);
   let analytics: { average_rating: number | null } | null = null;
   let participantTrivia: { answered: number; correct: number; total: number } | null = null;

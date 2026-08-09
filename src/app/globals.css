@@ -213,6 +213,32 @@ tr:last-child td { border-bottom: 0; }
 .command-inner > :not(.btn-danger) + .btn-danger { margin-left: .75rem; }
 .reveal-actions { flex: 1; gap: 1.5rem; }
 
+.agora-room { border: 1px solid var(--vf-line-gold); border-radius: var(--radius-lg); overflow: hidden; background: var(--vf-plum-aged); color: var(--vf-ivory); box-shadow: var(--shadow-2); }
+.agora-room-host { margin-bottom: 1rem; }
+.agora-room-guest { position: fixed; z-index: 95; right: max(.75rem,env(safe-area-inset-right)); bottom: max(.75rem,env(safe-area-inset-bottom)); width: min(420px,calc(100vw - 1.5rem)); }
+.agora-room-header { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .65rem .8rem; border-bottom: 1px solid rgba(224,190,107,.25); background: rgba(51,16,42,.96); }
+.agora-room-header > div { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.agora-room-header strong { color: var(--vf-ivory); font-size: .88rem; }
+.agora-room-header small { color: var(--vf-gold-light); white-space: nowrap; }
+.agora-live-dot { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--vf-fog); }
+.agora-live-dot.active { background: #79c68d; box-shadow: 0 0 0 4px rgba(121,198,141,.15); }
+.agora-collapse { min-height: 36px !important; padding: .35rem .55rem; color: var(--vf-ivory); white-space: nowrap; }
+.agora-room-body { padding: .75rem; }
+.agora-room-entry { display: grid; gap: .6rem; text-align: center; }
+.agora-room-entry p { margin: 0; }
+.agora-room-entry .help { color: rgba(251,247,236,.72); }
+.agora-video-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(132px,1fr)); gap: .55rem; max-height: 360px; overflow-y: auto; }
+.agora-video-tile, .agora-waiting-tile { position: relative; min-height: 132px; overflow: hidden; border: 1px solid rgba(224,190,107,.3); border-radius: var(--radius-md); background: #180713; }
+.agora-video-surface { position: absolute; inset: 0; }
+.agora-video-tile > span { position: absolute; z-index: 2; left: .45rem; bottom: .4rem; padding: .2rem .4rem; border-radius: 999px; background: rgba(0,0,0,.64); color: white; font-size: .7rem; }
+.agora-camera-off, .agora-waiting-tile { display: grid; place-items: center; color: rgba(251,247,236,.72); font-size: .78rem; }
+.agora-camera-off { position: absolute; inset: 0; background: #180713; }
+.agora-waiting-tile span { padding: 1rem; text-align: center; }
+.agora-controls { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .65rem; }
+.agora-controls .btn { min-width: 0; min-height: 44px; flex: 1; padding-inline: .65rem; }
+.agora-room .notice { margin-top: .65rem; background: rgba(255,255,255,.92); }
+.agora-room-collapsed .agora-room-body { display: none; }
+
 .guest-shell { min-height: 100vh; background: var(--vf-parchment); position: relative; z-index: 1; }
 .guest-header { position: sticky; top: 0; z-index: 60; min-height: 60px; display: flex; align-items: center; gap: .55rem; padding: .55rem .75rem; background: var(--vf-parchment); border-bottom: 1px solid var(--vf-line-gold); }
 .guest-pane { width: min(100%, 600px); min-height: calc(100vh - 60px); margin: auto; padding: 2rem 1rem 7rem; display: flex; flex-direction: column; }
@@ -652,6 +678,18 @@ tr:last-child td { border-bottom: 0; }
 }
 .enter { animation: enter 260ms var(--settle); }
 
+.live-events-hub { width: min(100%,var(--content-max)); margin: 0 auto; padding: 2rem 1rem 5rem; }
+.live-events-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem; padding: clamp(1.5rem,4vw,3rem); border: 1px solid var(--vf-line-gold); border-radius: var(--radius-lg); background: linear-gradient(135deg,var(--vf-plum-aged),var(--vf-plum)); color: var(--vf-ivory); box-shadow: var(--shadow-2); }
+.live-events-hero .eyebrow, .live-events-hero .page-title { color: var(--vf-gold-light); }
+.live-events-hero .page-lede { color: rgba(251,247,236,.82); }
+.live-events-hero .btn-secondary { border-color: rgba(255,255,255,.42); background: rgba(255,255,255,.1); color: white; }
+.live-events-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
+.live-event-card.is-live { border-color: var(--vf-gold); box-shadow: 0 0 0 2px rgba(201,162,39,.12),var(--shadow-1); }
+.live-events-invite { display: grid; grid-template-columns: minmax(0,1fr) minmax(280px,.7fr); align-items: center; gap: 1.5rem; }
+.live-events-invite form { min-width: 0; }
+.live-events-invite form > .row { align-items: flex-end; flex-wrap: nowrap; }
+.live-events-invite .field, .live-events-invite .input { min-width: 0; }
+
 @media (max-width: 900px) {
   .dashboard-shell { grid-template-columns: 72px minmax(0, 1fr); }
   .sidebar nav > .btn { justify-content: center; flex-direction: column; gap: .15rem; padding: .45rem .15rem; font-size: .66rem; line-height: 1.1; text-align: center; }
@@ -669,6 +707,12 @@ tr:last-child td { border-bottom: 0; }
   .brand-mark { width: 34px; height: 34px; }
 }
 @media (max-width: 640px) {
+  .live-events-hub { padding: 1.25rem .8rem 4rem; }
+  .live-events-hero { align-items: stretch; flex-direction: column; }
+  .live-events-hero .btn { width: 100%; }
+  .live-events-grid, .live-events-invite { grid-template-columns: 1fr; }
+  .live-events-invite form > .row { align-items: stretch; flex-direction: column; }
+  .live-events-invite form .btn { width: 100%; }
   .connection-banner { align-items: stretch; flex-direction: column; }
   .connection-banner .btn { width: 100%; }
   .dashboard-shell { display: block; }
@@ -729,6 +773,8 @@ tr:last-child td { border-bottom: 0; }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
   .page-shell { padding: 1.2rem .8rem 3rem; }
   .live-main { padding-inline: .75rem; }
+  .agora-room-guest { right: max(.5rem,env(safe-area-inset-right)); bottom: max(.5rem,env(safe-area-inset-bottom)); width: calc(100vw - 1rem); }
+  .agora-room-header small { display: none; }
   .desktop-admin-table { display: none; }
   .mobile-swipe-list {
     display: grid;
