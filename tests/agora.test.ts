@@ -5,6 +5,11 @@ import {
   createAgoraRtcToken,
   getAgoraConfiguration
 } from "@/lib/agora";
+import {
+  AGORA_CSP_CONNECT_SOURCES,
+  LIVE_TASTING_HEADER_ROUTES,
+  LIVE_TASTING_PERMISSIONS_POLICY
+} from "@/lib/security-headers";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -37,5 +42,20 @@ describe("Agora live tasting security", () => {
     });
     expect(token.startsWith("007")).toBe(true);
     expect(token.length).toBeGreaterThan(100);
+  });
+
+  it("scopes media permission and Agora networks to the two live room routes", () => {
+    expect(LIVE_TASTING_HEADER_ROUTES).toEqual([
+      "/event/:inviteCode",
+      "/admin/events/:eventId/live"
+    ]);
+    expect(LIVE_TASTING_PERMISSIONS_POLICY).toContain("camera=(self)");
+    expect(LIVE_TASTING_PERMISSIONS_POLICY).toContain("microphone=(self)");
+    expect(AGORA_CSP_CONNECT_SOURCES).toEqual([
+      "https://*.agora.io",
+      "wss://*.agora.io",
+      "https://*.sd-rtn.com",
+      "wss://*.sd-rtn.com"
+    ]);
   });
 });
