@@ -184,12 +184,16 @@ export function TastingCardPresentation({
   card,
   contextLabel,
   earnedAt,
-  flipped
+  flipped,
+  shielded,
+  onShieldChange
 }: {
   card: JournalCard;
   contextLabel: string;
   earnedAt: string;
   flipped: boolean;
+  shielded?: boolean;
+  onShieldChange?: (shielded: boolean) => void;
 }) {
   const brewing = card.brewing;
   const infusionData = tastingCardInfusionDataSet(brewing?.stages ?? []);
@@ -204,14 +208,19 @@ export function TastingCardPresentation({
   const styleLengthClass = tastingCardStyleLengthClass(brewingStyleLabel);
   const dateLabel = new Date(earnedAt).toLocaleDateString("en-CA", { dateStyle: "long" });
   const shieldEarned = card.sealClass !== null;
-  const [sealCoupledWhenEarned, setSealCoupledWhenEarned] = useState(true);
+  const [internalShielded, setInternalShielded] = useState(true);
   const lastSealTapAt = useRef<number | null>(null);
-  const sealCoupled = shieldEarned && sealCoupledWhenEarned;
+  const sealCoupled = shieldEarned && (shielded ?? internalShielded);
+
+  function setShielded(nextShielded: boolean) {
+    if (onShieldChange) onShieldChange(nextShielded);
+    else setInternalShielded(nextShielded);
+  }
 
   function handleSecretSealTap(tapAt: number) {
     if (!shieldEarned) return;
     if (isSecretSealDoubleTap(lastSealTapAt.current, tapAt)) {
-      setSealCoupledWhenEarned(current => !current);
+      setShielded(!sealCoupled);
       lastSealTapAt.current = null;
       return;
     }
@@ -289,6 +298,8 @@ export function TastingCardDialog({
   earnedAt,
   triggerClassName = "btn btn-secondary",
   triggerLabel,
+  shielded,
+  onShieldChange,
   children
 }: {
   card: JournalCard;
@@ -296,6 +307,8 @@ export function TastingCardDialog({
   earnedAt: string;
   triggerClassName?: string;
   triggerLabel: string;
+  shielded?: boolean;
+  onShieldChange?: (shielded: boolean) => void;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -305,6 +318,13 @@ export function TastingCardDialog({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
+  const [internalShielded, setInternalShielded] = useState(true);
+  const activeShielded = shielded ?? internalShielded;
+
+  function setShielded(nextShielded: boolean) {
+    if (onShieldChange) onShieldChange(nextShielded);
+    else setInternalShielded(nextShielded);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -375,8 +395,24 @@ export function TastingCardDialog({
             setFlipped(current => !current);
           }}
         >
-          <TastingCardPresentation card={card} contextLabel={contextLabel} earnedAt={earnedAt} flipped={flipped} />
+          <TastingCardPresentation
+            card={card}
+            contextLabel={contextLabel}
+            earnedAt={earnedAt}
+            flipped={flipped}
+            shielded={activeShielded}
+            onShieldChange={setShielded}
+          />
         </div>
+        {card.sealClass && <button
+          className="tasting-card-shield-control"
+          type="button"
+          aria-pressed={activeShielded}
+          onClick={event => {
+            event.stopPropagation();
+            setShielded(!activeShielded);
+          }}
+        >{activeShielded ? "Deshield card" : "Shield card"}</button>}
         <span className="sr-only" role="status" aria-live="polite">{flipped ? "Showing brewing details" : "Showing tasting profile"}</span>
       </section>
     </div>}

@@ -21,6 +21,27 @@ export type PassportSeal = {
   card?: JournalCard;
 };
 
+export function cardForPassportSeal(seal: PassportSeal): JournalCard {
+  return seal.card ?? {
+    id: `${seal.source}:${seal.sourceId}`,
+    source: seal.source,
+    sourceId: seal.sourceId,
+    teaName: seal.teaName,
+    origin: seal.origin,
+    rating: null,
+    intensity: null,
+    descriptors: [],
+    firstImpression: null,
+    personalNotes: null,
+    completedAt: seal.earnedAt,
+    saved: false,
+    position: 1,
+    sealClass: seal.sealClass,
+    brewing: null,
+    photos: []
+  };
+}
+
 export function buildPassportSeals(
   liveEvents: LiveJournalEventRow[],
   soloRows: SoloJournalSessionRow[]

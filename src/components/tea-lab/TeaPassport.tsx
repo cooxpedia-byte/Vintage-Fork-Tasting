@@ -1,29 +1,8 @@
 import { TastingCardDialog } from "@/components/tea-lab/TastingCardDialog";
-import type { JournalCard } from "@/lib/tea-lab/journal";
-import type { PassportSeal } from "@/lib/tea-lab/passport";
+import { cardForPassportSeal, type PassportSeal } from "@/lib/tea-lab/passport";
+import type { LoyaltySummary } from "@/lib/loyalty";
 
-function cardForSeal(seal: PassportSeal): JournalCard {
-  return seal.card ?? {
-    id: `${seal.source}:${seal.sourceId}`,
-    source: seal.source,
-    sourceId: seal.sourceId,
-    teaName: seal.teaName,
-    origin: seal.origin,
-    rating: null,
-    intensity: null,
-    descriptors: [],
-    firstImpression: null,
-    personalNotes: null,
-    completedAt: seal.earnedAt,
-    saved: false,
-    position: 1,
-    sealClass: seal.sealClass,
-    brewing: null,
-    photos: []
-  };
-}
-
-export function TeaPassport({ seals, onOpenMerchant }: { seals: PassportSeal[]; onOpenMerchant: () => void }) {
+export function TeaPassport({ seals, loyaltySummary, eligibleMerchantCards, onOpenMerchant }: { seals: PassportSeal[]; loyaltySummary: LoyaltySummary | null; eligibleMerchantCards: number; onOpenMerchant: () => void }) {
   const liveCount = seals.filter(seal => seal.sealClass === "live_event_verified").length;
   const soloCount = seals.filter(seal => seal.sealClass === "documented_tasting").length;
 
@@ -35,7 +14,9 @@ export function TeaPassport({ seals, onOpenMerchant }: { seals: PassportSeal[]; 
       <div className="tea-merchant-entry-copy">
         <span className="eyebrow">From your Tea Cellar</span>
         <h2 id="tea-merchant-entry-title">Tea Merchant</h2>
-        <p>Turn the tasting cards you have collected into a market shelf and run a private demo market day.</p>
+        <p>{loyaltySummary
+          ? `${loyaltySummary.pointsBalance.toLocaleString("en-CA")} ${loyaltySummary.pointsLabel} available · ${eligibleMerchantCards} ${eligibleMerchantCards === 1 ? "card" : "cards"} ready to list.`
+          : "Your Gold Leaves wallet is temporarily unavailable. Your tasting cards remain safely in the Tea Cellar."}</p>
       </div>
       <button className="btn btn-gold" type="button" onClick={onOpenMerchant}>Open Tea Merchant</button>
     </section>
@@ -44,7 +25,7 @@ export function TeaPassport({ seals, onOpenMerchant }: { seals: PassportSeal[]; 
       <div className="card"><strong className="display">{soloCount}</strong><p>Documented Tasting</p></div>
     </div>
     <div className="grid grid-4 passport-grid" style={{ marginTop: 20 }}>{seals.map(seal => <TastingCardDialog
-      card={cardForSeal(seal)}
+      card={cardForPassportSeal(seal)}
       contextLabel={seal.contextLabel}
       earnedAt={seal.earnedAt}
       triggerClassName={`card passport-seal ${seal.sealClass}`}

@@ -1,0 +1,13 @@
+.next
+node_modules
+coverage
+output
+docs/manuals
+PROJECT_HANDOFF.md
+VINTAGE_FORK_AUDIT_HANDOFF_2026-08-02.md
+VINTAGE_FORK_FROZEN_HANDOFF_2026-08-02.md
+VINTAGE_FORK_FROZEN_HANDOFF_2026-08-02.txt
+**/* 2.ts
+**/* 2.tsx
+**/* 2.sql
+public/brand/vintage-fork-icon 2.jpg

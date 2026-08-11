@@ -78,7 +78,9 @@ function dashboardClient(
     throw new Error(`Unexpected table: ${table}`);
   });
 
-  return { client: { from }, from, journalBuilder, draftBuilder };
+  const rpc = vi.fn(async () => ({ data: [], error: null }));
+
+  return { client: { from, rpc }, from, journalBuilder, draftBuilder };
 }
 
 describe("Tea Lab Journal dashboard query", () => {

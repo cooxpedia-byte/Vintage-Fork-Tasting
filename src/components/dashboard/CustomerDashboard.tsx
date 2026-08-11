@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { DashboardHero } from "@/components/DashboardHero";
 import { JournalSessionCard } from "@/components/dashboard/JournalSessionCard";
 import { TeaLabWorkspace } from "@/components/tea-lab/TeaLabWorkspace";
 import { TeaLibrary } from "@/components/tea-lab/TeaLibrary";
@@ -13,6 +14,7 @@ import type { TeaLabDescriptorOption, TeaLabTeaOption } from "@/lib/tea-lab/lab"
 import type { TeaLabSoloDraft } from "@/lib/tea-lab/offline";
 import type { TeaLibraryItem } from "@/lib/tea-lab/library";
 import { buildPassportSeals, type PassportSeal } from "@/lib/tea-lab/passport";
+import type { LoyaltySummary, MerchantCard, MerchantListing } from "@/lib/loyalty";
 
 const DASHBOARD_NAV_ITEMS = {
   standard: [
@@ -42,9 +44,12 @@ type CustomerDashboardProps = {
   teaOptions?: TeaLabTeaOption[];
   descriptorOptions?: TeaLabDescriptorOption[];
   serverDrafts?: TeaLabSoloDraft[];
+  loyaltySummary?: LoyaltySummary | null;
+  merchantCards?: MerchantCard[];
+  merchantListings?: MerchantListing[];
 };
 
-export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLabEnabled = false, journalSessions = [], archivedJournalSessions = [], libraryItems = [], passportSeals = [], teaOptions = [], descriptorOptions = [], serverDrafts = [] }: CustomerDashboardProps) {
+export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLabEnabled = false, journalSessions = [], archivedJournalSessions = [], libraryItems = [], passportSeals = [], teaOptions = [], descriptorOptions = [], serverDrafts = [], loyaltySummary = null, merchantCards = [], merchantListings = [] }: CustomerDashboardProps) {
   const searchParams = useSearchParams();
   const [showArchivedJournal, setShowArchivedJournal] = useState(false);
   const routeSection = searchParams.get("section");
@@ -83,11 +88,7 @@ export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLa
       <main className="dashboard-content" id="main-content">
         {tab === "home" && teaLabEnabled && ownerUserId && <TeaLabWorkspace ownerUserId={ownerUserId} name={name} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} onOpenJournal={() => selectTab("journal")} />}
         {tab === "home" && (!teaLabEnabled || !ownerUserId) && <>
-          <section className="card" style={{ borderLeft: "5px solid var(--vf-gold)" }}>
-            <p className="eyebrow">Your personal tea cellar</p>
-            <h1 className="display">Welcome back, {name}.</h1>
-            <p className="page-lede">Your private tasting history, Passport stamps and saved teas live here.</p>
-          </section>
+          <DashboardHero eyebrow="Your personal tea cellar" title={<>Welcome back, {name}.</>} lede="Your private tasting history, Passport stamps and saved teas live here." />
           <div className="grid grid-4" style={{ marginTop: 16 }}>
             <div className="card"><strong className="display" style={{ fontSize: 34 }}>{events.length}</strong><p className="muted">tasting evenings</p></div>
             <div className="card"><strong className="display" style={{ fontSize: 34 }}>{completed.length}</strong><p className="muted">teas completed</p></div>
@@ -108,9 +109,9 @@ export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLa
             {showArchivedJournal && <div className="stack" style={{ marginTop: 12 }}>{archivedJournalSessions.map(session => <JournalSessionCard session={session} ownerUserId={ownerUserId} descriptorOptions={descriptorOptions} key={session.id} />)}</div>}
           </section>}
         </>}
-        {tab === "passport" && teaLabEnabled && <TeaPassport seals={passportSeals} onOpenMerchant={() => selectTab("merchant")} />}
-        {tab === "passport" && !teaLabEnabled && <TeaPassport seals={fallbackPassportSeals} onOpenMerchant={() => selectTab("merchant")} />}
-        {tab === "merchant" && <TeaMerchant seals={teaLabEnabled ? passportSeals : fallbackPassportSeals} onReturnToCellar={() => selectTab("passport")} />}
+        {tab === "passport" && teaLabEnabled && <TeaPassport seals={passportSeals} loyaltySummary={loyaltySummary} eligibleMerchantCards={merchantCards.length} onOpenMerchant={() => selectTab("merchant")} />}
+        {tab === "passport" && !teaLabEnabled && <TeaPassport seals={fallbackPassportSeals} loyaltySummary={loyaltySummary} eligibleMerchantCards={merchantCards.length} onOpenMerchant={() => selectTab("merchant")} />}
+        {tab === "merchant" && <TeaMerchant seals={teaLabEnabled ? passportSeals : fallbackPassportSeals} initialSummary={loyaltySummary} initialCards={merchantCards} initialListings={merchantListings} onReturnToCellar={() => selectTab("passport")} />}
         {tab === "saved" && teaLabEnabled && <TeaLibrary items={libraryItems} onOpenLab={() => selectTab("home")} />}
         {tab === "saved" && !teaLabEnabled && <>
           <h1 className="page-title">Saved to Remember</h1><p className="page-lede">Saving never adds a product to a cart or charges you.</p>

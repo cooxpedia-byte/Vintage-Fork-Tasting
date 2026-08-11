@@ -78,6 +78,18 @@ describe("Tea Lab tasting-card photo slider", () => {
     expect(privateCard).not.toContain("tasting-card-secret-seal-target");
   });
 
+  it("renders the seal from the controlled Tea Merchant shield state", () => {
+    const shielded = renderToStaticMarkup(createElement(TastingCardPresentation, {
+      card, contextLabel: "Personal session", earnedAt: "2026-08-03T12:00:00.000Z", flipped: false, shielded: true
+    }));
+    const deshielded = renderToStaticMarkup(createElement(TastingCardPresentation, {
+      card, contextLabel: "Personal session", earnedAt: "2026-08-03T12:00:00.000Z", flipped: false, shielded: false
+    }));
+
+    expect(shielded).toContain('data-seal-state="coupled"');
+    expect(deshielded).toContain('data-seal-state="decoupled"');
+  });
+
   it("recognizes the hidden shield gesture only when two taps are close together", () => {
     expect(isSecretSealDoubleTap(null, 1_000)).toBe(false);
     expect(isSecretSealDoubleTap(1_000, 1_450)).toBe(true);
