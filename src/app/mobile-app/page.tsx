@@ -14,17 +14,18 @@ export default function MobileAppPage() {
       <div className="guest-pane">
         <Brand href="https://vintagefork.ca/" />
         <div style={{ margin: "2rem 0", textAlign: "center" }}>
-          <p className="eyebrow">Official mobile application</p>
-          <h1 className="page-title">Your Vintage Fork tea table, wherever you brew.</h1>
+          <p className="eyebrow">Official Vintage Fork Tea application</p>
+          <h1 className="page-title">Vintage Fork Tea</h1>
           <p className="page-lede">
-            Vintage Fork Tea connects customers with Tea Lab tasting sessions,
+            Vintage Fork Tea is the official Vintage Fork Tea Company mobile
+            application. It connects customers with Tea Lab tasting sessions,
             their private Tea Cellar and Journal, brewing tools, live events,
             the tea shop and one shared Gold Leaves balance.
           </p>
         </div>
 
         <section className="card stack" aria-labelledby="app-purpose">
-          <h2 className="card-title" id="app-purpose">What the app does</h2>
+          <h2 className="card-title" id="app-purpose">What Vintage Fork Tea does</h2>
           <p>
             Record tasting notes, save teas, revisit your tasting history,
             explore tea origins, run brewing timers and move securely between
