@@ -17,7 +17,6 @@ import {
   describeAgoraConnectionError,
   describeMediaError,
   selectAgoraVideoCodec,
-  shouldRetryAgoraWithProxy,
   withAgoraTimeout
 } from "@/lib/agora-session";
 
@@ -169,18 +168,16 @@ export function AgoraVideoRoom({
     AgoraRTC: IAgoraRTC,
     credentials: RoomToken,
     codec: AgoraVideoCodec,
-    attempt: number,
-    useTcpProxy: boolean
+    attempt: number
   ) {
     const client = AgoraRTC.createClient({ mode: "rtc", codec });
-    if (useTcpProxy) client.startProxyServer(5);
     clientRef.current = client;
     configureClient(client);
     try {
       await withAgoraTimeout(
         client.join(credentials.appId, credentials.channel, credentials.token, credentials.account),
-        useTcpProxy ? AGORA_OPERATION_TIMEOUT_MS.proxyJoin : AGORA_OPERATION_TIMEOUT_MS.join,
-        useTcpProxy ? "The secure fallback connection took too long." : "The direct video connection took too long."
+        AGORA_OPERATION_TIMEOUT_MS.join,
+        "The video connection took too long."
       );
       if (attempt !== attemptRef.current) {
         client.removeAllListeners();
@@ -207,7 +204,6 @@ export function AgoraVideoRoom({
     setConnectionError("");
     setCameraError("");
     setMicrophoneError("");
-    let proxyAttempted = false;
 
     try {
       const credentials = await fetchToken();
@@ -227,19 +223,12 @@ export function AgoraVideoRoom({
       const supportedCodecs = await AgoraRTC.getSupportedCodec().catch(() => ({ video: [], audio: [] }));
       const codec = selectAgoraVideoCodec(supportedCodecs.video);
       setProgress("Joining the video room…");
-      let client: IAgoraRTCClient;
-      try {
-        client = await createAndJoinClient(AgoraRTC, credentials, codec, attempt, false);
-      } catch (directError) {
-        reportClientIssue("direct_join", directError, { codec, supportedVideoCodecs: supportedCodecs.video });
-        if (!shouldRetryAgoraWithProxy(directError) || attempt !== attemptRef.current) throw directError;
-        proxyAttempted = true;
-        setProgress("Direct connection blocked. Trying secure fallback…");
-        client = await createAndJoinClient(AgoraRTC, credentials, codec, attempt, true);
-      }
+      // Do not force startProxyServer here. Agora cloud proxy needs separate
+      // account-side configuration; join() already owns browser/TLS recovery.
+      const client = await createAndJoinClient(AgoraRTC, credentials, codec, attempt);
 
       setStatus("joined");
-      setProgress(proxyAttempted ? "Connected securely. Opening microphone…" : "Connected. Opening microphone…");
+      setProgress("Connected. Opening microphone…");
       setRemoteUsers([...client.remoteUsers]);
       void initializeLocalMedia(AgoraRTC, client, attempt);
     } catch (joinError) {
@@ -248,7 +237,7 @@ export function AgoraVideoRoom({
       await releaseClient();
       setStatus("error");
       setProgress("");
-      setConnectionError(describeAgoraConnectionError(joinError, proxyAttempted));
+      setConnectionError(describeAgoraConnectionError(joinError));
     } finally {
       if (attempt === attemptRef.current) joiningRef.current = false;
     }

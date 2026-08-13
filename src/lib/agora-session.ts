@@ -1,6 +1,8 @@
 export const AGORA_OPERATION_TIMEOUT_MS = {
   token: 10_000,
-  join: 15_000,
+  // Agora's Web SDK performs its own network/TLS recovery inside join().
+  // Safari can need more than 15 seconds to complete that recovery.
+  join: 45_000,
   proxyJoin: 25_000,
   media: 12_000,
   publish: 10_000,
@@ -68,10 +70,10 @@ export function agoraErrorCode(error: unknown) {
   return "UNKNOWN";
 }
 
-export function shouldRetryAgoraWithProxy(error: unknown) {
-  if (error instanceof AgoraOperationTimeoutError) return true;
+export function describeAgoraConnectionError(error: unknown) {
   const code = agoraErrorCode(error);
-  return [
+  const reference = code === "UNKNOWN" ? "" : ` Reference: ${code}.`;
+  if (error instanceof AgoraOperationTimeoutError || [
     "TIMEOUT",
     "NETWORK",
     "GATEWAY",
@@ -82,14 +84,8 @@ export function shouldRetryAgoraWithProxy(error: unknown) {
     "EXTERNAL_SIGNAL_ABORT",
     "VOID_GATEWAY_ADDRESS",
     "OPERATION_ABORTED"
-  ].some(value => code.includes(value));
-}
-
-export function describeAgoraConnectionError(error: unknown, proxyAttempted: boolean) {
-  const code = agoraErrorCode(error);
-  const reference = code === "UNKNOWN" ? "" : ` Reference: ${code}.`;
-  if (error instanceof AgoraOperationTimeoutError || shouldRetryAgoraWithProxy(error)) {
-    return `${proxyAttempted ? "The direct and secure fallback connections" : "The video connection"} could not reach Agora. The tasting is still running; reconnect video or try another network.${reference}`;
+  ].some(value => code.includes(value))) {
+    return `The video connection could not reach Agora. The tasting is still running; reconnect video or try another network.${reference}`;
   }
   if (code.includes("NOT_SUPPORTED")) {
     return `This browser cannot run the live video room. Update it or use current Chrome, Edge, or Safari.${reference}`;
