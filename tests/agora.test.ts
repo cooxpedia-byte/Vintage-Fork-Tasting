@@ -53,10 +53,24 @@ describe("Agora live tasting security", () => {
     expect(LIVE_TASTING_PERMISSIONS_POLICY).toContain("camera=(self)");
     expect(LIVE_TASTING_PERMISSIONS_POLICY).toContain("microphone=(self)");
     expect(AGORA_CSP_CONNECT_SOURCES).toEqual([
-      "https://*.agora.io",
-      "wss://*.agora.io",
-      "https://*.sd-rtn.com",
-      "wss://*.sd-rtn.com"
+      "https://*.agora.io:*",
+      "wss://*.agora.io:*",
+      "https://*.edge.agora.io:*",
+      "wss://*.edge.agora.io:*",
+      "https://*.sd-rtn.com:*",
+      "wss://*.sd-rtn.com:*",
+      "https://*.edge.sd-rtn.com:*",
+      "wss://*.edge.sd-rtn.com:*",
+      "https://*.rtnsvc.com:*",
+      "wss://*.rtnsvc.com:*",
+      "https://*.edge.rtnsvc.com:*",
+      "wss://*.edge.rtnsvc.com:*",
+      "https://*.rtesvc.com:*",
+      "wss://*.rtesvc.com:*",
+      "https://*.edge.rtesvc.com:*",
+      "wss://*.edge.rtesvc.com:*"
     ]);
+    expect(AGORA_CSP_CONNECT_SOURCES).toContain("wss://*.edge.agora.io:*");
+    expect(AGORA_CSP_CONNECT_SOURCES).toContain("wss://*.edge.sd-rtn.com:*");
   });
 });
