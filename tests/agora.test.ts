@@ -47,7 +47,8 @@ describe("Agora live tasting security", () => {
   it("scopes media permission and Agora networks to the two live room routes", () => {
     expect(LIVE_TASTING_HEADER_ROUTES).toEqual([
       "/event/:inviteCode",
-      "/admin/events/:eventId/live"
+      "/admin/events/:eventId/live",
+      "/admin/video-check"
     ]);
     expect(LIVE_TASTING_PERMISSIONS_POLICY).toContain("camera=(self)");
     expect(LIVE_TASTING_PERMISSIONS_POLICY).toContain("microphone=(self)");

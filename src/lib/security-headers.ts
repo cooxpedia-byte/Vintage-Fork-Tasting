@@ -10,7 +10,8 @@ export const AGORA_CSP_CONNECT_SOURCES = [
 
 export const LIVE_TASTING_HEADER_ROUTES = [
   "/event/:inviteCode",
-  "/admin/events/:eventId/live"
+  "/admin/events/:eventId/live",
+  "/admin/video-check"
 ] as const;
 
 export const LIVE_TASTING_PERMISSIONS_POLICY =
