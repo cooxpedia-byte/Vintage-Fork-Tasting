@@ -1,10 +1,13 @@
 export const AGORA_OPERATION_TIMEOUT_MS = {
   token: 10_000,
   join: 15_000,
+  proxyJoin: 25_000,
   media: 12_000,
   publish: 10_000,
   leave: 5_000
 } as const;
+
+export type AgoraVideoCodec = "vp8" | "h264";
 
 export class AgoraOperationTimeoutError extends Error {
   constructor(message: string) {
@@ -49,4 +52,50 @@ export function describeMediaError(error: unknown, device: "camera" | "microphon
     return `${label} is busy in another app. Close the other app, then retry.`;
   }
   return `${label} could not start. You can stay in the room and retry it.`;
+}
+
+export function selectAgoraVideoCodec(supportedVideoCodecs: string[]): AgoraVideoCodec {
+  const supported = supportedVideoCodecs.map(codec => codec.toUpperCase());
+  if (supported.includes("VP8")) return "vp8";
+  if (supported.includes("H264")) return "h264";
+  return "vp8";
+}
+
+export function agoraErrorCode(error: unknown) {
+  if (!error || typeof error !== "object") return "UNKNOWN";
+  if ("code" in error && error.code) return String(error.code).toUpperCase();
+  if (error instanceof Error && error.name) return error.name.toUpperCase();
+  return "UNKNOWN";
+}
+
+export function shouldRetryAgoraWithProxy(error: unknown) {
+  if (error instanceof AgoraOperationTimeoutError) return true;
+  const code = agoraErrorCode(error);
+  return [
+    "TIMEOUT",
+    "NETWORK",
+    "GATEWAY",
+    "MULTI_UNILBS",
+    "NO_ICE_CANDIDATE",
+    "ICE_FAILED",
+    "WS_",
+    "EXTERNAL_SIGNAL_ABORT",
+    "VOID_GATEWAY_ADDRESS",
+    "OPERATION_ABORTED"
+  ].some(value => code.includes(value));
+}
+
+export function describeAgoraConnectionError(error: unknown, proxyAttempted: boolean) {
+  const code = agoraErrorCode(error);
+  const reference = code === "UNKNOWN" ? "" : ` Reference: ${code}.`;
+  if (error instanceof AgoraOperationTimeoutError || shouldRetryAgoraWithProxy(error)) {
+    return `${proxyAttempted ? "The direct and secure fallback connections" : "The video connection"} could not reach Agora. The tasting is still running; reconnect video or try another network.${reference}`;
+  }
+  if (code.includes("NOT_SUPPORTED")) {
+    return `This browser cannot run the live video room. Update it or use current Chrome, Edge, or Safari.${reference}`;
+  }
+  if (code.includes("UID_CONFLICT")) {
+    return `The previous video connection is still closing. Wait a few seconds, then reconnect.${reference}`;
+  }
+  return `The video room could not connect. The tasting is still running; reconnect when ready.${reference}`;
 }

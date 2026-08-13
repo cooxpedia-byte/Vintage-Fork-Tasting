@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import * as Sentry from "@sentry/nextjs";
 import type {
   IAgoraRTC,
   IAgoraRTCClient,
@@ -11,7 +12,12 @@ import type {
 } from "agora-rtc-sdk-ng";
 import {
   AGORA_OPERATION_TIMEOUT_MS,
+  agoraErrorCode,
+  type AgoraVideoCodec,
+  describeAgoraConnectionError,
   describeMediaError,
+  selectAgoraVideoCodec,
+  shouldRetryAgoraWithProxy,
   withAgoraTimeout
 } from "@/lib/agora-session";
 
@@ -102,18 +108,40 @@ export function AgoraVideoRoom({
     }
   }
 
+  function reportClientIssue(stage: string, error: unknown, context: Record<string, unknown> = {}) {
+    const reportable = error instanceof Error ? error : new Error(String(error));
+    Sentry.captureException(reportable, {
+      tags: {
+        vf_event: "agora_client_issue",
+        agora_stage: stage,
+        agora_code: agoraErrorCode(error),
+        room_role: presentation
+      },
+      extra: {
+        eventId,
+        sdkVersion: agoraRef.current?.VERSION,
+        ...context
+      }
+    });
+  }
+
   function configureClient(client: IAgoraRTCClient) {
     const refreshRemoteUsers = () => setRemoteUsers([...client.remoteUsers]);
     client.on("user-published", (user, mediaType) => {
       void client.subscribe(user, mediaType).then(() => {
         if (mediaType === "audio") user.audioTrack?.play();
         refreshRemoteUsers();
-      }).catch(() => setConnectionError("A participant’s media could not be loaded. Reconnect video to retry."));
+      }).catch(error => {
+        reportClientIssue("subscribe", error, { mediaType });
+        setConnectionError("A participant’s media could not be loaded. Reconnect video to retry.");
+      });
     });
     client.on("user-unpublished", refreshRemoteUsers);
     client.on("user-left", refreshRemoteUsers);
-    client.on("connection-state-change", current => {
+    client.on("connection-state-change", (current, previous, reason) => {
       if (current !== "DISCONNECTED" || intentionalLeaveRef.current || clientRef.current !== client) return;
+      if (joiningRef.current) return;
+      reportClientIssue("disconnected", new Error(String(reason ?? "DISCONNECTED")), { previous, current, reason });
       attemptRef.current += 1;
       joiningRef.current = false;
       closeLocalTracks();
@@ -124,11 +152,50 @@ export function AgoraVideoRoom({
       setProgress("");
       setConnectionError("Video was disconnected. The tasting is still running; reconnect when ready.");
     });
+    client.on("exception", exception => {
+      reportClientIssue("quality_exception", new Error(exception.msg), {
+        exceptionCode: exception.code,
+        participant: String(exception.uid)
+      });
+    });
     client.on("token-privilege-will-expire", () => {
       void fetchToken().then(next => client.renewToken(next.token)).catch(() => {
         setConnectionError("Video security needs refreshing. Use Restart video to reconnect safely.");
       });
     });
+  }
+
+  async function createAndJoinClient(
+    AgoraRTC: IAgoraRTC,
+    credentials: RoomToken,
+    codec: AgoraVideoCodec,
+    attempt: number,
+    useTcpProxy: boolean
+  ) {
+    const client = AgoraRTC.createClient({ mode: "rtc", codec });
+    if (useTcpProxy) client.startProxyServer(5);
+    clientRef.current = client;
+    configureClient(client);
+    try {
+      await withAgoraTimeout(
+        client.join(credentials.appId, credentials.channel, credentials.token, credentials.account),
+        useTcpProxy ? AGORA_OPERATION_TIMEOUT_MS.proxyJoin : AGORA_OPERATION_TIMEOUT_MS.join,
+        useTcpProxy ? "The secure fallback connection took too long." : "The direct video connection took too long."
+      );
+      if (attempt !== attemptRef.current) {
+        client.removeAllListeners();
+        await client.leave().catch(() => undefined);
+        throw new Error("Video connection was replaced by a newer attempt.");
+      }
+      return client;
+    } catch (error) {
+      if (clientRef.current === client) clientRef.current = null;
+      client.removeAllListeners();
+      intentionalLeaveRef.current = true;
+      await withAgoraTimeout(client.leave(), AGORA_OPERATION_TIMEOUT_MS.leave, "Video took too long to close.").catch(() => undefined);
+      intentionalLeaveRef.current = false;
+      throw error;
+    }
   }
 
   async function connectRoom() {
@@ -140,6 +207,7 @@ export function AgoraVideoRoom({
     setConnectionError("");
     setCameraError("");
     setMicrophoneError("");
+    let proxyAttempted = false;
 
     try {
       const credentials = await fetchToken();
@@ -153,31 +221,34 @@ export function AgoraVideoRoom({
       if (attempt !== attemptRef.current) return;
       agoraRef.current = AgoraRTC;
 
-      const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-      clientRef.current = client;
-      configureClient(client);
+      if (!AgoraRTC.checkSystemRequirements()) {
+        throw Object.assign(new Error("This browser does not support the required WebRTC features."), { code: "NOT_SUPPORTED" });
+      }
+      const supportedCodecs = await AgoraRTC.getSupportedCodec().catch(() => ({ video: [], audio: [] }));
+      const codec = selectAgoraVideoCodec(supportedCodecs.video);
       setProgress("Joining the video room…");
-      await withAgoraTimeout(
-        client.join(credentials.appId, credentials.channel, credentials.token, credentials.account),
-        AGORA_OPERATION_TIMEOUT_MS.join,
-        "The video room took too long to connect."
-      );
-      if (attempt !== attemptRef.current) {
-        client.removeAllListeners();
-        await client.leave().catch(() => undefined);
-        return;
+      let client: IAgoraRTCClient;
+      try {
+        client = await createAndJoinClient(AgoraRTC, credentials, codec, attempt, false);
+      } catch (directError) {
+        reportClientIssue("direct_join", directError, { codec, supportedVideoCodecs: supportedCodecs.video });
+        if (!shouldRetryAgoraWithProxy(directError) || attempt !== attemptRef.current) throw directError;
+        proxyAttempted = true;
+        setProgress("Direct connection blocked. Trying secure fallback…");
+        client = await createAndJoinClient(AgoraRTC, credentials, codec, attempt, true);
       }
 
       setStatus("joined");
-      setProgress("Connected. Opening microphone…");
+      setProgress(proxyAttempted ? "Connected securely. Opening microphone…" : "Connected. Opening microphone…");
       setRemoteUsers([...client.remoteUsers]);
       void initializeLocalMedia(AgoraRTC, client, attempt);
     } catch (joinError) {
       if (attempt !== attemptRef.current) return;
+      reportClientIssue("join_failed", joinError);
       await releaseClient();
       setStatus("error");
       setProgress("");
-      setConnectionError(joinError instanceof Error ? joinError.message : "The video room could not be opened.");
+      setConnectionError(describeAgoraConnectionError(joinError, proxyAttempted));
     } finally {
       if (attempt === attemptRef.current) joiningRef.current = false;
     }
@@ -214,6 +285,7 @@ export function AgoraVideoRoom({
       setHasMicrophone(true);
       setMicOn(true);
     } catch (mediaError) {
+      reportClientIssue("microphone", mediaError);
       if (track) {
         void client.unpublish(track).catch(() => undefined);
         track.close();
@@ -251,6 +323,7 @@ export function AgoraVideoRoom({
       setCameraOn(true);
       setLocalTrackReady(true);
     } catch (mediaError) {
+      reportClientIssue("camera", mediaError);
       if (track) {
         void client.unpublish(track).catch(() => undefined);
         track.close();
