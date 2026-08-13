@@ -11,6 +11,19 @@ export const AGORA_OPERATION_TIMEOUT_MS = {
 
 export type AgoraVideoCodec = "vp8" | "h264";
 
+export const AGORA_ACTIVE_SPEAKER_LEVEL = 45;
+export const AGORA_ACTIVE_SPEAKER_HOLD_MS = 3_500;
+
+export function selectAgoraActiveSpeaker(
+  levels: Array<{ id: string; level: number }>,
+  visibleCameraIds: ReadonlySet<string>
+) {
+  const loudest = levels
+    .filter(sample => visibleCameraIds.has(sample.id) && sample.level >= AGORA_ACTIVE_SPEAKER_LEVEL)
+    .sort((left, right) => right.level - left.level)[0];
+  return loudest?.id ?? null;
+}
+
 export class AgoraOperationTimeoutError extends Error {
   constructor(message: string) {
     super(message);

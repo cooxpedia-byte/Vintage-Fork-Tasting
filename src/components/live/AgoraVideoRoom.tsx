@@ -11,11 +11,13 @@ import type {
   UID
 } from "agora-rtc-sdk-ng";
 import {
+  AGORA_ACTIVE_SPEAKER_HOLD_MS,
   AGORA_OPERATION_TIMEOUT_MS,
   agoraErrorCode,
   type AgoraVideoCodec,
   describeAgoraConnectionError,
   describeMediaError,
+  selectAgoraActiveSpeaker,
   selectAgoraVideoCodec,
   withAgoraTimeout
 } from "@/lib/agora-session";
@@ -29,6 +31,7 @@ type RoomToken = {
 };
 
 type RoomStatus = "idle" | "joining" | "joined" | "error";
+type VideoLayout = "speaker" | "grid";
 
 export function AgoraVideoRoom({
   eventId,
@@ -51,6 +54,8 @@ export function AgoraVideoRoom({
   const cameraBusyRef = useRef(false);
   const intentionalLeaveRef = useRef(false);
   const mountedRef = useRef(true);
+  const activeSpeakerRef = useRef<string | null>(null);
+  const speakerSilenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);
   const [status, setStatus] = useState<RoomStatus>("idle");
@@ -66,6 +71,8 @@ export function AgoraVideoRoom({
   const [cameraBusy, setCameraBusy] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [localTrackReady, setLocalTrackReady] = useState(false);
+  const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
+  const [videoLayout, setVideoLayout] = useState<VideoLayout>("speaker");
 
   useEffect(() => {
     const node = localVideoRef.current;
@@ -86,6 +93,9 @@ export function AgoraVideoRoom({
       clientRef.current?.removeAllListeners();
       void clientRef.current?.leave();
       clientRef.current = null;
+      if (speakerSilenceTimerRef.current) clearTimeout(speakerSilenceTimerRef.current);
+      speakerSilenceTimerRef.current = null;
+      activeSpeakerRef.current = null;
     };
   }, []);
 
@@ -135,8 +145,31 @@ export function AgoraVideoRoom({
         setConnectionError("A participant’s media could not be loaded. Reconnect video to retry.");
       });
     });
-    client.on("user-unpublished", refreshRemoteUsers);
-    client.on("user-left", refreshRemoteUsers);
+    client.on("user-unpublished", (user, mediaType) => {
+      refreshRemoteUsers();
+      if (mediaType === "video" && activeSpeakerRef.current === String(user.uid)) clearActiveSpeaker();
+    });
+    client.on("user-left", user => {
+      refreshRemoteUsers();
+      if (activeSpeakerRef.current === String(user.uid)) clearActiveSpeaker();
+    });
+    client.enableAudioVolumeIndicator();
+    client.on("volume-indicator", levels => {
+      if (clientRef.current !== client) return;
+      const localUid = client.uid === undefined ? "" : String(client.uid);
+      const visibleCameraIds = new Set(
+        client.remoteUsers.filter(user => Boolean(user.videoTrack)).map(user => String(user.uid))
+      );
+      const nextSpeaker = selectAgoraActiveSpeaker(
+        levels.map(sample => ({
+          id: String(sample.uid) === localUid ? "local" : String(sample.uid),
+          level: sample.level
+        })),
+        visibleCameraIds
+      );
+      if (!nextSpeaker) return;
+      promoteActiveSpeaker(nextSpeaker);
+    });
     client.on("connection-state-change", (current, previous, reason) => {
       if (current !== "DISCONNECTED" || intentionalLeaveRef.current || clientRef.current !== client) return;
       if (joiningRef.current) return;
@@ -369,6 +402,7 @@ export function AgoraVideoRoom({
     setCameraError("");
     setMicrophoneError("");
     setConnectionError("");
+    clearActiveSpeaker();
     setStatus(nextStatus);
     if (nextStatus === "idle") setProgress("");
     await releaseClient();
@@ -414,15 +448,40 @@ export function AgoraVideoRoom({
     const next = !cameraOn;
     await track.setEnabled(next);
     setCameraOn(next);
+    if (!next && activeSpeakerRef.current === "local") clearActiveSpeaker();
+  }
+
+  function promoteActiveSpeaker(id: string) {
+    if (activeSpeakerRef.current !== id) {
+      activeSpeakerRef.current = id;
+      setActiveSpeakerId(id);
+    }
+    if (speakerSilenceTimerRef.current) clearTimeout(speakerSilenceTimerRef.current);
+    speakerSilenceTimerRef.current = setTimeout(() => {
+      activeSpeakerRef.current = null;
+      speakerSilenceTimerRef.current = null;
+      if (mountedRef.current) setActiveSpeakerId(null);
+    }, AGORA_ACTIVE_SPEAKER_HOLD_MS);
+  }
+
+  function clearActiveSpeaker() {
+    if (speakerSilenceTimerRef.current) clearTimeout(speakerSilenceTimerRef.current);
+    speakerSilenceTimerRef.current = null;
+    activeSpeakerRef.current = null;
+    if (mountedRef.current) setActiveSpeakerId(null);
   }
 
   const joined = status === "joined";
+  const visibleRemoteUsers = remoteUsers.filter(user => Boolean(user.videoTrack));
+  const speakerView = presentation === "host" && videoLayout === "speaker";
+  const visibleVideoCount = visibleRemoteUsers.length + (hasCamera && cameraOn ? 1 : 0);
   const roomClass = `agora-room agora-room-${presentation}${collapsed ? " agora-room-collapsed" : ""}`;
   const entryLabel = status === "joining" ? (progress || "Connecting to video…") : status === "error" ? "Reconnect video" : "Join with camera & mic";
+  const localVideoTile = <article className="agora-video-tile agora-video-tile-local"><div ref={localVideoRef} className="agora-video-surface" /><span>{displayName} · you</span>{(!hasCamera || !cameraOn) && <div className="agora-camera-off">{cameraBusy ? "Opening camera…" : hasCamera ? "Camera off" : "Camera unavailable"}</div>}</article>;
 
   return <section className={roomClass} aria-label="Live tasting video room">
     <header className="agora-room-header">
-      <div><span className={`agora-live-dot${joined ? " active" : ""}`} aria-hidden="true" /><strong>{joined ? "Live tasting video" : "Join the tasting video"}</strong>{joined && <small>{remoteUsers.length + 1} in video</small>}</div>
+      <div><span className={`agora-live-dot${joined ? " active" : ""}`} aria-hidden="true" /><strong>{joined ? "Live tasting video" : "Join the tasting video"}</strong>{joined && <small>{visibleVideoCount} {visibleVideoCount === 1 ? "camera" : "cameras"}</small>}</div>
       {joined && <button className="btn btn-quiet agora-collapse" onClick={() => setCollapsed(value => !value)} aria-expanded={!collapsed}>{collapsed ? "Show video" : "Hide video"}</button>}
     </header>
     <div className="agora-room-body">
@@ -432,10 +491,18 @@ export function AgoraVideoRoom({
         <p className="help">Your browser will ask permission before anything is shared.</p>
       </div>}
       {joined && <>
-        <div className="agora-video-grid">
-          <article className="agora-video-tile"><div ref={localVideoRef} className="agora-video-surface" /><span>{displayName} · you</span>{(!hasCamera || !cameraOn) && <div className="agora-camera-off">{cameraBusy ? "Opening camera…" : hasCamera ? "Camera off" : "Camera unavailable"}</div>}</article>
-          {remoteUsers.map(user => <RemoteVideoTile key={String(user.uid)} user={user} />)}
-          {remoteUsers.length === 0 && <div className="agora-waiting-tile"><span>Waiting for others…</span></div>}
+        {presentation === "host" && <div className="agora-view-controls" aria-label="Video layout">
+          <button className={`btn ${videoLayout === "speaker" ? "btn-gold" : "btn-secondary"}`} onClick={() => setVideoLayout("speaker")} aria-pressed={videoLayout === "speaker"}>Speaker view</button>
+          <button className={`btn ${videoLayout === "grid" ? "btn-gold" : "btn-secondary"}`} onClick={() => setVideoLayout("grid")} aria-pressed={videoLayout === "grid"}>Grid view</button>
+        </div>}
+        <div className="agora-video-stage">
+          <div className={`agora-video-grid${speakerView ? " agora-video-grid-speaker" : " agora-video-grid-gallery"}`}>
+            {speakerView && !activeSpeakerId && <div className="agora-speaker-empty"><strong>Active speaker</strong><span>The person speaking will appear here.</span></div>}
+            {presentation !== "host" && localVideoTile}
+            {visibleRemoteUsers.map((user, index) => <RemoteVideoTile key={String(user.uid)} user={user} label={participantLabel(user.uid, index)} active={speakerView && activeSpeakerId === String(user.uid)} />)}
+            {visibleRemoteUsers.length === 0 && <div className="agora-waiting-tile"><span>Waiting for guest cameras…</span></div>}
+          </div>
+          {presentation === "host" && localVideoTile}
         </div>
         {progress && <div className="notice" role="status" aria-live="polite">{progress}</div>}
         {microphoneError && <div className="notice error" role="alert">{microphoneError}</div>}
@@ -453,16 +520,16 @@ export function AgoraVideoRoom({
   </section>;
 }
 
-function RemoteVideoTile({ user }: { user: IAgoraRTCRemoteUser }) {
+function RemoteVideoTile({ user, label, active }: { user: IAgoraRTCRemoteUser; label: string; active: boolean }) {
   const videoRef = useRef<HTMLDivElement | null>(null);
   const videoTrack = user.videoTrack;
   useEffect(() => {
     if (!videoRef.current || !videoTrack) return;
     videoTrack.play(videoRef.current, { fit: "cover" });
   }, [videoTrack]);
-  return <article className="agora-video-tile"><div ref={videoRef} className="agora-video-surface" /><span>{participantLabel(user.uid)}</span>{!videoTrack && <div className="agora-camera-off">Camera off</div>}</article>;
+  return <article className={`agora-video-tile${active ? " agora-video-tile-active" : ""}`}><div ref={videoRef} className="agora-video-surface" /><span>{label}</span></article>;
 }
 
-function participantLabel(uid: UID) {
-  return String(uid).startsWith("host_") ? "Vintage Fork host" : "Tasting guest";
+function participantLabel(uid: UID, guestIndex: number) {
+  return String(uid).startsWith("host_") ? "Vintage Fork host" : `Tasting guest ${guestIndex + 1}`;
 }
