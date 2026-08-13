@@ -11,9 +11,6 @@ export const eventSchema = z.object({
   hostUserId: z.string().uuid(),
   backupHostUserId: z.string().uuid().optional().nullable()
 }).superRefine((value, ctx) => {
-  if (value.locationMode === "remote" && !value.videoCallUrl) {
-    ctx.addIssue({ code: "custom", path: ["videoCallUrl"], message: "A video-call link is required." });
-  }
   if (value.locationMode === "in_person" && (!value.venueName || !value.venueAddress)) {
     ctx.addIssue({ code: "custom", path: ["venueName"], message: "Venue name and address are required." });
   }

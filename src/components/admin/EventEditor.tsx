@@ -14,7 +14,7 @@ type Flight = {
 };
 type Existing = {
   id: string; title: string; slug: string; invite_code: string | null; status: string; location_mode: "remote" | "in_person";
-  starts_at: string; timezone: string; capacity: number; venue_name: string | null; venue_address: string | null; video_call_url: string | null;
+  starts_at: string; timezone: string; capacity: number; venue_name: string | null; venue_address: string | null;
   host_user_id: string; backup_host_user_id: string | null; flight_items: Array<Flight & { position: number }>;
 };
 
@@ -24,7 +24,6 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
   const [startsAt, setStartsAt] = useState(existing ? toLocal(existing.starts_at) : "");
   const [mode, setMode] = useState<"remote" | "in_person">(existing?.location_mode ?? "remote");
   const [capacity, setCapacity] = useState(existing?.capacity ?? 12);
-  const [videoCallUrl, setVideoCallUrl] = useState(existing?.video_call_url ?? "");
   const [venueName, setVenueName] = useState(existing?.venue_name ?? "");
   const [venueAddress, setVenueAddress] = useState(existing?.venue_address ?? "");
   const [hostId, setHostId] = useState(firstHost);
@@ -35,11 +34,11 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
   const [copied, setCopied] = useState(false);
 
   const readiness = useMemo(() => [
-    ["Title", title.trim().length >= 3], ["Start time", Boolean(startsAt)], ["Location", mode === "remote" ? /^https?:\/\//.test(videoCallUrl) : Boolean(venueName && venueAddress)],
+    ["Title", title.trim().length >= 3], ["Start time", Boolean(startsAt)], ["Event format", mode === "remote" || Boolean(venueName && venueAddress)],
     ["Host", Boolean(hostId)], ["Backup host", Boolean(backupId && backupId !== hostId)], ["Flight", flight.length > 0],
     ["Steep times", flight.every(x => x.steep_seconds > 0)], ["Reveal text", flight.every(x => x.reveal_description.trim())],
     ["Brewing guidance", flight.every(x => x.brewing_instructions.trim())], ["Trivia", flight.every(x => x.trivia.length >= 1 && x.trivia.length <= MAX_TRIVIA_QUESTIONS && x.trivia.every(isTriviaQuestionComplete))]
-  ] as Array<[string, boolean]>, [title, startsAt, mode, videoCallUrl, venueName, venueAddress, hostId, backupId, flight]);
+  ] as Array<[string, boolean]>, [title, startsAt, mode, venueName, venueAddress, hostId, backupId, flight]);
 
   function addTea(teaId: string) {
     const tea = teas.find(t => t.id === teaId); if (!tea) return;
@@ -69,7 +68,7 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
     setBusy(true);
     try {
       const payload = {
-        event: { id: existing?.id, title, slug: existing?.slug, invite_code: existing?.invite_code, status, location_mode: mode, starts_at: parsedStart.iso, timezone: "America/Edmonton", capacity, venue_name: venueName, venue_address: venueAddress, video_call_url: videoCallUrl, host_user_id: hostId, backup_host_user_id: backupId },
+        event: { id: existing?.id, title, slug: existing?.slug, invite_code: existing?.invite_code, status, location_mode: mode, starts_at: parsedStart.iso, timezone: "America/Edmonton", capacity, venue_name: mode === "in_person" ? venueName : null, venue_address: mode === "in_person" ? venueAddress : null, video_call_url: null, host_user_id: hostId, backup_host_user_id: backupId },
         flight
       };
       const response = await authenticatedFetch("/api/admin/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
@@ -95,7 +94,7 @@ export function EventEditor({ teas, staff, existing }: { teas: Tea[]; staff: Sta
             <div className="field"><label htmlFor="capacity">Guest capacity</label><input className="input" id="capacity" type="number" min={1} max={100} value={capacity} onChange={e => setCapacity(Number(e.target.value))} /></div>
           </div>
           <div className="field"><label htmlFor="mode">How is it run?</label><select className="select" id="mode" value={mode} onChange={e => setMode(e.target.value as typeof mode)}><option value="remote">Remote</option><option value="in_person">In person</option></select></div>
-          {mode === "remote" ? <div className="field"><label htmlFor="call-url">Zoom or Meet link</label><input className="input" id="call-url" type="url" value={videoCallUrl} onChange={e => setVideoCallUrl(e.target.value)} /></div> : <div className="grid grid-2"><div className="field"><label htmlFor="venue">Venue name</label><input className="input" id="venue" value={venueName} onChange={e => setVenueName(e.target.value)} /></div><div className="field"><label htmlFor="address">Venue address</label><input className="input" id="address" value={venueAddress} onChange={e => setVenueAddress(e.target.value)} /></div></div>}
+          {mode === "remote" ? <div className="notice" data-testid="agora-event-room-notice"><strong>Vintage Fork live video is included.</strong><br />Hosts and guests join the private Agora room inside the tasting interface. No Zoom or Google Meet link is needed.</div> : <div className="grid grid-2"><div className="field"><label htmlFor="venue">Venue name</label><input className="input" id="venue" value={venueName} onChange={e => setVenueName(e.target.value)} /></div><div className="field"><label htmlFor="address">Venue address</label><input className="input" id="address" value={venueAddress} onChange={e => setVenueAddress(e.target.value)} /></div></div>}
           <div className="grid grid-2">
             <div className="field"><label htmlFor="host">Host</label><select className="select" id="host" value={hostId} onChange={e => setHostId(e.target.value)}>{staff.map(x => <option key={x.id} value={x.id}>{x.display_name}</option>)}</select></div>
             <div className="field"><label htmlFor="backup">Backup host</label><select className="select" id="backup" value={backupId} onChange={e => setBackupId(e.target.value)}><option value="">Not assigned</option>{staff.filter(x => x.id !== hostId).map(x => <option key={x.id} value={x.id}>{x.display_name}</option>)}</select></div>
