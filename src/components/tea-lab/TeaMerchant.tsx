@@ -29,7 +29,7 @@ export function TeaMerchant({ seals, initialSummary, initialCards, initialListin
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [flippedCards, setFlippedCards] = useState<Set<string>>(() => new Set());
   const [shieldedCards, setShieldedCards] = useState<Set<string>>(
-    () => new Set(seals.filter(seal => cardForPassportSeal(seal).sealClass !== null).map(seal => seal.id))
+    () => new Set()
   );
   const [purchased, setPurchased] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState<string | null>(null);

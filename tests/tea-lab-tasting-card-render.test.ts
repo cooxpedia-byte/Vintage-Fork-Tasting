@@ -48,7 +48,7 @@ describe("Tea Lab tasting-card photo slider", () => {
     expect(front).toContain("Digital tasting card");
     expect(front).toContain("Documented Tasting");
     expect(front).toContain('/tea-cards/detachable-seal-coin.png');
-    expect(front).toContain('data-seal-state="coupled"');
+    expect(front).toContain('data-seal-state="decoupled"');
     expect(front).toContain("tasting-card-secret-seal-target");
     expect(front).toContain("Flip for brewing details");
     expect(front).toContain("Lychee");

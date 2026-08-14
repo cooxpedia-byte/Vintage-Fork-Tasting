@@ -208,7 +208,7 @@ export function TastingCardPresentation({
   const styleLengthClass = tastingCardStyleLengthClass(brewingStyleLabel);
   const dateLabel = new Date(earnedAt).toLocaleDateString("en-CA", { dateStyle: "long" });
   const shieldEarned = card.sealClass !== null;
-  const [internalShielded, setInternalShielded] = useState(true);
+  const [internalShielded, setInternalShielded] = useState(false);
   const lastSealTapAt = useRef<number | null>(null);
   const sealCoupled = shieldEarned && (shielded ?? internalShielded);
 
@@ -318,7 +318,7 @@ export function TastingCardDialog({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
-  const [internalShielded, setInternalShielded] = useState(true);
+  const [internalShielded, setInternalShielded] = useState(false);
   const activeShielded = shielded ?? internalShielded;
 
   function setShielded(nextShielded: boolean) {

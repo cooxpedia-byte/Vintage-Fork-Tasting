@@ -10,31 +10,33 @@ function source(relativePath: string): string {
 describe("mobile authentication handoff", () => {
   it("requires an authenticated bearer session and returns a single-use confirmation link", () => {
     const route = source("src/app/api/mobile-auth/handoff/route.ts");
+    const handoff = source("src/lib/mobile-auth-handoff.ts");
     const mobileAuth = source("src/lib/mobile-auth.ts");
     expect(route).toContain('request.headers.get("authorization")');
     expect(route).toContain("getMobileUser");
     expect(mobileAuth).toContain("mobileSupabase.auth.getUser(token)");
     expect(mobileAuth).toContain("VINTAGE_FORK_MOBILE_SUPABASE_URL");
     expect(mobileAuth).toContain("VINTAGE_FORK_MOBILE_SUPABASE_PUBLISHABLE_KEY");
-    expect(route).toContain('type: "magiclink"');
-    expect(route).toContain("data.properties.hashed_token");
-    expect(route).toContain('new URL("/auth/confirm", request.url)');
-    expect(route).toContain('handoffUrl.searchParams.set("type", "email")');
+    expect(route).toContain("createMobileHandoff");
+    expect(handoff).toContain('type: "magiclink"');
+    expect(handoff).toContain("data.properties.hashed_token");
+    expect(handoff).toContain('new URL("/auth/confirm", requestUrl)');
+    expect(handoff).toContain('handoffUrl.searchParams.set("type", "email")');
     expect(route).toContain('"Cache-Control": "private, no-store"');
     expect(route).not.toContain("refresh_token");
   });
 
   it("synchronizes the trusted mobile profile name before completing the handoff", () => {
-    const route = source("src/app/api/mobile-auth/handoff/route.ts");
-    expect(route).toContain("getMobileDisplayName(user)");
-    expect(route).toContain('.from("profiles")');
-    expect(route).toContain('.update({ display_name: displayName })');
-    expect(route).toContain('.eq("id", data.user.id)');
+    const handoff = source("src/lib/mobile-auth-handoff.ts");
+    expect(handoff).toContain("getMobileDisplayName(user)");
+    expect(handoff).toContain('.from("profiles")');
+    expect(handoff).toContain('.update({ display_name: displayName })');
+    expect(handoff).toContain('.eq("id", data.user.id)');
   });
 
   it("validates the destination before creating the handoff", () => {
-    const route = source("src/app/api/mobile-auth/handoff/route.ts");
-    expect(route).toContain("safeNextPath");
+    const handoff = source("src/lib/mobile-auth-handoff.ts");
+    expect(handoff).toContain("safeNextPath");
   });
 
   it("prefers the existing mobile display name over generated provider metadata", () => {

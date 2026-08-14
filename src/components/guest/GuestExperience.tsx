@@ -43,8 +43,9 @@ type Draft = { firstImpression: string; descriptors: string[]; intensity: "subtl
 type DraftUpdate = Draft | ((draft: Draft) => Draft);
 type PendingNoteSave = { flightItemId: string; personalNotes: string };
 type NotesSyncStatus = "device" | "saving" | "saved";
-type GuestJoinPayload = { inviteCode: string; displayName: string; email: string; marketingConsent: boolean | null };
+type GuestJoinPayload = { inviteCode: string; displayName: string };
 type GuestJoinRequest = (payload: GuestJoinPayload) => Promise<Response>;
+type SignedInAccount = { displayName: string; email: string | null };
 const LIVE_DESCRIPTOR_OPTIONS = TEA_DESCRIPTOR_PALETTE.map(descriptor => ({
   id: descriptor.label.toLocaleLowerCase("en-CA"),
   label: descriptor.label,
@@ -54,11 +55,9 @@ const LIVE_DESCRIPTOR_OPTIONS = TEA_DESCRIPTOR_PALETTE.map(descriptor => ({
 const blankDraft: Draft = { firstImpression: "", descriptors: [], intensity: null, rating: 0, personalNotes: "", saved: false, completed: false };
 const guestConnectionSource = (eventId: string, operation: string) => `guest:${eventId}:${operation}`;
 
-export function GuestExperience({ preview, initialParticipant, joinRequest = persistGuestJoin }: { preview: EventPreview; initialParticipant: { id: string; display_name: string } | null; joinRequest?: GuestJoinRequest }) {
+export function GuestExperience({ preview, initialParticipant, account, joinRequest = persistGuestJoin }: { preview: EventPreview; initialParticipant: { id: string; display_name: string } | null; account: SignedInAccount; joinRequest?: GuestJoinRequest }) {
   const [joined, setJoined] = useState(Boolean(initialParticipant));
-  const [name, setName] = useState(initialParticipant?.display_name ?? "");
-  const [email, setEmail] = useState("");
-  const [marketing, setMarketing] = useState(false);
+  const [name, setName] = useState(initialParticipant?.display_name ?? account.displayName);
   const [soundChosen, setSoundChosen] = useState(false);
   const [sound, setSound] = useState(false);
   const [state, setState] = useState<StatePayload | null>(null);
@@ -350,7 +349,7 @@ export function GuestExperience({ preview, initialParticipant, joinRequest = per
     event.preventDefault(); setBusy(true); setError("");
     const source = guestConnectionSource(preview.id, "join");
     try {
-      const response = await joinRequest({ inviteCode: preview.invite_code, displayName: name, email, marketingConsent: email ? marketing : null });
+      const response = await joinRequest({ inviteCode: preview.invite_code, displayName: name });
       const result = await response.json().catch(() => ({}));
       if (response.status >= 500) reportConnectionIssue(source); else reportConnectionHealthy(source);
       if (!response.ok) { setError(result.error ?? "We could not save your seat."); return; }
@@ -414,7 +413,7 @@ export function GuestExperience({ preview, initialParticipant, joinRequest = per
     void pendingDeliveryRef.current(pending);
   },[joined,preview.id,state?.event.sequence_number,stateParticipantId,stateTriviaId]);
 
-  if (!joined) return <Registration preview={preview} name={name} setName={setName} email={email} setEmail={setEmail} marketing={marketing} setMarketing={setMarketing} error={error} busy={busy} join={join} />;
+  if (!joined) return <Registration preview={preview} account={account} name={name} setName={setName} error={error} busy={busy} join={join} />;
   const phaseAnnouncement = soundChosen && state ? getGuestPhaseAnnouncement({
     phase: state.event.phase,
     teaTitle: state.currentItem?.reveal_title ?? null,
@@ -464,8 +463,8 @@ function persistGuestJoin(payload: GuestJoinPayload) {
   });
 }
 
-function Registration({ preview, name, setName, email, setEmail, marketing, setMarketing, error, busy, join }: { preview: EventPreview; name: string; setName: (x:string)=>void; email:string; setEmail:(x:string)=>void; marketing:boolean; setMarketing:(x:boolean)=>void; error:string; busy:boolean; join:(e:React.FormEvent)=>void }) {
-  return <main className="guest-shell" id="main-content"><div className="guest-pane enter"><Brand href="https://vintagefork.ca/" /><div style={{ textAlign: "center", margin: "1.5rem 0" }}><p className="eyebrow">{preview.title}</p><h1 className="page-title">What should we call you tonight?</h1><p className="page-lede">A first name or nickname is plenty.</p></div><GuestError message={error} /><form onSubmit={join} className="stack"><div className="field"><label htmlFor="guest-name">Your name</label><input className="input" id="guest-name" maxLength={40} required value={name} onChange={e => setName(e.target.value)} /></div><div className="field"><label htmlFor="guest-email">Email (optional)</label><input className="input" id="guest-email" type="email" value={email} onChange={e => setEmail(e.target.value)} /><span className="help">Add your email to save this evening to your customer dashboard.</span></div>{email && <label className="row"><input type="checkbox" checked={marketing} onChange={e => setMarketing(e.target.checked)} /> Send me occasional notes about new teas and tastings.</label>}<div className="guest-actions"><button className="btn btn-primary btn-attention" disabled={busy}>{busy ? "Saving your seat…" : "Save My Seat"}</button></div></form></div></main>;
+function Registration({ preview, account, name, setName, error, busy, join }: { preview: EventPreview; account: SignedInAccount; name: string; setName: (x:string)=>void; error:string; busy:boolean; join:(e:React.FormEvent)=>void }) {
+  return <main className="guest-shell" id="main-content"><div className="guest-pane enter"><Brand href="https://vintagefork.ca/" /><div style={{ textAlign: "center", margin: "1.5rem 0" }}><p className="eyebrow">{preview.title}</p><h1 className="page-title">What should we call you tonight?</h1><p className="page-lede">You are signed in{account.email ? ` as ${account.email}` : ""}. This tasting and every completed card will be saved to your Tea Cellar.</p></div><GuestError message={error} /><form onSubmit={join} className="stack"><div className="field"><label htmlFor="guest-name">Display name</label><input className="input" id="guest-name" autoComplete="name" maxLength={40} required value={name} onChange={e => setName(e.target.value)} /><span className="help">You can use your first name or a nickname during the tasting.</span></div><div className="guest-actions"><button className="btn btn-primary btn-attention" disabled={busy}>{busy ? "Saving your seat…" : "Join This Tasting"}</button></div></form></div></main>;
 }
 function SoundEntry({ onChoose }: { onChoose:(x:boolean)=>void }) { return <main className="guest-shell" id="main-content"><div className="guest-pane" style={{ justifyContent: "center", textAlign: "center" }}><Brand /><h1 className="page-title">A little feedback?</h1><p className="page-lede">Soft button sounds and gentle taps on supported phones, designed to stay behind the tasting and its live conversation.</p><div className="guest-actions"><button className="btn btn-primary btn-attention" onClick={() => onChoose(true)}>Yes, keep it subtle</button><button className="btn btn-secondary" onClick={() => onChoose(false)}>No, keep it quiet</button></div></div></main>; }
 function LoadingRoom() { return <main className="guest-shell"><div className="guest-pane" style={{ justifyContent: "center", textAlign: "center" }}><Brand /><div className="skeleton" style={{ height: 4, marginTop: 30 }} /><p>Getting the room…</p></div></main>; }

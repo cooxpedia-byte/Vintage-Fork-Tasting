@@ -21,9 +21,7 @@ export const eventSchema = z.object({
 
 export const joinSchema = z.object({
   inviteCode: z.string().trim().min(4).max(64),
-  displayName: z.string().trim().min(1).max(40),
-  email: z.string().trim().email().optional().or(z.literal("")),
-  marketingConsent: z.boolean().nullable().optional()
+  displayName: z.string().trim().min(1).max(40)
 });
 
 export const responseSchema = z.object({
