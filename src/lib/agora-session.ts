@@ -1,5 +1,9 @@
 export const AGORA_OPERATION_TIMEOUT_MS = {
-  token: 10_000,
+  // Production authentication can cross a cold Vercel function and Supabase.
+  // Keep this separate from the SDK import so a slow credential response is
+  // not mislabeled as an Agora network failure.
+  credentials: 30_000,
+  sdk: 10_000,
   // Agora's Web SDK performs its own network/TLS recovery inside join().
   // Safari can need more than 15 seconds to complete that recovery.
   join: 45_000,
@@ -107,4 +111,13 @@ export function describeAgoraConnectionError(error: unknown) {
     return `The previous video connection is still closing. Wait a few seconds, then reconnect.${reference}`;
   }
   return `The video room could not connect. The tasting is still running; reconnect when ready.${reference}`;
+}
+
+export function describeAgoraPreparationError(error: unknown) {
+  const code = agoraErrorCode(error);
+  const reference = code === "UNKNOWN" ? "" : ` Reference: ${code}.`;
+  if (error instanceof AgoraOperationTimeoutError) {
+    return `The secure video room took too long to prepare. The tasting is still running; reconnect video to try again.${reference}`;
+  }
+  return `The secure video room could not be prepared. The tasting is still running; reconnect video to try again.${reference}`;
 }

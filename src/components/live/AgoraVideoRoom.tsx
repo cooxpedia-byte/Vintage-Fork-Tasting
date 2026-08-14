@@ -16,6 +16,7 @@ import {
   agoraErrorCode,
   type AgoraVideoCodec,
   describeAgoraConnectionError,
+  describeAgoraPreparationError,
   describeMediaError,
   selectAgoraActiveSpeaker,
   selectAgoraVideoCodec,
@@ -106,7 +107,7 @@ export function AgoraVideoRoom({
         method: "POST",
         cache: "no-store",
         signal: controller.signal
-      }), AGORA_OPERATION_TIMEOUT_MS.token, "The secure video room took too long to respond.");
+      }), AGORA_OPERATION_TIMEOUT_MS.credentials, "The secure video room took too long to respond.");
       const payload = await result.json().catch(() => ({})) as Partial<RoomToken> & { error?: string };
       if (!result.ok || !payload.appId || !payload.channel || !payload.account || !payload.token) {
         throw new Error(payload.error ?? "The secure video room is unavailable.");
@@ -232,6 +233,7 @@ export function AgoraVideoRoom({
     if (joiningRef.current || clientRef.current) return;
     joiningRef.current = true;
     const attempt = ++attemptRef.current;
+    let connectionStage: "credentials" | "sdk" | "join" = "credentials";
     setStatus("joining");
     setProgress("Preparing secure video…");
     setConnectionError("");
@@ -241,10 +243,11 @@ export function AgoraVideoRoom({
     try {
       const credentials = await fetchToken();
       if (attempt !== attemptRef.current) return;
+      connectionStage = "sdk";
       setProgress("Loading video…");
       const { default: AgoraRTC } = await withAgoraTimeout(
         import("agora-rtc-sdk-ng"),
-        AGORA_OPERATION_TIMEOUT_MS.token,
+        AGORA_OPERATION_TIMEOUT_MS.sdk,
         "The video controls took too long to load."
       );
       if (attempt !== attemptRef.current) return;
@@ -255,6 +258,7 @@ export function AgoraVideoRoom({
       }
       const supportedCodecs = await AgoraRTC.getSupportedCodec().catch(() => ({ video: [], audio: [] }));
       const codec = selectAgoraVideoCodec(supportedCodecs.video);
+      connectionStage = "join";
       setProgress("Joining the video room…");
       // Do not force startProxyServer here. Agora cloud proxy needs separate
       // account-side configuration; join() already owns browser/TLS recovery.
@@ -266,11 +270,13 @@ export function AgoraVideoRoom({
       void initializeLocalMedia(AgoraRTC, client, attempt);
     } catch (joinError) {
       if (attempt !== attemptRef.current) return;
-      reportClientIssue("join_failed", joinError);
+      reportClientIssue(`${connectionStage}_failed`, joinError);
       await releaseClient();
       setStatus("error");
       setProgress("");
-      setConnectionError(describeAgoraConnectionError(joinError));
+      setConnectionError(connectionStage === "join"
+        ? describeAgoraConnectionError(joinError)
+        : describeAgoraPreparationError(joinError));
     } finally {
       if (attempt === attemptRef.current) joiningRef.current = false;
     }

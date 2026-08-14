@@ -3,6 +3,7 @@ import {
   AGORA_TOKEN_TTL_SECONDS,
   agoraChannelName,
   agoraUserAccount,
+  canManageAgoraEvent,
   createAgoraRtcToken,
   getAgoraConfiguration
 } from "@/lib/agora";
@@ -14,16 +15,33 @@ import { createRequestClient } from "@/lib/supabase/request-auth";
 export async function POST(request: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
   try {
-    const identity = await resolveRoomIdentity(request, eventId);
-    if (!identity) return response({ error: "A current tasting seat or staff sign-in is required." }, 401);
-
     const admin = createAdminClient();
-    const { data: event, error } = await admin
-      .from("events")
-      .select("id,status,phase,location_mode")
-      .eq("id", eventId)
-      .maybeSingle();
+    const [{ client: supabase, user }, eventResult, participant] = await Promise.all([
+      createRequestClient(request),
+      admin
+        .from("events")
+        .select("id,status,phase,location_mode,owner_user_id,host_user_id,backup_host_user_id")
+        .eq("id", eventId)
+        .maybeSingle(),
+      requireParticipant(eventId)
+    ]);
+    const { data: event, error } = eventResult;
     if (error) throw error;
+
+    let identity: { kind: "host" | "guest"; id: string } | null = null;
+    if (user && event) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (profileError) throw profileError;
+      if (canManageAgoraEvent(user.id, profile?.role, event)) identity = { kind: "host", id: user.id };
+    }
+    if (!identity && participant && participant.status !== "removed") {
+      identity = { kind: "guest", id: participant.id };
+    }
+    if (!identity) return response({ error: "A current tasting seat or staff sign-in is required." }, 401);
     if (!event) return response({ error: "Tasting not found." }, 404);
     if (event.location_mode !== "remote") return response({ error: "Video is only available for remote tastings." }, 409);
     if (!["scheduled", "live"].includes(event.status) || event.phase === "ended") {
@@ -49,21 +67,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ eve
     logger.error("agora_token_issue_failed", error, { eventId });
     return response({ error: "The secure video room could not be opened." }, 500);
   }
-}
-
-async function resolveRoomIdentity(request: Request, eventId: string): Promise<{ kind: "host" | "guest"; id: string } | null> {
-  const { client: supabase, user } = await createRequestClient(request);
-  if (user) {
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-    if (profile && ["host", "admin"].includes(profile.role)) {
-      const { data: allowed } = await supabase.rpc("can_manage_event", { p_event_id: eventId, uid: user.id });
-      if (allowed) return { kind: "host", id: user.id };
-    }
-  }
-
-  const participant = await requireParticipant(eventId);
-  if (!participant || participant.status === "removed") return null;
-  return { kind: "guest", id: participant.id };
 }
 
 function response(body: Record<string, unknown>, status = 200) {

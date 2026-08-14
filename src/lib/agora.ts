@@ -16,6 +16,16 @@ export function agoraUserAccount(kind: "host" | "guest", id: string) {
   return `${kind}_${compactId}`;
 }
 
+export function canManageAgoraEvent(
+  userId: string,
+  role: string | null | undefined,
+  event: { owner_user_id: string; host_user_id: string | null; backup_host_user_id: string | null }
+) {
+  if (!userId || !["host", "admin"].includes(role ?? "")) return false;
+  if (role === "admin") return true;
+  return [event.owner_user_id, event.host_user_id, event.backup_host_user_id].includes(userId);
+}
+
 export function getAgoraConfiguration() {
   const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID?.trim() ?? "";
   const appCertificate = process.env.AGORA_APP_CERTIFICATE?.trim() ?? "";

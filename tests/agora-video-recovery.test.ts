@@ -8,6 +8,7 @@ import {
   agoraErrorCode,
   AgoraOperationTimeoutError,
   describeAgoraConnectionError,
+  describeAgoraPreparationError,
   describeMediaError,
   selectAgoraActiveSpeaker,
   selectAgoraVideoCodec,
@@ -54,6 +55,12 @@ describe("Agora video recovery", () => {
     expect(AGORA_OPERATION_TIMEOUT_MS.join).toBe(45_000);
   });
 
+  it("allows a cold credential request without widening the SDK timeout", () => {
+    expect(AGORA_OPERATION_TIMEOUT_MS.credentials).toBe(30_000);
+    expect(AGORA_OPERATION_TIMEOUT_MS.sdk).toBe(10_000);
+    expect(describeAgoraPreparationError(new AgoraOperationTimeoutError("late"))).toContain("prepare");
+  });
+
   it("promotes only a loud participant whose camera is visible", () => {
     const levels = [
       { id: "local", level: AGORA_ACTIVE_SPEAKER_LEVEL + 2 },
@@ -72,6 +79,7 @@ describe("Agora video recovery", () => {
     expect(roomSource).toContain("Retry mic");
     expect(roomSource).toContain("checkSystemRequirements");
     expect(roomSource).toContain("getSupportedCodec");
+    expect(roomSource).toContain('connectionStage: "credentials" | "sdk" | "join"');
     expect(roomSource).not.toContain("startProxyServer(5)");
     expect(roomSource).not.toContain("Trying secure fallback");
     expect(roomSource).toContain("enableAudioVolumeIndicator");

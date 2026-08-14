@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   agoraChannelName,
   agoraUserAccount,
+  canManageAgoraEvent,
   createAgoraRtcToken,
   getAgoraConfiguration
 } from "@/lib/agora";
@@ -18,6 +19,15 @@ describe("Agora live tasting security", () => {
     expect(agoraChannelName("aa11-bb22-cc33")).toBe("vf_aa11bb22cc33");
     expect(agoraUserAccount("host", "aa11-bb22")).toBe("host_aa11bb22");
     expect(agoraUserAccount("guest", "cc33-dd44")).toBe("guest_cc33dd44");
+  });
+
+  it("authorizes only assigned hosts or administrators for event video", () => {
+    const event = { owner_user_id: "owner", host_user_id: "host", backup_host_user_id: "backup" };
+    expect(canManageAgoraEvent("admin-user", "admin", event)).toBe(true);
+    expect(canManageAgoraEvent("host", "host", event)).toBe(true);
+    expect(canManageAgoraEvent("backup", "host", event)).toBe(true);
+    expect(canManageAgoraEvent("other-host", "host", event)).toBe(false);
+    expect(canManageAgoraEvent("host", "customer", event)).toBe(false);
   });
 
   it("requires both a valid App ID and server-only certificate", () => {
