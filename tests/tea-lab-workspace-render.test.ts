@@ -189,6 +189,9 @@ describe("Tea Lab workspace", () => {
     expect(brewHtml).toMatch(/id="steep-seconds-hours" role="spinbutton"[^>]*aria-valuemax="99"/);
     expect(brewHtml).toMatch(/id="steep-seconds-minutes" role="spinbutton"[^>]*aria-valuemax="59"/);
     expect(brewHtml).toMatch(/id="steep-seconds-seconds" role="spinbutton"[^>]*aria-valuemax="59"/);
+    expect(brewHtml).toContain("Start steep");
+    expect(brewHtml).toContain("Good tea takes patience");
+    expect(brewHtml).toContain('data-timer-running="false"');
     expect(tasteHtml).toContain('id="brew-stage-duration-1-hours"');
     expect(tasteHtml).toContain('id="brew-stage-duration-1-minutes"');
     expect(tasteHtml).toContain('id="brew-stage-duration-1-seconds"');

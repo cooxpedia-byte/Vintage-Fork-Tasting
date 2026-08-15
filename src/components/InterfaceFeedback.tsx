@@ -47,6 +47,7 @@ export function InterfaceFeedback() {
       if (!(event.target instanceof Element)) return;
       const control = event.target.closest<HTMLButtonElement | HTMLAnchorElement>("button, a.btn");
       if (!control) return;
+      if (control.hasAttribute("data-feedback-silent")) return;
       if (control instanceof HTMLButtonElement && control.disabled) return;
       if (control.getAttribute("aria-disabled") === "true") return;
 
