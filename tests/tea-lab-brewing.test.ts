@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adjustTeaLabDuration,
   collapseUneditedDefaultInfusions,
   createDefaultTeaLabBrewStages,
   durationInputToSeconds,
@@ -7,6 +8,8 @@ import {
   formatTeaLabDuration,
   getTeaLabBrewingStyle,
   nextTeaLabBrewStageLabel,
+  splitTeaLabDuration,
+  TEA_LAB_MAX_DURATION_SECONDS,
   TEA_LAB_BREWING_STYLES
 } from "@/lib/tea-lab/brewing";
 import { TEA_LAB_BREWING_STYLE_IDS } from "@/lib/tea-lab/offline";
@@ -69,5 +72,42 @@ describe("Tea Lab brewing flows", () => {
     expect(formatTeaLabDuration(5400)).toBe("1 hr 30 min");
     expect(formatTeaLabDuration(172800)).toBe("48 hr");
     expect(formatTeaLabDuration(null)).toBeNull();
+  });
+
+  it("carries duration-wheel seconds and minutes into the next column", () => {
+    expect(splitTeaLabDuration(adjustTeaLabDuration(59, "seconds", 1))).toEqual({
+      hours: 0,
+      minutes: 1,
+      seconds: 0
+    });
+    expect(splitTeaLabDuration(adjustTeaLabDuration(3599, "seconds", 1))).toEqual({
+      hours: 1,
+      minutes: 0,
+      seconds: 0
+    });
+    expect(splitTeaLabDuration(adjustTeaLabDuration(59 * 60, "minutes", 1))).toEqual({
+      hours: 1,
+      minutes: 0,
+      seconds: 0
+    });
+    expect(splitTeaLabDuration(adjustTeaLabDuration(60, "seconds", -1))).toEqual({
+      hours: 0,
+      minutes: 0,
+      seconds: 59
+    });
+  });
+
+  it("caps the duration wheel at 99 hours, 59 minutes and 59 seconds", () => {
+    expect(splitTeaLabDuration(TEA_LAB_MAX_DURATION_SECONDS)).toEqual({
+      hours: 99,
+      minutes: 59,
+      seconds: 59
+    });
+    expect(adjustTeaLabDuration(TEA_LAB_MAX_DURATION_SECONDS, "seconds", 1))
+      .toBe(TEA_LAB_MAX_DURATION_SECONDS);
+    expect(adjustTeaLabDuration(99 * 3600, "hours", 1)).toBe(99 * 3600);
+    expect(adjustTeaLabDuration(99 * 3600 + 59 * 60 + 10, "minutes", 1))
+      .toBe(99 * 3600 + 59 * 60 + 10);
+    expect(adjustTeaLabDuration(0, "seconds", -1)).toBe(0);
   });
 });

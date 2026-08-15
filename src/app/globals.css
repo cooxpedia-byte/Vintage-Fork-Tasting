@@ -417,9 +417,24 @@ tr:last-child td { border-bottom: 0; }
 .tea-lab-slider::-moz-range-thumb { width: 24px; height: 24px; border: 3px solid var(--vf-ivory); border-radius: 50%; background: var(--vf-plum); box-shadow: 0 2px 8px rgba(52,13,42,.3); }
 .tea-lab-slider:focus-visible { outline: 3px solid rgba(201,162,39,.34); outline-offset: 2px; }
 .tea-lab-slider-scale { color: var(--vf-fog); font-size: .68rem; font-weight: 750; }
-.tea-lab-slider-footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .5rem; color: var(--vf-fog); font-size: .68rem; font-weight: 750; }
-.tea-lab-slider-footer > span:last-child { text-align: right; }
-.tea-lab-duration-unit { min-height: 36px; padding: .35rem 1.8rem .35rem .65rem; border: 1px solid var(--vf-line-gold); border-radius: 999px; color: var(--vf-plum); background: var(--vf-ivory); font-size: .75rem; font-weight: 800; }
+.tea-lab-field-label { color: var(--vf-ink); font-weight: 800; }
+.tea-lab-duration-wheel { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .55rem; margin-top: .65rem; }
+.tea-lab-duration-column { min-width: 0; display: grid; grid-template-rows: auto 28px 94px 28px; gap: .25rem; padding: .45rem; border: 1px solid rgba(91,24,73,.14); border-radius: var(--radius-md); background: linear-gradient(180deg,rgba(255,255,255,.74),rgba(201,162,39,.08)); box-shadow: inset 0 1px 0 rgba(255,255,255,.9); }
+.tea-lab-duration-label { overflow: hidden; color: var(--vf-walnut); font-size: .68rem; font-weight: 850; letter-spacing: .04em; text-align: center; text-overflow: ellipsis; text-transform: uppercase; }
+.tea-lab-duration-step { min-width: 0; min-height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 999px; color: var(--vf-plum); background: rgba(201,162,39,.16); cursor: pointer; touch-action: manipulation; }
+.tea-lab-duration-step:hover:not(:disabled) { color: var(--vf-ivory); background: var(--vf-plum); }
+.tea-lab-duration-step:active:not(:disabled) { transform: translateY(1px); }
+.tea-lab-duration-step:focus-visible { outline: 3px solid rgba(201,162,39,.38); outline-offset: 1px; }
+.tea-lab-duration-step:disabled { cursor: not-allowed; opacity: .45; }
+.tea-lab-duration-viewport { position: relative; min-width: 0; display: grid; grid-template-rows: repeat(3,1fr); overflow: hidden; border: 1px solid var(--vf-line-gold); border-radius: 14px; color: var(--vf-fog); background: linear-gradient(180deg,rgba(91,24,73,.05),rgba(255,255,255,.94) 30%,rgba(255,255,255,.94) 70%,rgba(91,24,73,.05)); box-shadow: inset 0 8px 14px rgba(52,13,42,.06),inset 0 -8px 14px rgba(52,13,42,.06); cursor: ns-resize; touch-action: none; user-select: none; }
+.tea-lab-duration-viewport::before, .tea-lab-duration-viewport::after { content: ""; position: absolute; z-index: 1; left: 7%; right: 7%; height: 1px; background: rgba(201,162,39,.38); pointer-events: none; }
+.tea-lab-duration-viewport::before { top: 33.333%; }
+.tea-lab-duration-viewport::after { bottom: 33.333%; }
+.tea-lab-duration-viewport > span, .tea-lab-duration-viewport > strong { min-width: 0; display: grid; place-items: center; font-variant-numeric: tabular-nums; line-height: 1; }
+.tea-lab-duration-viewport > span { font-size: .78rem; opacity: .48; }
+.tea-lab-duration-viewport > strong { position: relative; color: var(--vf-plum); font-family: var(--font-display); font-size: 1.42rem; font-weight: 850; text-shadow: 0 1px 0 rgba(255,255,255,.8); }
+.tea-lab-duration-viewport:focus-visible { outline: 3px solid rgba(201,162,39,.42); outline-offset: 2px; }
+.tea-lab-duration-viewport[aria-disabled="true"] { cursor: not-allowed; opacity: .52; }
 .tea-lab-review { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0; margin: 1.25rem 0; border: 1px solid var(--vf-line); border-radius: var(--radius-md); overflow: hidden; }
 .tea-lab-review div { padding: .9rem 1rem; border-bottom: 1px solid var(--vf-line); }
 .tea-lab-review div:nth-child(odd) { border-right: 1px solid var(--vf-line); }
@@ -844,6 +859,11 @@ tr:last-child td { border-bottom: 0; }
   .tea-lab-stage-heading > span { width: 28px; height: 28px; }
   .tea-lab-stage-heading > .btn { grid-column: 2; justify-self: start; margin-top: -.35rem; }
   .tea-lab-slider-field { padding: .7rem; }
+  .tea-lab-duration-wheel { gap: .35rem; }
+  .tea-lab-duration-column { grid-template-rows: auto 26px 88px 26px; gap: .2rem; padding: .32rem; }
+  .tea-lab-duration-label { font-size: .6rem; letter-spacing: .02em; }
+  .tea-lab-duration-step { min-height: 26px; }
+  .tea-lab-duration-viewport > strong { font-size: 1.22rem; }
   .tea-lab-review { grid-template-columns: 1fr; }
   .tea-lab-review div:nth-child(odd) { border-right: 0; }
   .page-heading-row { align-items: stretch; flex-direction: column; }

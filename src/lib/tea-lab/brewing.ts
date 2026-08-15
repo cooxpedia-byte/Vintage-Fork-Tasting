@@ -2,6 +2,11 @@ import type { TeaLabBrewStageDraft, TeaLabBrewingStyle } from "@/lib/tea-lab/off
 
 export type TeaLabBrewingStyleGroup = "everyday" | "chinese" | "japanese" | "cold" | "stovetop" | "other";
 export type TeaLabBrewDurationUnit = "seconds" | "minutes" | "hours";
+export type TeaLabDurationPart = TeaLabBrewDurationUnit;
+
+export const TEA_LAB_MAX_DURATION_HOURS = 99;
+export const TEA_LAB_MAX_DURATION_SECONDS =
+  TEA_LAB_MAX_DURATION_HOURS * 3600 + 59 * 60 + 59;
 
 export type TeaLabBrewingStyleDefinition = {
   id: TeaLabBrewingStyle;
@@ -297,6 +302,41 @@ export function durationInputToSeconds(value: string, unit: TeaLabBrewDurationUn
   if (!Number.isFinite(parsed)) return null;
   const multiplier = unit === "hours" ? 3600 : unit === "minutes" ? 60 : 1;
   return Math.max(1, Math.round(parsed * multiplier));
+}
+
+export function normalizeTeaLabDurationSeconds(seconds: number | null | undefined): number {
+  if (!Number.isFinite(seconds)) return 0;
+  return Math.min(TEA_LAB_MAX_DURATION_SECONDS, Math.max(0, Math.round(seconds ?? 0)));
+}
+
+export function splitTeaLabDuration(seconds: number | null | undefined): {
+  hours: number;
+  minutes: number;
+  seconds: number;
+} {
+  let remaining = normalizeTeaLabDurationSeconds(seconds);
+  const hours = Math.floor(remaining / 3600);
+  remaining %= 3600;
+  const minutes = Math.floor(remaining / 60);
+  return { hours, minutes, seconds: remaining % 60 };
+}
+
+export function adjustTeaLabDuration(
+  seconds: number | null | undefined,
+  part: TeaLabDurationPart,
+  steps: number
+): number {
+  const current = normalizeTeaLabDurationSeconds(seconds);
+  const multiplier = part === "hours" ? 3600 : part === "minutes" ? 60 : 1;
+  const lowerColumns = part === "hours" ? current % 3600
+    : part === "minutes" ? current % 60
+    : 0;
+  const upperBound = part === "hours"
+    ? TEA_LAB_MAX_DURATION_HOURS * 3600 + lowerColumns
+    : part === "minutes"
+      ? TEA_LAB_MAX_DURATION_HOURS * 3600 + 59 * 60 + lowerColumns
+      : TEA_LAB_MAX_DURATION_SECONDS;
+  return Math.min(upperBound, Math.max(lowerColumns, current + Math.trunc(steps) * multiplier));
 }
 
 export function formatTeaLabDuration(seconds: number | null | undefined): string | null {
