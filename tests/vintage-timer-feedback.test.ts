@@ -48,11 +48,12 @@ describe("vintage timer feedback contract", () => {
     expect(vintageTimerVibrationPattern("selectionDetent")).toBe(16);
   });
 
-  it("finishes with a clearly pitched C chime after the mechanical cue", () => {
+  it("finishes with a sharp, resounding C6 bell after the mechanical cue", () => {
     expect(VINTAGE_TIMER_COMPLETION_CHIME).toEqual({
-      frequencyHz: 523.251,
+      frequencyHz: 1046.502,
       delayMs: 1180,
-      durationMs: 2000
+      durationMs: 2600,
+      attackMs: 4
     });
   });
 });

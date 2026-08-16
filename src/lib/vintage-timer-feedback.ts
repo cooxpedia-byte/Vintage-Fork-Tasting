@@ -48,9 +48,10 @@ const AUDIO_ROOT = "/audio/vintage-timer";
 export const VINTAGE_TIMER_SOUND_STORAGE_KEY = "vf:vintage-timer-sound";
 export const VINTAGE_TIMER_SOUND_EVENT = "vf:vintage-timer-sound-changed";
 export const VINTAGE_TIMER_COMPLETION_CHIME = {
-  frequencyHz: 523.251,
+  frequencyHz: 1046.502,
   delayMs: 1180,
-  durationMs: 2000
+  durationMs: 2600,
+  attackMs: 4
 } as const;
 const audioFiles: Record<VintageTimerAudioEvent, readonly string[]> = {
   wheelDetent: [`${AUDIO_ROOT}/wheel-detent-a.wav`],
@@ -225,19 +226,24 @@ class VintageTimerAudioManager {
     const duration = VINTAGE_TIMER_COMPLETION_CHIME.durationMs / 1000;
     const volume = eventGain.timerCompleteChime * Math.max(0, options.volumeScale ?? 1);
     const master = context.createGain();
-    const warmth = context.createBiquadFilter();
-    warmth.type = "lowpass";
-    warmth.frequency.setValueAtTime(4200, when);
-    master.gain.setValueAtTime(.0001, when);
-    master.gain.exponentialRampToValueAtTime(Math.max(.0001, volume), when + .018);
-    master.gain.exponentialRampToValueAtTime(Math.max(.0001, volume * .42), when + .42);
-    master.gain.exponentialRampToValueAtTime(.0001, when + duration);
-    master.connect(warmth).connect(context.destination);
+    const bellBody = context.createBiquadFilter();
+    const presence = context.createDynamicsCompressor();
+    master.gain.setValueAtTime(volume, when);
+    bellBody.type = "lowpass";
+    bellBody.frequency.setValueAtTime(7200, when);
+    presence.threshold.setValueAtTime(-12, when);
+    presence.knee.setValueAtTime(10, when);
+    presence.ratio.setValueAtTime(3, when);
+    presence.attack.setValueAtTime(.002, when);
+    presence.release.setValueAtTime(.22, when);
+    master.connect(bellBody).connect(presence).connect(context.destination);
 
     const partials = [
-      { multiplier: 1, level: 1 },
-      { multiplier: 2, level: .24 },
-      { multiplier: 3, level: .08 }
+      { multiplier: 1, level: .9, decaySeconds: duration },
+      { multiplier: 1.997, level: .38, decaySeconds: 2.15 },
+      { multiplier: 2.706, level: .22, decaySeconds: 1.3 },
+      { multiplier: 4.09, level: .11, decaySeconds: .82 },
+      { multiplier: 5.42, level: .065, decaySeconds: .48 }
     ];
     let remaining = partials.length;
     partials.forEach(partial => {
@@ -248,7 +254,19 @@ class VintageTimerAudioManager {
         VINTAGE_TIMER_COMPLETION_CHIME.frequencyHz * partial.multiplier,
         when
       );
-      partialGain.gain.setValueAtTime(partial.level, when);
+      partialGain.gain.setValueAtTime(.0001, when);
+      partialGain.gain.exponentialRampToValueAtTime(
+        partial.level,
+        when + VINTAGE_TIMER_COMPLETION_CHIME.attackMs / 1000
+      );
+      partialGain.gain.exponentialRampToValueAtTime(
+        Math.max(.0001, partial.level * .58),
+        when + .055
+      );
+      partialGain.gain.exponentialRampToValueAtTime(
+        .0001,
+        when + partial.decaySeconds
+      );
       oscillator.connect(partialGain).connect(master);
       this.activeOscillators.push(oscillator);
       oscillator.addEventListener("ended", () => {
@@ -258,7 +276,8 @@ class VintageTimerAudioManager {
         remaining -= 1;
         if (remaining === 0) {
           master.disconnect();
-          warmth.disconnect();
+          bellBody.disconnect();
+          presence.disconnect();
         }
       }, { once: true });
       oscillator.start(when);
