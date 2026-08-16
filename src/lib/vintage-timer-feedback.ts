@@ -84,12 +84,9 @@ export function vintageTimerPitchRate(sequence: number) {
 
 export function vintageTimerDetentPlan(count: number, intervalMs: number) {
   const safeCount = Math.max(1, Math.abs(Math.trunc(count)));
-  const spacing = Math.max(12, Math.min(90, Math.round(intervalMs || 46)));
-  const maxVoices = spacing < 18 ? 7 : spacing < 28 ? 10 : 18;
-  if (safeCount <= maxVoices) return { count: safeCount, spacingMs: spacing };
   return {
-    count: maxVoices,
-    spacingMs: Math.max(12, Math.round((safeCount * spacing) / maxVoices))
+    count: safeCount,
+    spacingMs: Math.max(64, Math.min(96, Math.round(intervalMs || 64)))
   };
 }
 
@@ -109,6 +106,7 @@ class VintageTimerAudioManager {
   private buffers = new Map<string, AudioBuffer>();
   private preloadPromise: Promise<void> | null = null;
   private activeSources: AudioBufferSourceNode[] = [];
+  private activeWheelSource: AudioBufferSourceNode | null = null;
 
   preload() {
     if (typeof window === "undefined") return Promise.resolve();
@@ -133,6 +131,10 @@ class VintageTimerAudioManager {
     }
 
     const start = () => {
+      if (event === "wheelDetent" && this.activeWheelSource) {
+        try { this.activeWheelSource.stop(); } catch { /* The previous detent has already ended. */ }
+        this.activeWheelSource = null;
+      }
       while (this.activeSources.length >= 6) {
         try { this.activeSources.shift()?.stop(); } catch { /* The oldest voice has already ended. */ }
       }
@@ -146,8 +148,10 @@ class VintageTimerAudioManager {
       source.connect(gain).connect(context.destination);
       const when = context.currentTime + Math.max(0, options.delayMs ?? 0) / 1000;
       this.activeSources.push(source);
+      if (event === "wheelDetent") this.activeWheelSource = source;
       source.addEventListener("ended", () => {
         this.activeSources = this.activeSources.filter(candidate => candidate !== source);
+        if (this.activeWheelSource === source) this.activeWheelSource = null;
         source.disconnect();
         gain.disconnect();
       }, { once: true });
@@ -179,6 +183,34 @@ class VintageTimerAudioManager {
 }
 
 export const vintageTimerAudio = new VintageTimerAudioManager();
+
+let pendingWheelPulses = 0;
+let wheelCadenceMs = 64;
+let wheelCadenceTimer: number | null = null;
+let lastWheelPulseAt = 0;
+
+function stopVintageWheelCadence() {
+  pendingWheelPulses = 0;
+  if (wheelCadenceTimer !== null && typeof window !== "undefined") {
+    window.clearTimeout(wheelCadenceTimer);
+  }
+  wheelCadenceTimer = null;
+}
+
+function scheduleVintageWheelPulse() {
+  if (typeof window === "undefined" || wheelCadenceTimer !== null || pendingWheelPulses === 0) return;
+  const elapsed = lastWheelPulseAt ? window.performance.now() - lastWheelPulseAt : wheelCadenceMs;
+  const waitMs = Math.max(0, wheelCadenceMs - elapsed);
+  wheelCadenceTimer = window.setTimeout(() => {
+    wheelCadenceTimer = null;
+    if (pendingWheelPulses === 0) return;
+    pendingWheelPulses -= 1;
+    lastWheelPulseAt = window.performance.now();
+    vintageTimerAudio.play("wheelDetent", { detentIntervalMs: wheelCadenceMs });
+    playVintageTimerHaptic("selectionDetent", { count: 1, intervalMs: wheelCadenceMs });
+    scheduleVintageWheelPulse();
+  }, waitMs);
+}
 
 export function preloadVintageTimerFeedback() {
   return vintageTimerAudio.preload();
@@ -212,20 +244,14 @@ export function playVintageTimerEvent(
   hapticEvent?: VintageTimerHapticEvent,
   options: FeedbackOptions & HapticOptions = {}
 ) {
+  if (audioEvent === "wheelSettle") stopVintageWheelCadence();
   vintageTimerAudio.play(audioEvent, options);
   if (hapticEvent) playVintageTimerHaptic(hapticEvent, options);
 }
 
 export function playVintageWheelDetents(count: number, intervalMs: number) {
   const plan = vintageTimerDetentPlan(count, intervalMs);
-  for (let index = 0; index < plan.count; index += 1) {
-    vintageTimerAudio.play("wheelDetent", {
-      delayMs: index * plan.spacingMs,
-      detentIntervalMs: plan.spacingMs
-    });
-  }
-  playVintageTimerHaptic("selectionDetent", {
-    count: plan.count,
-    intervalMs: plan.spacingMs
-  });
+  wheelCadenceMs = plan.spacingMs;
+  pendingWheelPulses += plan.count;
+  scheduleVintageWheelPulse();
 }

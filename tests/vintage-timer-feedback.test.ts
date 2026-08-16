@@ -34,10 +34,10 @@ describe("vintage timer feedback contract", () => {
     expect(new Set(rates)).toEqual(new Set([1]));
   });
 
-  it("preserves slow detents and caps very fast overlapping voices", () => {
-    expect(vintageTimerDetentPlan(4, 48)).toEqual({ count: 4, spacingMs: 48 });
+  it("keeps one non-overlapping wheel cadence at every scroll velocity", () => {
+    expect(vintageTimerDetentPlan(4, 48)).toEqual({ count: 4, spacingMs: 64 });
+    expect(vintageTimerDetentPlan(2, 90)).toEqual({ count: 2, spacingMs: 90 });
     const fast = vintageTimerDetentPlan(60, 12);
-    expect(fast.count).toBe(7);
-    expect(fast.spacingMs).toBeGreaterThanOrEqual(12);
+    expect(fast).toEqual({ count: 60, spacingMs: 64 });
   });
 });
