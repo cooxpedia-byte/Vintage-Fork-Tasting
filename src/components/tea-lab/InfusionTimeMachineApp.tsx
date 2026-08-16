@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 import { TeaLabDurationSlider } from "@/components/tea-lab/TeaLabBrewSliders";
 import {
   activateVintageTimerFeedback,
+  isVintageTimerSoundEnabled,
   playVintageTimerEvent,
   playVintageTimerHaptic,
-  preloadVintageTimerFeedback
+  preloadVintageTimerFeedback,
+  setVintageTimerSoundEnabled,
+  VINTAGE_TIMER_SOUND_EVENT
 } from "@/lib/vintage-timer-feedback";
 
 const DEFAULT_INFUSION_SECONDS = 2 * 60;
@@ -14,12 +17,29 @@ const OPENING_FILM_DURATION_MS = 8_000;
 const REDUCED_MOTION_DURATION_MS = 700;
 const OPENING_FADE_DURATION_MS = 260;
 
+const TEA_TIMER_PRESETS = [
+  { id: "green", label: "Green", seconds: 2 * 60 },
+  { id: "white", label: "White", seconds: 4 * 60 },
+  { id: "oolong", label: "Oolong", seconds: 3 * 60 },
+  { id: "black", label: "Black", seconds: 4 * 60 },
+  { id: "pu-erh", label: "Pu-erh", seconds: 3 * 60 },
+  { id: "herbal", label: "Herbal", seconds: 5 * 60 },
+  { id: "rooibos", label: "Rooibos", seconds: 5 * 60 }
+] as const;
+
+function presetDurationLabel(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 export function InfusionTimeMachineApp() {
   const [durationSeconds, setDurationSeconds] = useState<number | null>(DEFAULT_INFUSION_SECONDS);
   const [filmComplete, setFilmComplete] = useState(false);
   const [feedbackReady, setFeedbackReady] = useState(false);
   const [feedbackEngaging, setFeedbackEngaging] = useState(false);
   const [openingRemoved, setOpeningRemoved] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [timerRevision, setTimerRevision] = useState(0);
   const openingCanClose = filmComplete && feedbackReady;
 
   useEffect(() => {
@@ -33,6 +53,32 @@ export function InfusionTimeMachineApp() {
   }, []);
 
   useEffect(() => {
+    const readSoundPreference = () => setSoundEnabled(isVintageTimerSoundEnabled());
+    const restoreFeedback = () => {
+      readSoundPreference();
+      if (isVintageTimerSoundEnabled()) void activateVintageTimerFeedback();
+    };
+    const handleSoundPreference = (event: Event) => {
+      setSoundEnabled((event as CustomEvent<boolean>).detail);
+    };
+    const handleVisibility = () => {
+      if (!document.hidden) restoreFeedback();
+    };
+
+    readSoundPreference();
+    window.addEventListener(VINTAGE_TIMER_SOUND_EVENT, handleSoundPreference);
+    window.addEventListener("pageshow", restoreFeedback);
+    window.addEventListener("focus", restoreFeedback);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener(VINTAGE_TIMER_SOUND_EVENT, handleSoundPreference);
+      window.removeEventListener("pageshow", restoreFeedback);
+      window.removeEventListener("focus", restoreFeedback);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!openingCanClose) return;
     const removeTimer = window.setTimeout(
       () => setOpeningRemoved(true),
@@ -43,21 +89,55 @@ export function InfusionTimeMachineApp() {
   }, [openingCanClose]);
 
   function updateDuration(seconds: number | null) {
+    setSelectedPreset(null);
     setDurationSeconds(seconds);
   }
 
   function wakeAudio() {
-    void activateVintageTimerFeedback();
+    if (isVintageTimerSoundEnabled()) void activateVintageTimerFeedback();
   }
 
   async function engageFeedback() {
     if (feedbackReady || feedbackEngaging) return;
     setFeedbackEngaging(true);
     playVintageTimerHaptic("mechanicalEngage");
-    await activateVintageTimerFeedback();
+    if (soundEnabled) await activateVintageTimerFeedback();
     setFeedbackReady(true);
     setFeedbackEngaging(false);
     playVintageTimerEvent("buttonDown");
+  }
+
+  function selectPreset(preset: typeof TEA_TIMER_PRESETS[number]) {
+    playVintageTimerEvent("buttonDown", "softPress");
+    setSelectedPreset(preset.id);
+    setDurationSeconds(preset.seconds);
+    setTimerRevision(revision => revision + 1);
+    window.setTimeout(
+      () => playVintageTimerEvent("buttonRelease", "mechanicalEngage"),
+      58
+    );
+  }
+
+  async function toggleSound() {
+    const next = !soundEnabled;
+    if (!next) {
+      playVintageTimerEvent("buttonDown", "softPress");
+      window.setTimeout(() => {
+        playVintageTimerEvent("buttonRelease", "mechanicalEngage");
+        setSoundEnabled(false);
+        void setVintageTimerSoundEnabled(false);
+      }, 58);
+      return;
+    }
+
+    playVintageTimerHaptic("softPress");
+    setSoundEnabled(true);
+    await setVintageTimerSoundEnabled(true);
+    playVintageTimerEvent("buttonDown");
+    window.setTimeout(
+      () => playVintageTimerEvent("buttonRelease", "mechanicalEngage"),
+      58
+    );
   }
 
   return <main
@@ -72,13 +152,32 @@ export function InfusionTimeMachineApp() {
       aria-hidden={openingCanClose ? undefined : true}
     >
       <TeaLabDurationSlider
+        key={`time-machine-${timerRevision}`}
         id="infusion-time-machine"
         label="Infusion Time Machine"
         valueSeconds={durationSeconds}
         preferredUnit="seconds"
         enableTimer
+        soundEnabled={soundEnabled}
+        onSoundToggle={() => void toggleSound()}
         onChange={updateDuration}
       />
+    </section>
+    <section className="infusion-time-machine-presets" aria-label="Tea timer presets">
+      <div className="infusion-time-machine-preset-bank">
+        {TEA_TIMER_PRESETS.map(preset => <button
+          className="infusion-time-machine-preset"
+          type="button"
+          data-feedback-silent="true"
+          data-tea={preset.id}
+          aria-pressed={selectedPreset === preset.id}
+          onClick={() => selectPreset(preset)}
+          key={preset.id}
+        >
+          <span>{preset.label}</span>
+          <strong>{presetDurationLabel(preset.seconds)}</strong>
+        </button>)}
+      </div>
     </section>
     {!openingRemoved ? <section
       className={`infusion-time-machine-opening${openingCanClose ? " is-fading" : filmComplete ? " is-awaiting-gesture" : ""}`}
@@ -109,13 +208,15 @@ export function InfusionTimeMachineApp() {
         onClick={() => void engageFeedback()}
         disabled={feedbackEngaging}
       >
-        <span>{feedbackEngaging ? "Engaging sound…" : "Tap to engage sound"}</span>
+        <span>{feedbackEngaging ? "Engaging…" : soundEnabled ? "Tap to engage sound" : "Enter time machine"}</span>
         <small>{filmComplete ? "Required before entering" : "Preparing the time machine"}</small>
       </button> : null}
       <span className="sr-only" role="status" aria-live="polite">
         {feedbackReady
           ? "Sound is ready. Preparing the timer and controls."
-          : "Tap to engage sound before entering the timer."}
+          : soundEnabled
+            ? "Tap to engage sound before entering the timer."
+            : "Tap to enter the timer."}
       </span>
     </section> : null}
   </main>;

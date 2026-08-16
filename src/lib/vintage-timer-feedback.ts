@@ -44,6 +44,8 @@ type HapticOptions = {
 };
 
 const AUDIO_ROOT = "/audio/vintage-timer";
+export const VINTAGE_TIMER_SOUND_STORAGE_KEY = "vf:vintage-timer-sound";
+export const VINTAGE_TIMER_SOUND_EVENT = "vf:vintage-timer-sound-changed";
 const audioFiles: Record<VintageTimerAudioEvent, readonly string[]> = {
   wheelDetent: [`${AUDIO_ROOT}/wheel-detent-a.wav`],
   wheelSettle: [`${AUDIO_ROOT}/wheel-settle.wav`],
@@ -105,6 +107,15 @@ function feedbackEnabled() {
   }
 }
 
+export function isVintageTimerSoundEnabled() {
+  if (typeof window === "undefined") return true;
+  try {
+    return window.localStorage.getItem(VINTAGE_TIMER_SOUND_STORAGE_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
 class VintageTimerAudioManager {
   private context: AudioContext | null = null;
   private buffers = new Map<string, AudioBuffer>();
@@ -121,14 +132,15 @@ class VintageTimerAudioManager {
   }
 
   async activate() {
+    if (!isVintageTimerSoundEnabled()) return;
     const context = this.getContext();
     if (!context) return;
-    if (context.state === "suspended") await context.resume();
+    if (context.state !== "running") await context.resume();
     await this.preload();
   }
 
   play(event: VintageTimerAudioEvent, options: FeedbackOptions = {}) {
-    if (typeof window === "undefined" || !feedbackEnabled()) return;
+    if (typeof window === "undefined" || !isVintageTimerSoundEnabled()) return;
     const context = this.getContext();
     if (!context) return;
     const files = audioFiles[event];
@@ -170,8 +182,20 @@ class VintageTimerAudioManager {
       source.start(when);
     };
 
-    if (context.state === "suspended") void context.resume().then(start).catch(() => undefined);
+    if (context.state !== "running") {
+      void context.resume().then(() => {
+        if (isVintageTimerSoundEnabled()) start();
+      }).catch(() => undefined);
+    }
     else start();
+  }
+
+  silence() {
+    this.activeSources.forEach(source => {
+      try { source.stop(); } catch { /* The voice has already ended. */ }
+    });
+    this.activeSources = [];
+    this.activeWheelSource = null;
   }
 
   private getContext() {
@@ -208,6 +232,19 @@ class VintageTimerAudioManager {
 }
 
 export const vintageTimerAudio = new VintageTimerAudioManager();
+
+export function setVintageTimerSoundEnabled(enabled: boolean) {
+  if (typeof window === "undefined") return Promise.resolve();
+  try {
+    window.localStorage.setItem(VINTAGE_TIMER_SOUND_STORAGE_KEY, enabled ? "on" : "off");
+  } catch { /* Sound preferences are optional. */ }
+  window.dispatchEvent(new CustomEvent<boolean>(VINTAGE_TIMER_SOUND_EVENT, { detail: enabled }));
+  if (!enabled) {
+    vintageTimerAudio.silence();
+    return Promise.resolve();
+  }
+  return vintageTimerAudio.activate().catch(() => undefined);
+}
 
 let pendingWheelPulses = 0;
 let wheelCadenceMs = 64;

@@ -26,6 +26,13 @@ describe("standalone Infusion Time Machine", () => {
     expect(html).toContain("playsInline");
     expect(html).toContain("Tap to engage sound");
     expect(html).toContain("Preparing the time machine");
+    expect(html).toContain("Tea timer presets");
+    expect(html).toContain("Green");
+    expect(html).toContain("Oolong");
+    expect(html).toContain("Pu-erh");
+    expect(html).toContain("Rooibos");
+    expect(html).toContain("5:00");
+    expect(html).toContain("Mechanical sound on");
   });
 
   it("preloads the mechanical detent before the rest of the sound library", () => {

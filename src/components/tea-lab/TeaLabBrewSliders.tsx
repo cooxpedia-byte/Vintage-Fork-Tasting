@@ -362,6 +362,8 @@ export function TeaLabDurationSlider({
   preferredUnit,
   disabled = false,
   enableTimer = false,
+  soundEnabled = true,
+  onSoundToggle,
   onChange
 }: {
   id: string;
@@ -370,6 +372,8 @@ export function TeaLabDurationSlider({
   preferredUnit: TeaLabBrewDurationUnit;
   disabled?: boolean;
   enableTimer?: boolean;
+  soundEnabled?: boolean;
+  onSoundToggle?: () => void;
   onChange: (seconds: number | null) => void;
 }) {
   const totalSeconds = normalizeTeaLabDurationSeconds(valueSeconds);
@@ -488,21 +492,38 @@ export function TeaLabDurationSlider({
     <div className="tea-lab-slider-heading">
       <div className="tea-lab-duration-title">
         <TeaTimerBotanicalMark />
-        <span className="tea-lab-duration-copy"><span className="tea-lab-field-label">{enableTimer ? "Infusion Time Machine" : label}</span></span>
-        {enableTimer && <button
-          className="tea-lab-duration-power-switch"
-          type="button"
-          data-on={powerOn ? "true" : "false"}
-          data-feedback-silent="true"
-          disabled={disabled}
-          aria-label={powerOn ? "Turn infusion timer power off" : "Turn infusion timer power on"}
-          aria-pressed={powerOn}
-          onClick={togglePower}
-        >
-          <span className="tea-lab-duration-switch-on">On</span>
-          <span className="tea-lab-duration-switch-lever" aria-hidden="true" />
-          <span className="tea-lab-duration-switch-off">Off</span>
-        </button>}
+        <div className="tea-lab-duration-copy">
+          <span className="tea-lab-field-label">{enableTimer ? "Infusion Time Machine" : label}</span>
+          {onSoundToggle ? <button
+            className="tea-lab-duration-sound-switch"
+            type="button"
+            data-on={soundEnabled ? "true" : "false"}
+            data-feedback-silent="true"
+            aria-label={`Mechanical sound ${soundEnabled ? "on" : "off"}`}
+            aria-pressed={soundEnabled}
+            onClick={onSoundToggle}
+          >
+            <span aria-hidden="true">{soundEnabled ? "♪" : "×"}</span>
+            <small>Sound</small>
+            <strong>{soundEnabled ? "On" : "Off"}</strong>
+          </button> : null}
+        </div>
+        {enableTimer && <div className="tea-lab-duration-switch-bank">
+          <button
+            className="tea-lab-duration-power-switch"
+            type="button"
+            data-on={powerOn ? "true" : "false"}
+            data-feedback-silent="true"
+            disabled={disabled}
+            aria-label={powerOn ? "Turn infusion timer power off" : "Turn infusion timer power on"}
+            aria-pressed={powerOn}
+            onClick={togglePower}
+          >
+            <span className="tea-lab-duration-switch-on">On</span>
+            <span className="tea-lab-duration-switch-lever" aria-hidden="true" />
+            <span className="tea-lab-duration-switch-off">Off</span>
+          </button>
+        </div>}
       </div>
       <output
         aria-label={formatTeaLabDuration(enableTimer ? remainingSeconds : totalSeconds) ?? "0 sec"}
