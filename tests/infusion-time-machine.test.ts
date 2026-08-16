@@ -17,6 +17,13 @@ describe("standalone Infusion Time Machine", () => {
     expect(html).toContain('aria-label="2 min"');
     expect(html).toContain("Start steep");
     expect(html).toContain("Good tea takes patience");
+    expect(html).toContain('class="infusion-time-machine-opening"');
+    expect(html).toContain('src="/brand/opening-animation-app.mp4"');
+    expect(html).toContain('src="/brand/opening-animation-web.mp4"');
+    expect(html).toContain('poster="/brand/loading-wallpaper.jpg"');
+    expect(html).toContain("autoPlay");
+    expect(html).toContain("muted");
+    expect(html).toContain("playsInline");
   });
 
   it("preloads the mechanical detent before the rest of the sound library", () => {
@@ -25,5 +32,7 @@ describe("standalone Infusion Time Machine", () => {
     expect(html).toContain('rel="preload"');
     expect(html).toContain('href="/audio/vintage-timer/wheel-detent-a.wav"');
     expect(html).toContain('as="fetch"');
+    expect(html).toContain('href="/brand/loading-wallpaper.jpg"');
+    expect(html).toContain('as="image"');
   });
 });

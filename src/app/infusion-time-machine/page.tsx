@@ -45,6 +45,11 @@ export default function InfusionTimeMachinePage() {
   return <>
     <link
       rel="preload"
+      href="/brand/loading-wallpaper.jpg"
+      as="image"
+    />
+    <link
+      rel="preload"
       href="/audio/vintage-timer/wheel-detent-a.wav"
       as="fetch"
       crossOrigin="anonymous"
