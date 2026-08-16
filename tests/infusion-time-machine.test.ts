@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import InfusionTimeMachinePage from "@/app/infusion-time-machine/page";
 import { InfusionTimeMachineApp } from "@/components/tea-lab/InfusionTimeMachineApp";
 
 describe("standalone Infusion Time Machine", () => {
@@ -16,5 +17,13 @@ describe("standalone Infusion Time Machine", () => {
     expect(html).toContain('aria-label="2 min"');
     expect(html).toContain("Start steep");
     expect(html).toContain("Good tea takes patience");
+  });
+
+  it("preloads the mechanical detent before the rest of the sound library", () => {
+    const html = renderToStaticMarkup(createElement(InfusionTimeMachinePage));
+
+    expect(html).toContain('rel="preload"');
+    expect(html).toContain('href="/audio/vintage-timer/wheel-detent-a.wav"');
+    expect(html).toContain('as="fetch"');
   });
 });

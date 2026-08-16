@@ -42,5 +42,13 @@ export const viewport: Viewport = {
 };
 
 export default function InfusionTimeMachinePage() {
-  return <InfusionTimeMachineApp />;
+  return <>
+    <link
+      rel="preload"
+      href="/audio/vintage-timer/wheel-detent-a.wav"
+      as="fetch"
+      crossOrigin="anonymous"
+    />
+    <InfusionTimeMachineApp />
+  </>;
 }

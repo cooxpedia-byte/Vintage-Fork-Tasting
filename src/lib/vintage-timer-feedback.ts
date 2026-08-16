@@ -108,6 +108,7 @@ function feedbackEnabled() {
 class VintageTimerAudioManager {
   private context: AudioContext | null = null;
   private buffers = new Map<string, AudioBuffer>();
+  private bufferLoads = new Map<string, Promise<void>>();
   private preloadPromise: Promise<void> | null = null;
   private activeSources: AudioBufferSourceNode[] = [];
   private activeWheelSource: AudioBufferSourceNode | null = null;
@@ -135,7 +136,7 @@ class VintageTimerAudioManager {
     const file = files[sequence % files.length];
     const buffer = this.buffers.get(file);
     if (!buffer) {
-      void this.preload().then(() => {
+      void this.loadBuffer(file).then(() => {
         if (this.buffers.has(file)) this.play(event, options);
       });
       return;
@@ -181,15 +182,28 @@ class VintageTimerAudioManager {
   }
 
   private async loadBuffers() {
-    const context = this.getContext();
-    if (!context) return;
     const files = [...new Set(Object.values(audioFiles).flat())];
-    await Promise.all(files.map(async file => {
+    const wheelDetentFile = audioFiles.wheelDetent[0];
+    await this.loadBuffer(wheelDetentFile);
+    await Promise.all(files
+      .filter(file => file !== wheelDetentFile)
+      .map(file => this.loadBuffer(file)));
+  }
+
+  private loadBuffer(file: string) {
+    if (this.buffers.has(file)) return Promise.resolve();
+    const pending = this.bufferLoads.get(file);
+    if (pending) return pending;
+    const context = this.getContext();
+    if (!context) return Promise.resolve();
+    const load = (async () => {
       const response = await fetch(file, { cache: "force-cache" });
       if (!response.ok) return;
       const buffer = await context.decodeAudioData(await response.arrayBuffer());
       this.buffers.set(file, buffer);
-    }));
+    })().catch(() => undefined).finally(() => this.bufferLoads.delete(file));
+    this.bufferLoads.set(file, load);
+    return load;
   }
 }
 
