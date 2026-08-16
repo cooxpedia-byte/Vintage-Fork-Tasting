@@ -115,6 +115,13 @@ class VintageTimerAudioManager {
     return this.preloadPromise;
   }
 
+  async activate() {
+    const context = this.getContext();
+    if (!context) return;
+    if (context.state === "suspended") await context.resume();
+    await this.preload();
+  }
+
   play(event: VintageTimerAudioEvent, options: FeedbackOptions = {}) {
     if (typeof window === "undefined" || !feedbackEnabled()) return;
     const context = this.getContext();
@@ -214,6 +221,10 @@ function scheduleVintageWheelPulse() {
 
 export function preloadVintageTimerFeedback() {
   return vintageTimerAudio.preload();
+}
+
+export function activateVintageTimerFeedback() {
+  return vintageTimerAudio.activate().catch(() => undefined);
 }
 
 export function playVintageTimerHaptic(event: VintageTimerHapticEvent, options: HapticOptions = {}) {

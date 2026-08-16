@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_REFRESH_MARGIN_MS = 90 * 1000;
+const TIME_MACHINE_HOSTNAME = "timemachine.vintagefork.ca";
+const TIME_MACHINE_ROUTE = "/infusion-time-machine";
 const DEAD_REFRESH_CODES = new Set([
   "refresh_token_not_found",
   "refresh_token_already_used",
@@ -51,6 +53,36 @@ function deadSessionResponse(request: NextRequest, response: NextResponse) {
 }
 
 export async function proxy(request: NextRequest) {
+  const hostname = (
+    request.headers.get("x-forwarded-host") ??
+    request.headers.get("host") ??
+    request.nextUrl.hostname
+  ).split(":")[0].toLocaleLowerCase("en-CA");
+  if (hostname === TIME_MACHINE_HOSTNAME) {
+    if (request.nextUrl.pathname === "/") {
+      const timerUrl = request.nextUrl.clone();
+      timerUrl.pathname = TIME_MACHINE_ROUTE;
+      const timerResponse = NextResponse.rewrite(timerUrl);
+      timerResponse.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
+      return timerResponse;
+    }
+    if (
+      request.nextUrl.pathname === TIME_MACHINE_ROUTE ||
+      request.nextUrl.pathname === "/infusion-time-machine.webmanifest" ||
+      request.nextUrl.pathname.startsWith("/audio/vintage-timer/") ||
+      request.nextUrl.pathname.startsWith("/brand/")
+    ) {
+      return NextResponse.next({ request });
+    }
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  if (request.nextUrl.pathname === TIME_MACHINE_ROUTE) {
+    const timerResponse = NextResponse.next({ request });
+    timerResponse.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
+    return timerResponse;
+  }
+
   let response = NextResponse.next({ request });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;

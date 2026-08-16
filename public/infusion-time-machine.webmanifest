@@ -1,0 +1,20 @@
+{
+  "name": "Vintage Fork Infusion Time Machine",
+  "short_name": "Tea Time Machine",
+  "description": "Set the perfect infusion with Vintage Fork's free mechanical tea timer.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#100c09",
+  "theme_color": "#100c09",
+  "icons": [
+    {
+      "src": "/brand/vintage-fork-timer-mark.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

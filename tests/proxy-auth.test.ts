@@ -55,6 +55,39 @@ afterEach(() => {
 });
 
 describe("authentication proxy", () => {
+  it("rewrites the Time Machine host root without loading authentication", async () => {
+    const response = await proxy(new NextRequest("https://timemachine.vintagefork.ca/"));
+
+    expect(stubs.createServerClient).not.toHaveBeenCalled();
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      "https://timemachine.vintagefork.ca/infusion-time-machine"
+    );
+    expect(response.headers.get("cache-control")).toBe(
+      "public, s-maxage=3600, stale-while-revalidate=86400"
+    );
+  });
+
+  it("honours the forwarded Time Machine hostname behind the hosting proxy", async () => {
+    const response = await proxy(new NextRequest("http://127.0.0.1/", {
+      headers: { "x-forwarded-host": "timemachine.vintagefork.ca" }
+    }));
+
+    expect(stubs.createServerClient).not.toHaveBeenCalled();
+    expect(response.headers.get("x-middleware-rewrite")).toMatch(
+      /\/infusion-time-machine$/
+    );
+  });
+
+  it("keeps the canonical timer route public and cacheable", async () => {
+    const response = await proxy(new NextRequest("https://tasting.vintagefork.ca/infusion-time-machine"));
+
+    expect(stubs.createServerClient).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe(
+      "public, s-maxage=3600, stale-while-revalidate=86400"
+    );
+  });
+
   it("verifies a healthy session without forcing a refresh", async () => {
     const session = {
       access_token: "healthy-access",

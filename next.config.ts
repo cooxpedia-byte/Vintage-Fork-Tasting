@@ -49,6 +49,14 @@ const nextConfig: NextConfig = {
   output: "standalone",
   headers: async () => [
     {
+      source: "/audio/vintage-timer/:path*",
+      headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]
+    },
+    {
+      source: "/brand/vintage-fork-timer-mark.png",
+      headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]
+    },
+    {
       source: "/(.*)",
       headers: [
         { key: "X-Content-Type-Options", value: "nosniff" },

@@ -1200,3 +1200,36 @@ tr:last-child td { border-bottom: 0; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .001ms !important; }
   .btn-attention { animation: none !important; }
 }
+
+/* Standalone Time Machine: the shared Tea Lab mechanism in a minimal app shell. */
+body:has(.infusion-time-machine-page) {
+  min-height: 100svh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 50% -12%,rgba(159,100,42,.24),transparent 34rem),
+    linear-gradient(145deg,#17130f,#070808 58%,#1d1510);
+}
+body:has(.infusion-time-machine-page)::before { display: none; }
+.infusion-time-machine-page {
+  width: 100%;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding:
+    max(.75rem,env(safe-area-inset-top))
+    max(.75rem,env(safe-area-inset-right))
+    max(.75rem,env(safe-area-inset-bottom))
+    max(.75rem,env(safe-area-inset-left));
+}
+.infusion-time-machine-shell { width: min(100%,1120px); }
+.infusion-time-machine-shell .tea-lab-duration-field { margin: 0; }
+@media (max-width: 720px) {
+  .infusion-time-machine-page {
+    align-items: start;
+    padding:
+      max(.35rem,env(safe-area-inset-top))
+      max(.28rem,env(safe-area-inset-right))
+      max(.5rem,env(safe-area-inset-bottom))
+      max(.28rem,env(safe-area-inset-left));
+  }
+}
