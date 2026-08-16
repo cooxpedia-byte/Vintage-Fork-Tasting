@@ -4,7 +4,8 @@ import {
   VINTAGE_TIMER_AUDIO_EVENTS,
   VINTAGE_TIMER_HAPTIC_EVENTS,
   vintageTimerDetentPlan,
-  vintageTimerPitchRate
+  vintageTimerPitchRate,
+  vintageTimerVibrationPattern
 } from "@/lib/vintage-timer-feedback";
 
 describe("vintage timer feedback contract", () => {
@@ -39,5 +40,9 @@ describe("vintage timer feedback contract", () => {
     expect(vintageTimerDetentPlan(2, 90)).toEqual({ count: 2, spacingMs: 90 });
     const fast = vintageTimerDetentPlan(60, 12);
     expect(fast).toEqual({ count: 60, spacingMs: 64 });
+  });
+
+  it("uses one strong short web nudge for every wheel detent", () => {
+    expect(vintageTimerVibrationPattern("selectionDetent")).toBe(16);
   });
 });

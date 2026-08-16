@@ -67,13 +67,17 @@ const eventGain: Record<VintageTimerAudioEvent, number> = {
 };
 
 const fallbackVibration: Record<VintageTimerHapticEvent, number | number[]> = {
-  selectionDetent: 5,
+  selectionDetent: 16,
   wheelSettle: [8, 30, 4],
   softPress: 6,
   mechanicalEngage: 5,
   startTimer: [12, 76, 5],
   timerComplete: [16, 480, 10]
 };
+
+export function vintageTimerVibrationPattern(event: VintageTimerHapticEvent) {
+  return fallbackVibration[event];
+}
 
 let detentSequence = 0;
 
@@ -244,7 +248,7 @@ export function playVintageTimerHaptic(event: VintageTimerHapticEvent, options: 
       return;
     }
     if (typeof navigator.vibrate !== "function") return;
-    const vibrate = () => navigator.vibrate(fallbackVibration[event]);
+    const vibrate = () => navigator.vibrate(vintageTimerVibrationPattern(event));
     if (options.delayMs) window.setTimeout(vibrate, options.delayMs);
     else vibrate();
   } catch { /* Haptics remain an optional enhancement. */ }
