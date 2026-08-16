@@ -11,7 +11,8 @@ export const VINTAGE_TIMER_AUDIO_EVENTS = [
   "startMechanical",
   "startRelay",
   "timerCompletePrimary",
-  "timerCompleteSecondary"
+  "timerCompleteSecondary",
+  "timerCompleteChime"
 ] as const;
 
 export const VINTAGE_TIMER_HAPTIC_EVENTS = [
@@ -46,6 +47,11 @@ type HapticOptions = {
 const AUDIO_ROOT = "/audio/vintage-timer";
 export const VINTAGE_TIMER_SOUND_STORAGE_KEY = "vf:vintage-timer-sound";
 export const VINTAGE_TIMER_SOUND_EVENT = "vf:vintage-timer-sound-changed";
+export const VINTAGE_TIMER_COMPLETION_CHIME = {
+  frequencyHz: 523.251,
+  delayMs: 1180,
+  durationMs: 2000
+} as const;
 const audioFiles: Record<VintageTimerAudioEvent, readonly string[]> = {
   wheelDetent: [`${AUDIO_ROOT}/wheel-detent-a.wav`],
   wheelSettle: [`${AUDIO_ROOT}/wheel-settle.wav`],
@@ -54,7 +60,8 @@ const audioFiles: Record<VintageTimerAudioEvent, readonly string[]> = {
   startMechanical: [`${AUDIO_ROOT}/start-mechanical.wav`],
   startRelay: [`${AUDIO_ROOT}/start-relay.wav`],
   timerCompletePrimary: [`${AUDIO_ROOT}/timer-complete-primary.wav`],
-  timerCompleteSecondary: [`${AUDIO_ROOT}/timer-complete-secondary.wav`]
+  timerCompleteSecondary: [`${AUDIO_ROOT}/timer-complete-secondary.wav`],
+  timerCompleteChime: []
 };
 
 const eventGain: Record<VintageTimerAudioEvent, number> = {
@@ -65,7 +72,8 @@ const eventGain: Record<VintageTimerAudioEvent, number> = {
   startMechanical: .22,
   startRelay: .2,
   timerCompletePrimary: .34,
-  timerCompleteSecondary: .3
+  timerCompleteSecondary: .3,
+  timerCompleteChime: .34
 };
 
 const fallbackVibration: Record<VintageTimerHapticEvent, number | number[]> = {
@@ -123,6 +131,7 @@ class VintageTimerAudioManager {
   private preloadPromise: Promise<void> | null = null;
   private activeSources: AudioBufferSourceNode[] = [];
   private activeWheelSource: AudioBufferSourceNode | null = null;
+  private activeOscillators: OscillatorNode[] = [];
 
   preload() {
     if (typeof window === "undefined") return Promise.resolve();
@@ -143,6 +152,15 @@ class VintageTimerAudioManager {
     if (typeof window === "undefined" || !isVintageTimerSoundEnabled()) return;
     const context = this.getContext();
     if (!context) return;
+    if (event === "timerCompleteChime") {
+      const startChime = () => this.playCompletionChime(context, options);
+      if (context.state !== "running") {
+        void context.resume().then(() => {
+          if (isVintageTimerSoundEnabled()) startChime();
+        }).catch(() => undefined);
+      } else startChime();
+      return;
+    }
     const files = audioFiles[event];
     const sequence = event === "wheelDetent" ? detentSequence++ : 0;
     const file = files[sequence % files.length];
@@ -196,6 +214,56 @@ class VintageTimerAudioManager {
     });
     this.activeSources = [];
     this.activeWheelSource = null;
+    this.activeOscillators.forEach(oscillator => {
+      try { oscillator.stop(); } catch { /* The chime voice has already ended. */ }
+    });
+    this.activeOscillators = [];
+  }
+
+  private playCompletionChime(context: AudioContext, options: FeedbackOptions) {
+    const when = context.currentTime + Math.max(0, options.delayMs ?? 0) / 1000;
+    const duration = VINTAGE_TIMER_COMPLETION_CHIME.durationMs / 1000;
+    const volume = eventGain.timerCompleteChime * Math.max(0, options.volumeScale ?? 1);
+    const master = context.createGain();
+    const warmth = context.createBiquadFilter();
+    warmth.type = "lowpass";
+    warmth.frequency.setValueAtTime(4200, when);
+    master.gain.setValueAtTime(.0001, when);
+    master.gain.exponentialRampToValueAtTime(Math.max(.0001, volume), when + .018);
+    master.gain.exponentialRampToValueAtTime(Math.max(.0001, volume * .42), when + .42);
+    master.gain.exponentialRampToValueAtTime(.0001, when + duration);
+    master.connect(warmth).connect(context.destination);
+
+    const partials = [
+      { multiplier: 1, level: 1 },
+      { multiplier: 2, level: .24 },
+      { multiplier: 3, level: .08 }
+    ];
+    let remaining = partials.length;
+    partials.forEach(partial => {
+      const oscillator = context.createOscillator();
+      const partialGain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(
+        VINTAGE_TIMER_COMPLETION_CHIME.frequencyHz * partial.multiplier,
+        when
+      );
+      partialGain.gain.setValueAtTime(partial.level, when);
+      oscillator.connect(partialGain).connect(master);
+      this.activeOscillators.push(oscillator);
+      oscillator.addEventListener("ended", () => {
+        this.activeOscillators = this.activeOscillators.filter(candidate => candidate !== oscillator);
+        oscillator.disconnect();
+        partialGain.disconnect();
+        remaining -= 1;
+        if (remaining === 0) {
+          master.disconnect();
+          warmth.disconnect();
+        }
+      }, { once: true });
+      oscillator.start(when);
+      oscillator.stop(when + duration + .04);
+    });
   }
 
   private getContext() {

@@ -22,7 +22,8 @@ import {
 import {
   playVintageTimerEvent,
   playVintageWheelDetents,
-  preloadVintageTimerFeedback
+  preloadVintageTimerFeedback,
+  VINTAGE_TIMER_COMPLETION_CHIME
 } from "@/lib/vintage-timer-feedback";
 
 const DURATION_PARTS: Array<{
@@ -406,6 +407,9 @@ export function TeaLabDurationSlider({
       setWarm(false);
       playVintageTimerEvent("timerCompletePrimary", "timerComplete");
       window.setTimeout(() => playVintageTimerEvent("timerCompleteSecondary"), 500);
+      playVintageTimerEvent("timerCompleteChime", undefined, {
+        delayMs: VINTAGE_TIMER_COMPLETION_CHIME.delayMs
+      });
     };
     updateRemaining();
     const interval = window.setInterval(updateRemaining, 250);

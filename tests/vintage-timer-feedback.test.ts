@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   VINTAGE_TIMER_AUDIO_EVENTS,
+  VINTAGE_TIMER_COMPLETION_CHIME,
   VINTAGE_TIMER_HAPTIC_EVENTS,
   vintageTimerDetentPlan,
   vintageTimerPitchRate,
@@ -18,7 +19,8 @@ describe("vintage timer feedback contract", () => {
       "startMechanical",
       "startRelay",
       "timerCompletePrimary",
-      "timerCompleteSecondary"
+      "timerCompleteSecondary",
+      "timerCompleteChime"
     ]);
     expect(VINTAGE_TIMER_HAPTIC_EVENTS).toEqual([
       "selectionDetent",
@@ -44,5 +46,13 @@ describe("vintage timer feedback contract", () => {
 
   it("uses one strong short web nudge for every wheel detent", () => {
     expect(vintageTimerVibrationPattern("selectionDetent")).toBe(16);
+  });
+
+  it("finishes with a clearly pitched C chime after the mechanical cue", () => {
+    expect(VINTAGE_TIMER_COMPLETION_CHIME).toEqual({
+      frequencyHz: 523.251,
+      delayMs: 1180,
+      durationMs: 2000
+    });
   });
 });
