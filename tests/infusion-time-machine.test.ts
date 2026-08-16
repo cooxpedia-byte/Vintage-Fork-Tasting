@@ -24,6 +24,8 @@ describe("standalone Infusion Time Machine", () => {
     expect(html).toContain("autoPlay");
     expect(html).toContain("muted");
     expect(html).toContain("playsInline");
+    expect(html).toContain("Tap to engage sound");
+    expect(html).toContain("Preparing the time machine");
   });
 
   it("preloads the mechanical detent before the rest of the sound library", () => {

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { TeaLabDurationSlider } from "@/components/tea-lab/TeaLabBrewSliders";
 import {
   activateVintageTimerFeedback,
+  playVintageTimerEvent,
+  playVintageTimerHaptic,
   preloadVintageTimerFeedback
 } from "@/lib/vintage-timer-feedback";
 
@@ -12,31 +14,33 @@ const OPENING_FILM_DURATION_MS = 8_000;
 const REDUCED_MOTION_DURATION_MS = 700;
 const OPENING_FADE_DURATION_MS = 260;
 
-type OpeningStage = "playing" | "fading" | "complete";
-
 export function InfusionTimeMachineApp() {
   const [durationSeconds, setDurationSeconds] = useState<number | null>(DEFAULT_INFUSION_SECONDS);
-  const [openingStage, setOpeningStage] = useState<OpeningStage>("playing");
+  const [filmComplete, setFilmComplete] = useState(false);
+  const [feedbackReady, setFeedbackReady] = useState(false);
+  const [feedbackEngaging, setFeedbackEngaging] = useState(false);
+  const [openingRemoved, setOpeningRemoved] = useState(false);
+  const openingCanClose = filmComplete && feedbackReady;
 
   useEffect(() => {
     void preloadVintageTimerFeedback();
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const playDuration = reduceMotion ? REDUCED_MOTION_DURATION_MS : OPENING_FILM_DURATION_MS;
-    let removeTimer: number | undefined;
-    const fadeTimer = window.setTimeout(() => {
-      setOpeningStage("fading");
-      removeTimer = window.setTimeout(
-        () => setOpeningStage("complete"),
-        OPENING_FADE_DURATION_MS
-      );
-    }, playDuration);
+    const filmTimer = window.setTimeout(() => setFilmComplete(true), playDuration);
 
-    return () => {
-      window.clearTimeout(fadeTimer);
-      if (removeTimer !== undefined) window.clearTimeout(removeTimer);
-    };
+    return () => window.clearTimeout(filmTimer);
   }, []);
+
+  useEffect(() => {
+    if (!openingCanClose) return;
+    const removeTimer = window.setTimeout(
+      () => setOpeningRemoved(true),
+      OPENING_FADE_DURATION_MS
+    );
+
+    return () => window.clearTimeout(removeTimer);
+  }, [openingCanClose]);
 
   function updateDuration(seconds: number | null) {
     setDurationSeconds(seconds);
@@ -46,6 +50,16 @@ export function InfusionTimeMachineApp() {
     void activateVintageTimerFeedback();
   }
 
+  async function engageFeedback() {
+    if (feedbackReady || feedbackEngaging) return;
+    setFeedbackEngaging(true);
+    playVintageTimerHaptic("mechanicalEngage");
+    await activateVintageTimerFeedback();
+    setFeedbackReady(true);
+    setFeedbackEngaging(false);
+    playVintageTimerEvent("buttonDown");
+  }
+
   return <main
     id="main-content"
     className="infusion-time-machine-page"
@@ -53,9 +67,9 @@ export function InfusionTimeMachineApp() {
   >
     <h1 className="sr-only">Vintage Fork Infusion Time Machine</h1>
     <section
-      className={`infusion-time-machine-shell${openingStage === "playing" ? " is-prewarming" : ""}`}
+      className={`infusion-time-machine-shell${openingCanClose ? "" : " is-prewarming"}`}
       aria-label="Infusion timer"
-      aria-hidden={openingStage === "playing" ? true : undefined}
+      aria-hidden={openingCanClose ? undefined : true}
     >
       <TeaLabDurationSlider
         id="infusion-time-machine"
@@ -66,11 +80,9 @@ export function InfusionTimeMachineApp() {
         onChange={updateDuration}
       />
     </section>
-    {openingStage !== "complete" ? <section
-      className={`infusion-time-machine-opening${openingStage === "fading" ? " is-fading" : ""}`}
-      role="status"
-      aria-live="polite"
-      aria-label="Warming the Infusion Time Machine"
+    {!openingRemoved ? <section
+      className={`infusion-time-machine-opening${openingCanClose ? " is-fading" : filmComplete ? " is-awaiting-gesture" : ""}`}
+      aria-label="Infusion Time Machine opening"
     >
       <video
         className="infusion-time-machine-opening-film"
@@ -91,7 +103,20 @@ export function InfusionTimeMachineApp() {
           type='video/mp4; codecs="avc1"'
         />
       </video>
-      <span className="sr-only">Preparing the timer, sound, and controls.</span>
+      {!feedbackReady ? <button
+        className="infusion-time-machine-engage"
+        type="button"
+        onClick={() => void engageFeedback()}
+        disabled={feedbackEngaging}
+      >
+        <span>{feedbackEngaging ? "Engaging sound…" : "Tap to engage sound"}</span>
+        <small>{filmComplete ? "Required before entering" : "Preparing the time machine"}</small>
+      </button> : null}
+      <span className="sr-only" role="status" aria-live="polite">
+        {feedbackReady
+          ? "Sound is ready. Preparing the timer and controls."
+          : "Tap to engage sound before entering the timer."}
+      </span>
     </section> : null}
   </main>;
 }

@@ -1244,12 +1244,83 @@ body:has(.infusion-time-machine-page)::before { display: none; }
   opacity: 0;
   pointer-events: none;
 }
+.infusion-time-machine-opening.is-awaiting-gesture::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(25,7,23,.28);
+  pointer-events: none;
+}
 .infusion-time-machine-opening-film {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
+}
+.infusion-time-machine-engage {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: max(1.5rem,env(safe-area-inset-bottom));
+  width: min(calc(100% - 2rem),22rem);
+  min-height: 4rem;
+  display: grid;
+  place-content: center;
+  gap: .16rem;
+  padding: .7rem 1.2rem .62rem;
+  border: 3px solid #55300f;
+  border-radius: 999px;
+  color: #2b1308;
+  background:
+    linear-gradient(180deg,rgba(255,247,183,.76),transparent 20%),
+    linear-gradient(180deg,#f2cb69 0%,#b67624 47%,#e6ba55 52%,#8b4d17 100%);
+  box-shadow:
+    inset 0 0 0 2px #ffdf81,
+    inset 0 -8px 14px rgba(64,24,5,.38),
+    0 0 0 2px rgba(19,7,4,.82),
+    0 9px 24px rgba(0,0,0,.48),
+    0 0 24px rgba(231,180,67,.38);
+  font: 800 clamp(.78rem,2vw,1rem)/1.1 Georgia,serif;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.infusion-time-machine-engage small {
+  color: rgba(43,19,8,.76);
+  font: 700 .58rem/1.1 system-ui,sans-serif;
+  letter-spacing: .12em;
+}
+.infusion-time-machine-engage:active {
+  transform: translateX(-50%) translateY(2px) scale(.99);
+  box-shadow:
+    inset 0 3px 11px rgba(64,24,5,.54),
+    inset 0 0 0 2px #e9bd58,
+    0 0 0 2px rgba(19,7,4,.82),
+    0 4px 12px rgba(0,0,0,.48);
+}
+.infusion-time-machine-engage:focus-visible {
+  outline: 3px solid #fff3bd;
+  outline-offset: 4px;
+}
+.infusion-time-machine-engage:disabled {
+  cursor: wait;
+  filter: saturate(.72);
+}
+.infusion-time-machine-opening.is-awaiting-gesture .infusion-time-machine-engage {
+  bottom: 50%;
+  transform: translate(-50%,50%);
+  box-shadow:
+    inset 0 0 0 2px #ffdf81,
+    inset 0 -8px 14px rgba(64,24,5,.38),
+    0 0 0 2px rgba(19,7,4,.82),
+    0 10px 28px rgba(0,0,0,.58),
+    0 0 38px rgba(255,200,75,.58);
+}
+.infusion-time-machine-opening.is-awaiting-gesture .infusion-time-machine-engage:active {
+  transform: translate(-50%,calc(50% + 2px)) scale(.99);
 }
 @media (max-width: 720px) {
   .infusion-time-machine-page {
