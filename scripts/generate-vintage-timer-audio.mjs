@@ -1,126 +1,63 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const sampleRate = 44_100;
-const outputRoot = resolve(process.argv[2] ?? "public/audio/vintage-timer");
+const expectedSourceSha256 = "f768c4b0b1cb5c96792c287112628bbe3e7b7bfdcd0afa8704129d064bee1bef";
+const sourcePath = process.argv[2] ? resolve(process.argv[2]) : null;
+const outputRoot = resolve(process.argv[3] ?? "public/audio/vintage-timer");
 
-function randomSource(seed) {
-  let state = seed >>> 0;
-  return () => {
-    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
-    return state / 0xffff_ffff * 2 - 1;
-  };
+if (!sourcePath) {
+  console.error("Usage: node scripts/generate-vintage-timer-audio.mjs <licensed-source.mov> [output-directory]");
+  process.exit(2);
 }
 
-function envelope(time, attack, decay) {
-  return Math.min(1, time / attack) * Math.exp(-time / decay);
+const sourceHash = createHash("sha256").update(await readFile(sourcePath)).digest("hex");
+if (sourceHash !== expectedSourceSha256) {
+  console.error(`Refusing unexpected source audio: SHA-256 ${sourceHash}`);
+  process.exit(2);
 }
 
-function impulse(time, start, attack, decay) {
-  if (time < start) return 0;
-  return envelope(time - start, attack, decay);
-}
-
-function detent(seed, bodyHz, metalHz) {
-  const random = randomSource(seed);
-  let noiseBody = 0;
-  return synthesize(0.055, (time) => {
-    const rawNoise = random();
-    noiseBody = noiseBody * 0.58 + rawNoise * 0.42;
-    const contact = (rawNoise - noiseBody) * envelope(time, 0.0008, 0.012);
-    const body = Math.sin(2 * Math.PI * bodyHz * time) * envelope(time, 0.0012, 0.022);
-    const metal = Math.sin(2 * Math.PI * metalHz * time + 0.2) * envelope(time, 0.0006, 0.009);
-    return contact * 0.38 + body * 0.28 + metal * 0.13;
-  });
-}
-
-function warmImpact(seed, duration, bodyHz, metalHz, secondaryAt = null) {
-  const random = randomSource(seed);
-  let filtered = 0;
-  return synthesize(duration, (time) => {
-    const first = impulse(time, 0, 0.0015, 0.038);
-    const second = secondaryAt === null ? 0 : impulse(time, secondaryAt, 0.001, 0.03);
-    const energy = first + second * 0.62;
-    const noise = random();
-    filtered = filtered * 0.76 + noise * 0.24;
-    const body = Math.sin(2 * Math.PI * bodyHz * time) * energy;
-    const shell = Math.sin(2 * Math.PI * metalHz * time + 0.35) * energy;
-    return body * 0.38 + shell * 0.17 + filtered * energy * 0.22;
-  });
-}
-
-function brassChime(seed, duration, fundamental, strikeAt = 0) {
-  const random = randomSource(seed);
-  return synthesize(duration, (time) => {
-    if (time < strikeAt) return 0;
-    const localTime = time - strikeAt;
-    const attack = Math.min(1, localTime / 0.004);
-    const strike = random() * envelope(localTime, 0.0008, 0.018) * 0.07;
-    const partials = [
-      [1, 0.52, 0.72],
-      [2.01, 0.23, 0.43],
-      [2.67, 0.13, 0.31],
-      [4.06, 0.07, 0.19]
-    ];
-    const tone = partials.reduce((sum, [ratio, gain, decay]) => (
-      sum + Math.sin(2 * Math.PI * fundamental * ratio * localTime) * gain * Math.exp(-localTime / decay)
-    ), 0);
-    return tone * attack + strike;
-  });
-}
-
-function synthesize(durationSeconds, sampleAt) {
-  const samples = new Float64Array(Math.ceil(durationSeconds * sampleRate));
-  let peak = 0;
-  for (let index = 0; index < samples.length; index += 1) {
-    const value = sampleAt(index / sampleRate);
-    samples[index] = value;
-    peak = Math.max(peak, Math.abs(value));
-  }
-  const scale = peak > 0 ? 0.78 / peak : 1;
-  const pcm = new Int16Array(samples.length);
-  for (let index = 0; index < samples.length; index += 1) {
-    pcm[index] = Math.round(Math.max(-1, Math.min(1, samples[index] * scale)) * 32_767);
-  }
-  return wavFile(pcm);
-}
-
-function wavFile(samples) {
-  const dataSize = samples.length * 2;
-  const buffer = Buffer.alloc(44 + dataSize);
-  buffer.write("RIFF", 0);
-  buffer.writeUInt32LE(36 + dataSize, 4);
-  buffer.write("WAVE", 8);
-  buffer.write("fmt ", 12);
-  buffer.writeUInt32LE(16, 16);
-  buffer.writeUInt16LE(1, 20);
-  buffer.writeUInt16LE(1, 22);
-  buffer.writeUInt32LE(sampleRate, 24);
-  buffer.writeUInt32LE(sampleRate * 2, 28);
-  buffer.writeUInt16LE(2, 32);
-  buffer.writeUInt16LE(16, 34);
-  buffer.write("data", 36);
-  buffer.writeUInt32LE(dataSize, 40);
-  for (let index = 0; index < samples.length; index += 1) {
-    buffer.writeInt16LE(samples[index], 44 + index * 2);
-  }
-  return buffer;
-}
-
-const sounds = new Map([
-  ["wheel-detent-a.wav", detent(0x5646_1001, 620, 2_480)],
-  ["wheel-detent-b.wav", detent(0x5646_1002, 655, 2_360)],
-  ["wheel-detent-c.wav", detent(0x5646_1003, 590, 2_610)],
-  ["wheel-detent-d.wav", detent(0x5646_1004, 685, 2_290)],
-  ["wheel-settle.wav", warmImpact(0x5646_2001, 0.105, 430, 1_640, 0.032)],
-  ["button-down.wav", warmImpact(0x5646_3001, 0.07, 520, 1_920)],
-  ["button-release.wav", warmImpact(0x5646_3002, 0.085, 460, 1_520, 0.026)],
-  ["start-mechanical.wav", warmImpact(0x5646_4001, 0.19, 245, 980, 0.058)],
-  ["start-relay.wav", warmImpact(0x5646_4002, 0.09, 710, 2_140)],
-  ["timer-complete-primary.wav", brassChime(0x5646_5001, 0.95, 698.46)],
-  ["timer-complete-secondary.wav", brassChime(0x5646_5002, 0.82, 523.25)]
-]);
+const clips = [
+  { filename: "wheel-detent-a.wav", start: .380, duration: .060, fadeOut: .012, gain: .78 },
+  { filename: "wheel-detent-b.wav", start: .380, duration: .060, fadeOut: .012, gain: .78 },
+  { filename: "wheel-detent-c.wav", start: .380, duration: .060, fadeOut: .012, gain: .78 },
+  { filename: "wheel-detent-d.wav", start: .380, duration: .060, fadeOut: .012, gain: .78 },
+  { filename: "wheel-settle.wav", start: 7.210, duration: .380, fadeOut: .045, gain: .78 },
+  { filename: "button-down.wav", start: 8.655, duration: .120, fadeOut: .025, gain: .8 },
+  { filename: "button-release.wav", start: 8.858, duration: .115, fadeOut: .025, gain: .8 },
+  { filename: "start-mechanical.wav", start: .145, duration: .830, fadeOut: .060, gain: .72 },
+  { filename: "start-relay.wav", start: 9.318, duration: .115, fadeOut: .025, gain: .8 },
+  { filename: "timer-complete-primary.wav", start: 10.820, duration: .720, fadeOut: .055, gain: .72 },
+  { filename: "timer-complete-secondary.wav", start: 11.650, duration: .680, fadeOut: .070, gain: .72 }
+];
 
 await mkdir(outputRoot, { recursive: true });
-await Promise.all([...sounds].map(([filename, contents]) => writeFile(resolve(outputRoot, filename), contents)));
-console.log(`Generated ${sounds.size} original Vintage Fork timer sounds in ${outputRoot}`);
+for (const clip of clips) {
+  const fadeOutStart = Math.max(.01, clip.duration - clip.fadeOut);
+  const filter = [
+    "highpass=f=120",
+    "lowpass=f=15500",
+    `volume=${clip.gain}`,
+    "afade=t=in:st=0:d=0.004",
+    `afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${clip.fadeOut}`,
+    "alimiter=limit=.92"
+  ].join(",");
+  const result = spawnSync("ffmpeg", [
+    "-y",
+    "-hide_banner",
+    "-loglevel", "error",
+    "-ss", String(clip.start),
+    "-i", sourcePath,
+    "-t", String(clip.duration),
+    "-vn",
+    "-af", filter,
+    "-ar", "44100",
+    "-ac", "2",
+    "-c:a", "pcm_s16le",
+    resolve(outputRoot, clip.filename)
+  ], { stdio: "inherit" });
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}
+
+console.log(`Prepared ${clips.length} licensed Vintage Fork timer sounds in ${outputRoot}`);

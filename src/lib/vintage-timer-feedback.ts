@@ -45,12 +45,7 @@ type HapticOptions = {
 
 const AUDIO_ROOT = "/audio/vintage-timer";
 const audioFiles: Record<VintageTimerAudioEvent, readonly string[]> = {
-  wheelDetent: [
-    `${AUDIO_ROOT}/wheel-detent-a.wav`,
-    `${AUDIO_ROOT}/wheel-detent-b.wav`,
-    `${AUDIO_ROOT}/wheel-detent-c.wav`,
-    `${AUDIO_ROOT}/wheel-detent-d.wav`
-  ],
+  wheelDetent: [`${AUDIO_ROOT}/wheel-detent-a.wav`],
   wheelSettle: [`${AUDIO_ROOT}/wheel-settle.wav`],
   buttonDown: [`${AUDIO_ROOT}/button-down.wav`],
   buttonRelease: [`${AUDIO_ROOT}/button-release.wav`],
@@ -61,14 +56,14 @@ const audioFiles: Record<VintageTimerAudioEvent, readonly string[]> = {
 };
 
 const eventGain: Record<VintageTimerAudioEvent, number> = {
-  wheelDetent: .13,
-  wheelSettle: .18,
-  buttonDown: .16,
-  buttonRelease: .13,
-  startMechanical: .28,
-  startRelay: .16,
-  timerCompletePrimary: .48,
-  timerCompleteSecondary: .38
+  wheelDetent: .22,
+  wheelSettle: .24,
+  buttonDown: .2,
+  buttonRelease: .2,
+  startMechanical: .22,
+  startRelay: .2,
+  timerCompletePrimary: .34,
+  timerCompleteSecondary: .3
 };
 
 const fallbackVibration: Record<VintageTimerHapticEvent, number | number[]> = {
@@ -83,8 +78,8 @@ const fallbackVibration: Record<VintageTimerHapticEvent, number | number[]> = {
 let detentSequence = 0;
 
 export function vintageTimerPitchRate(sequence: number) {
-  const variations = [-.024, .013, -.008, .026, -.017, .006];
-  return 1 + variations[Math.abs(sequence) % variations.length];
+  void sequence;
+  return 1;
 }
 
 export function vintageTimerDetentPlan(count: number, intervalMs: number) {
@@ -145,10 +140,9 @@ class VintageTimerAudioManager {
       const gain = context.createGain();
       const interval = Math.max(12, options.detentIntervalMs ?? 46);
       const velocityGain = event === "wheelDetent" ? Math.max(.58, Math.min(1, interval / 42)) : 1;
-      const variation = event === "wheelDetent" ? 1 + ((sequence % 5) - 2) * .006 : 1;
       source.buffer = buffer;
       source.playbackRate.value = event === "wheelDetent" ? vintageTimerPitchRate(sequence) : 1;
-      gain.gain.value = eventGain[event] * velocityGain * variation * (options.volumeScale ?? 1);
+      gain.gain.value = eventGain[event] * velocityGain * (options.volumeScale ?? 1);
       source.connect(gain).connect(context.destination);
       const when = context.currentTime + Math.max(0, options.delayMs ?? 0) / 1000;
       this.activeSources.push(source);

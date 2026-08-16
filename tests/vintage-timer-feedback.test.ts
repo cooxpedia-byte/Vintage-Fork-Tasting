@@ -29,11 +29,9 @@ describe("vintage timer feedback contract", () => {
     ]);
   });
 
-  it("keeps detent pitch character within plus or minus three percent", () => {
+  it("keeps every detent at one exact pitch for an even mechanical groove", () => {
     const rates = Array.from({ length: 18 }, (_, sequence) => vintageTimerPitchRate(sequence));
-    expect(new Set(rates).size).toBeGreaterThanOrEqual(4);
-    expect(Math.min(...rates)).toBeGreaterThanOrEqual(.97);
-    expect(Math.max(...rates)).toBeLessThanOrEqual(1.03);
+    expect(new Set(rates)).toEqual(new Set([1]));
   });
 
   it("preserves slow detents and caps very fast overlapping voices", () => {
