@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import InfusionTimeMachinePage from "@/app/infusion-time-machine/page";
@@ -43,5 +44,12 @@ describe("standalone Infusion Time Machine", () => {
     expect(html).toContain('as="fetch"');
     expect(html).toContain('href="/brand/loading-wallpaper.jpg"');
     expect(html).toContain('as="image"');
+  });
+
+  it("keeps the tea preset bank fixed inside short embedded app viewports", () => {
+    const css = readFileSync("src/app/globals.css", "utf8");
+
+    expect(css).toMatch(/\.infusion-time-machine-presets\s*\{[^}]*position:\s*fixed/);
+    expect(css).toMatch(/\.infusion-time-machine-presets\s*\{[^}]*bottom:\s*max\(/);
   });
 });

@@ -1234,7 +1234,7 @@ body:has(.infusion-time-machine-page)::before { display: none; }
   padding:
     max(.75rem,env(safe-area-inset-top))
     max(.75rem,env(safe-area-inset-right))
-    max(.75rem,env(safe-area-inset-bottom))
+    max(7.5rem,calc(6.75rem + env(safe-area-inset-bottom)))
     max(.75rem,env(safe-area-inset-left));
 }
 .infusion-time-machine-shell { width: min(100%,1120px); }
@@ -1243,7 +1243,7 @@ body:has(.infusion-time-machine-page)::before { display: none; }
   pointer-events: none;
 }
 .infusion-time-machine-shell .tea-lab-duration-field { margin: 0; }
-.infusion-time-machine-presets { width: min(100%,1120px); padding: .25rem; border: 4px double #8d5c2c; border-radius: 18px; background: repeating-linear-gradient(90deg,rgba(255,255,255,.015) 0 1px,transparent 1px 7px),linear-gradient(145deg,#28221b,#0f1010 54%,#251b14); box-shadow: inset 0 0 0 3px #090907,inset 0 0 24px #000,0 8px 18px rgba(0,0,0,.58); }
+.infusion-time-machine-presets { position: fixed; z-index: 80; left: 50%; bottom: max(.5rem,env(safe-area-inset-bottom)); width: min(calc(100% - 1.5rem),1120px); padding: .25rem; border: 4px double #8d5c2c; border-radius: 18px; transform: translateX(-50%); background: repeating-linear-gradient(90deg,rgba(255,255,255,.015) 0 1px,transparent 1px 7px),linear-gradient(145deg,#28221b,#0f1010 54%,#251b14); box-shadow: inset 0 0 0 3px #090907,inset 0 0 24px #000,0 8px 18px rgba(0,0,0,.58),0 -8px 24px rgba(0,0,0,.28); }
 .infusion-time-machine-preset-bank { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: clamp(.34rem,.8vw,.65rem); padding: clamp(.4rem,.9vw,.7rem); }
 .infusion-time-machine-preset { position: relative; min-width: 0; min-height: clamp(62px,7.5vw,82px); display: grid; place-content: center; gap: .2rem; padding: .55rem .3rem .45rem; border: 3px double #74461f; border-radius: 10px; color: #2a170a; background: repeating-linear-gradient(104deg,rgba(255,255,255,.09) 0 1px,transparent 1px 7px),linear-gradient(180deg,#e0b15f 0%,#a8692e 36%,#d39b4d 53%,#72411e 100%); box-shadow: inset 0 1px #ffe09a,inset 0 -5px 8px rgba(57,26,8,.46),inset 0 0 0 2px rgba(71,33,13,.32),0 4px 0 #21130c,0 8px 10px rgba(0,0,0,.5); cursor: pointer; font-family: var(--font-display); text-align: center; text-transform: uppercase; transition: filter 110ms ease,transform 70ms ease,box-shadow 70ms ease; -webkit-tap-highlight-color: transparent; }
 .infusion-time-machine-preset::before { content: ""; position: absolute; inset: 4px; border: 1px solid rgba(255,224,154,.34); border-radius: 6px; pointer-events: none; }
@@ -1354,10 +1354,10 @@ body:has(.infusion-time-machine-page)::before { display: none; }
     padding:
       max(.35rem,env(safe-area-inset-top))
       max(.28rem,env(safe-area-inset-right))
-      max(.5rem,env(safe-area-inset-bottom))
+      max(6.6rem,calc(6rem + env(safe-area-inset-bottom)))
       max(.28rem,env(safe-area-inset-left));
   }
-  .infusion-time-machine-presets { overflow: hidden; border-width: 3px; border-radius: 14px; }
+  .infusion-time-machine-presets { bottom: max(.28rem,env(safe-area-inset-bottom)); width: calc(100% - .56rem); overflow: hidden; border-width: 3px; border-radius: 14px; }
   .infusion-time-machine-preset-bank { grid-template-columns: none; grid-auto-columns: minmax(112px,34vw); grid-auto-flow: column; overflow-x: auto; padding: .45rem .4rem .65rem; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
   .infusion-time-machine-preset { min-height: 62px; scroll-snap-align: start; }
 }
