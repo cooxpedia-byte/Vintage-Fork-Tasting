@@ -2718,3 +2718,116 @@ body:has(.infusion-time-machine-page) {
     transition: none!important;
   }
 }
+
+/* Photorealistic header module for the standalone Infusion Time Machine. */
+.infusion-time-machine-page .tea-lab-duration-field[data-timer-machine="true"] .machine-header {
+  position: relative;
+  display: block;
+  aspect-ratio: 2048 / 672;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: url("/time-machine/infusion-time-machine-header-reference.png") center / 100% 100% no-repeat;
+  box-shadow: none;
+}
+
+.infusion-time-machine-page .machine-header .machine-brand-medallion,
+.infusion-time-machine-page .machine-header .machine-identification-plate {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.infusion-time-machine-page .machine-header .machine-header-controls {
+  display: contents;
+}
+
+.infusion-time-machine-page .machine-header .tea-lab-duration-sound-switch,
+.infusion-time-machine-page .machine-header .tea-lab-duration-power-switch {
+  position: absolute;
+  z-index: 3;
+  top: 24%;
+  height: 51%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: clamp(.18rem,.6vw,.48rem) clamp(.08rem,.25vw,.2rem);
+  border: 1px solid #795128;
+  border-radius: 9%;
+  color: #d8bd82;
+  background:
+    repeating-linear-gradient(91deg,rgba(255,255,255,.024) 0 1px,transparent 1px 6px),
+    linear-gradient(145deg,rgba(55,48,39,.98),rgba(13,14,13,.99) 54%,rgba(40,32,24,.98));
+  box-shadow:
+    inset 0 0 0 2px #090908,
+    inset 0 0 12px #000,
+    0 2px 5px rgba(0,0,0,.78);
+  opacity: 1;
+  cursor: pointer;
+}
+
+.infusion-time-machine-page .machine-header .tea-lab-duration-sound-switch {
+  left: 71.2%;
+  width: 8.35%;
+  gap: clamp(.08rem,.35vw,.28rem);
+}
+
+.infusion-time-machine-page .machine-header .tea-lab-duration-power-switch {
+  left: 82.55%;
+  width: 7.55%;
+  grid-template-rows: auto minmax(0,1fr) auto;
+  gap: clamp(.06rem,.24vw,.2rem);
+}
+
+.infusion-time-machine-page .machine-header .tea-lab-duration-sound-switch small,
+.infusion-time-machine-page .machine-header .tea-lab-duration-sound-switch strong,
+.infusion-time-machine-page .machine-header .tea-lab-duration-switch-on,
+.infusion-time-machine-page .machine-header .tea-lab-duration-switch-off {
+  font-size: clamp(.25rem,.72vw,.68rem)!important;
+  letter-spacing: .08em!important;
+  text-shadow: 0 1px 2px #000;
+}
+
+.infusion-time-machine-page .machine-header .machine-sound-lamp {
+  width: clamp(7px,1.35vw,18px);
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.infusion-time-machine-page .machine-header .tea-lab-duration-sound-switch[data-on="false"] .machine-sound-lamp {
+  background: #2a1d11;
+  box-shadow: inset 0 0 5px #000;
+}
+
+.infusion-time-machine-page .machine-header .tea-lab-duration-switch-lever {
+  width: 70%;
+  max-width: clamp(18px,3vw,42px);
+}
+
+.infusion-time-machine-page .machine-header .tea-lab-duration-sound-switch:hover,
+.infusion-time-machine-page .machine-header .tea-lab-duration-power-switch:hover {
+  filter: brightness(1.12);
+}
+
+.infusion-time-machine-page .machine-header .tea-lab-duration-sound-switch:active,
+.infusion-time-machine-page .machine-header .tea-lab-duration-power-switch:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 720px) {
+  .infusion-time-machine-page .machine-header .tea-lab-duration-sound-switch,
+  .infusion-time-machine-page .machine-header .tea-lab-duration-power-switch {
+    padding: .08rem .04rem;
+    border-width: 1px;
+    box-shadow: inset 0 0 0 1px #090908,inset 0 0 6px #000,0 1px 3px rgba(0,0,0,.72);
+  }
+
+  .infusion-time-machine-page .machine-header .tea-lab-duration-sound-switch small,
+  .infusion-time-machine-page .machine-header .tea-lab-duration-sound-switch strong,
+  .infusion-time-machine-page .machine-header .tea-lab-duration-switch-on,
+  .infusion-time-machine-page .machine-header .tea-lab-duration-switch-off {
+    font-size: clamp(.22rem,1.18vw,.36rem)!important;
+    letter-spacing: .035em!important;
+  }
+}
