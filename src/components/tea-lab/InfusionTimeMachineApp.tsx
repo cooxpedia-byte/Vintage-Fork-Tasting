@@ -16,6 +16,16 @@ const DEFAULT_INFUSION_SECONDS = 2 * 60;
 const OPENING_FILM_DURATION_MS = 8_000;
 const REDUCED_MOTION_DURATION_MS = 700;
 const OPENING_FADE_DURATION_MS = 260;
+const MACHINE_IMAGE_ASSETS = [
+  "/brand/vintage-fork-icon.jpg",
+  "/brand/vintage-fork-timer-mark.png",
+  "/time-machine/infusion-time-machine-header-reference.png",
+  "/split-flap/split-flap-machine-housing-v1.png"
+] as const;
+
+type VintageForkMobileWindow = Window & typeof globalThis & {
+  VintageForkMobile?: { postMessage: (message: string) => void };
+};
 
 const TEA_TIMER_PRESETS = [
   { id: "green", label: "Green", seconds: 2 * 60 },
@@ -31,25 +41,83 @@ function presetDurationLabel(seconds: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+function preloadMachineImage(src: string) {
+  return new Promise<void>(resolve => {
+    const image = new Image();
+    const finish = () => resolve();
+    image.addEventListener("load", finish, { once: true });
+    image.addEventListener("error", finish, { once: true });
+    image.src = src;
+    if (image.complete) {
+      void image.decode().catch(() => undefined).finally(finish);
+    }
+  });
+}
+
+function waitForMachinePaint() {
+  return new Promise<void>(resolve => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
+async function prewarmInfusionTimeMachine() {
+  await Promise.allSettled([
+    preloadVintageTimerFeedback(),
+    ...MACHINE_IMAGE_ASSETS.map(preloadMachineImage),
+    document.fonts?.ready ?? Promise.resolve()
+  ]);
+  await waitForMachinePaint();
+}
+
 export function InfusionTimeMachineApp() {
   const [durationSeconds, setDurationSeconds] = useState<number | null>(DEFAULT_INFUSION_SECONDS);
   const [filmComplete, setFilmComplete] = useState(false);
   const [feedbackReady, setFeedbackReady] = useState(false);
   const [feedbackEngaging, setFeedbackEngaging] = useState(false);
   const [openingRemoved, setOpeningRemoved] = useState(false);
+  const [machineReady, setMachineReady] = useState(false);
+  const [embeddedInMobile, setEmbeddedInMobile] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [timerRevision, setTimerRevision] = useState(0);
-  const openingCanClose = filmComplete && feedbackReady;
+  const openingCanClose = machineReady && (
+    embeddedInMobile || (filmComplete && feedbackReady)
+  );
 
   useEffect(() => {
-    void preloadVintageTimerFeedback();
+    let cancelled = false;
+    void prewarmInfusionTimeMachine().then(() => {
+      if (cancelled) return;
+      setMachineReady(true);
+      try {
+        (window as VintageForkMobileWindow).VintageForkMobile?.postMessage(JSON.stringify({
+          type: "vintageTimerReady"
+        }));
+      } catch { /* The native bridge is optional. */ }
+    });
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const playDuration = reduceMotion ? REDUCED_MOTION_DURATION_MS : OPENING_FILM_DURATION_MS;
     const filmTimer = window.setTimeout(() => setFilmComplete(true), playDuration);
 
-    return () => window.clearTimeout(filmTimer);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(filmTimer);
+    };
+  }, []);
+
+  useEffect(() => {
+    const enterEmbeddedMode = () => {
+      setEmbeddedInMobile(true);
+      setFeedbackReady(true);
+      setFilmComplete(true);
+    };
+    const query = new URLSearchParams(window.location.search);
+    if (query.has("mobileRelease")) enterEmbeddedMode();
+    window.addEventListener("vintagefork:mobile-context", enterEmbeddedMode);
+    return () => window.removeEventListener("vintagefork:mobile-context", enterEmbeddedMode);
   }, []);
 
   useEffect(() => {
@@ -150,6 +218,8 @@ export function InfusionTimeMachineApp() {
       className={`infusion-time-machine-shell${openingCanClose ? "" : " is-prewarming"}`}
       aria-label="Infusion timer"
       aria-hidden={openingCanClose ? undefined : true}
+      data-machine-ready={machineReady ? "true" : "false"}
+      data-mobile-embedded={embeddedInMobile ? "true" : "false"}
     >
       <TeaLabDurationSlider
         key={`time-machine-${timerRevision}`}
@@ -220,8 +290,10 @@ export function InfusionTimeMachineApp() {
         <small>{filmComplete ? "Required before entering" : "Preparing the time machine"}</small>
       </button> : null}
       <span className="sr-only" role="status" aria-live="polite">
-        {feedbackReady
+        {machineReady && feedbackReady
           ? "Sound is ready. Preparing the timer and controls."
+          : feedbackReady
+            ? "Warming the timer, controls and feedback."
           : soundEnabled
             ? "Tap to engage sound before entering the timer."
             : "Tap to enter the timer."}

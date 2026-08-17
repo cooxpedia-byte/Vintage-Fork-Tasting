@@ -67,6 +67,9 @@ describe("standalone Infusion Time Machine", () => {
     expect(html).toContain('as="fetch"');
     expect(html).toContain('href="/brand/loading-wallpaper.jpg"');
     expect(html).toContain('as="image"');
+    expect(html).toContain('href="/time-machine/infusion-time-machine-header-reference.png"');
+    expect(html).toContain('href="/split-flap/split-flap-machine-housing-v1.png"');
+    expect(html).toContain('href="/brand/vintage-fork-icon.jpg"');
   });
 
   it("uses a scoped material token system and a deliberate mobile preset rail", () => {
@@ -123,5 +126,8 @@ describe("standalone Infusion Time Machine", () => {
     expect(sliderSource).toContain('playVintageTimerEvent("timerCompletePrimary", "timerComplete")');
     expect(appSource).toContain('playVintageTimerEvent("buttonDown", "selectionDetent")');
     expect(appSource).toContain("const OPENING_FILM_DURATION_MS = 8_000");
+    expect(appSource).toContain("prewarmInfusionTimeMachine");
+    expect(appSource).toContain('query.has("mobileRelease")');
+    expect(appSource).toContain('type: "vintageTimerReady"');
   });
 });

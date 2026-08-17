@@ -50,6 +50,21 @@ export default function InfusionTimeMachinePage() {
     />
     <link
       rel="preload"
+      href="/time-machine/infusion-time-machine-header-reference.png"
+      as="image"
+    />
+    <link
+      rel="preload"
+      href="/split-flap/split-flap-machine-housing-v1.png"
+      as="image"
+    />
+    <link
+      rel="preload"
+      href="/brand/vintage-fork-icon.jpg"
+      as="image"
+    />
+    <link
+      rel="preload"
       href="/audio/vintage-timer/wheel-detent-a.wav"
       as="fetch"
       crossOrigin="anonymous"

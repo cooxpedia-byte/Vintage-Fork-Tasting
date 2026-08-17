@@ -156,6 +156,23 @@ class VintageTimerAudioManager {
 
   play(event: VintageTimerAudioEvent, options: FeedbackOptions = {}) {
     if (typeof window === "undefined" || !isVintageTimerSoundEnabled()) return;
+    const mobileBridge = (window as AudioContextWindow).VintageForkMobile;
+    if (mobileBridge && event !== "timerCompleteChime") {
+      const send = () => {
+        try {
+          mobileBridge.postMessage(JSON.stringify({
+            type: "vintageTimerAudio",
+            event,
+            delayMs: 0,
+            detentIntervalMs: Math.max(12, options.detentIntervalMs ?? 46),
+            volumeScale: Math.max(0, options.volumeScale ?? 1)
+          }));
+        } catch { /* Native audio remains an optional fast path. */ }
+      };
+      if (options.delayMs) window.setTimeout(send, options.delayMs);
+      else send();
+      return;
+    }
     const context = this.getContext();
     if (!context) return;
     if (event === "timerCompleteChime") {
