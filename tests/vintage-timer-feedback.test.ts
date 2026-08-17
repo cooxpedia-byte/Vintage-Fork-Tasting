@@ -1,13 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   VINTAGE_TIMER_AUDIO_EVENTS,
   VINTAGE_TIMER_COMPLETION_CHIME,
   VINTAGE_TIMER_HAPTIC_EVENTS,
+  playVintageWheelDetents,
+  vintageTimerAudio,
   vintageTimerDetentPlan,
   vintageTimerPitchRate,
   vintageTimerVibrationPattern
 } from "@/lib/vintage-timer-feedback";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("vintage timer feedback contract", () => {
   it("keeps the required shared event vocabulary stable", () => {
@@ -42,6 +49,24 @@ describe("vintage timer feedback contract", () => {
     expect(vintageTimerDetentPlan(2, 90)).toEqual({ count: 2, spacingMs: 90 });
     const fast = vintageTimerDetentPlan(60, 12);
     expect(fast).toEqual({ count: 60, spacingMs: 64 });
+  });
+
+  it("plays every accepted wheel change immediately without a cancellable middle queue", () => {
+    vi.stubGlobal("window", {
+      localStorage: { getItem: () => null },
+      matchMedia: () => ({ matches: false })
+    });
+    vi.stubGlobal("navigator", { vibrate: vi.fn() });
+    const play = vi.spyOn(vintageTimerAudio, "play").mockImplementation(() => undefined);
+
+    playVintageWheelDetents(1, 48);
+    playVintageWheelDetents(1, 48);
+    playVintageWheelDetents(1, 48);
+
+    expect(play).toHaveBeenCalledTimes(3);
+    expect(play).toHaveBeenNthCalledWith(1, "wheelDetent", { detentIntervalMs: 64 });
+    expect(play).toHaveBeenNthCalledWith(2, "wheelDetent", { detentIntervalMs: 64 });
+    expect(play).toHaveBeenNthCalledWith(3, "wheelDetent", { detentIntervalMs: 64 });
   });
 
   it("uses one strong short web nudge for every wheel detent", () => {

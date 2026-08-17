@@ -362,34 +362,6 @@ export function setVintageTimerSoundEnabled(enabled: boolean) {
   return vintageTimerAudio.activate().catch(() => undefined);
 }
 
-let pendingWheelPulses = 0;
-let wheelCadenceMs = 64;
-let wheelCadenceTimer: number | null = null;
-let lastWheelPulseAt = 0;
-
-function stopVintageWheelCadence() {
-  pendingWheelPulses = 0;
-  if (wheelCadenceTimer !== null && typeof window !== "undefined") {
-    window.clearTimeout(wheelCadenceTimer);
-  }
-  wheelCadenceTimer = null;
-}
-
-function scheduleVintageWheelPulse() {
-  if (typeof window === "undefined" || wheelCadenceTimer !== null || pendingWheelPulses === 0) return;
-  const elapsed = lastWheelPulseAt ? window.performance.now() - lastWheelPulseAt : wheelCadenceMs;
-  const waitMs = Math.max(0, wheelCadenceMs - elapsed);
-  wheelCadenceTimer = window.setTimeout(() => {
-    wheelCadenceTimer = null;
-    if (pendingWheelPulses === 0) return;
-    pendingWheelPulses -= 1;
-    lastWheelPulseAt = window.performance.now();
-    vintageTimerAudio.play("wheelDetent", { detentIntervalMs: wheelCadenceMs });
-    playVintageTimerHaptic("selectionDetent", { count: 1, intervalMs: wheelCadenceMs });
-    scheduleVintageWheelPulse();
-  }, waitMs);
-}
-
 export function preloadVintageTimerFeedback() {
   return vintageTimerAudio.preload();
 }
@@ -426,14 +398,21 @@ export function playVintageTimerEvent(
   hapticEvent?: VintageTimerHapticEvent,
   options: FeedbackOptions & HapticOptions = {}
 ) {
-  if (audioEvent === "wheelSettle") stopVintageWheelCadence();
   vintageTimerAudio.play(audioEvent, options);
   if (hapticEvent) playVintageTimerHaptic(hapticEvent, options);
 }
 
 export function playVintageWheelDetents(count: number, intervalMs: number) {
   const plan = vintageTimerDetentPlan(count, intervalMs);
-  wheelCadenceMs = plan.spacingMs;
-  pendingWheelPulses += plan.count;
-  scheduleVintageWheelPulse();
+  const playPulse = () => {
+    vintageTimerAudio.play("wheelDetent", { detentIntervalMs: plan.spacingMs });
+    playVintageTimerHaptic("selectionDetent", {
+      count: 1,
+      intervalMs: plan.spacingMs
+    });
+  };
+  for (let pulse = 0; pulse < plan.count; pulse += 1) {
+    if (pulse === 0 || typeof window === "undefined") playPulse();
+    else window.setTimeout(playPulse, pulse * plan.spacingMs);
+  }
 }
