@@ -1709,6 +1709,19 @@ body:has(.infusion-time-machine-page) {
   box-shadow: inset 0 0 0 2px #050606,inset 0 0 22px #000,0 0 0 3px #9b6831,0 5px 12px rgba(0,0,0,.62);
 }
 
+.tea-lab-duration-field[data-timer-machine="true"] .machine-clock-output:has(.machine-split-flap-module) {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.machine-split-flap-module {
+  width: 100%;
+}
+
 .machine-clock {
   width: 100%;
   min-width: 0;

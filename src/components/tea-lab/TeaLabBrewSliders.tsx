@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SplitFlapTimer } from "@/components/split-flap";
 import {
   useEffect,
   useRef,
@@ -87,75 +88,6 @@ const MACHINE_STATUS_LABELS: Record<MachineTimerStatus, string> = {
   paused: "Paused",
   complete: "Complete"
 };
-
-function SplitFlapDigit({ value }: { value: string }) {
-  const [transition, setTransition] = useState({
-    previous: value,
-    current: value,
-    sequence: 0
-  });
-
-  if (transition.current !== value) {
-    setTransition({
-      previous: transition.current,
-      current: value,
-      sequence: transition.sequence + 1
-    });
-  }
-
-  return <span className="machine-odometer-digit" aria-hidden="true">
-    <span
-      className="machine-split-flap"
-      data-changing={transition.previous === transition.current ? "false" : "true"}
-      key={transition.sequence}
-    >
-      <span className="machine-split-flap-face machine-split-flap-top">
-        <span>{transition.current}</span>
-      </span>
-      <span className="machine-split-flap-face machine-split-flap-bottom">
-        <span>{transition.current}</span>
-      </span>
-      {transition.previous !== transition.current ? <>
-        <span className="machine-split-flap-face machine-split-flap-flip-out">
-          <span>{transition.previous}</span>
-        </span>
-        <span className="machine-split-flap-face machine-split-flap-flip-in">
-          <span>{transition.current}</span>
-        </span>
-      </> : null}
-      <span className="machine-split-flap-seam" />
-    </span>
-  </span>;
-}
-
-function MechanicalClock({ totalSeconds }: { totalSeconds: number }) {
-  const parts = splitTeaLabDuration(totalSeconds);
-  const groups = [
-    { value: parts.hours, unit: "hr" },
-    { value: parts.minutes, unit: "min" },
-    { value: parts.seconds, unit: "sec" }
-  ];
-
-  return <span className="machine-clock" aria-hidden="true">
-    {groups.map((group, groupIndex) => {
-      const digits = paddedDurationPart(group.value).split("");
-      return <span className="machine-clock-section" key={group.unit}>
-        {groupIndex > 0 ? <span className="machine-clock-colon">:</span> : null}
-        <span className="machine-odometer-module">
-          <span className="machine-odometer-axle machine-odometer-axle-left" />
-          <span className="machine-odometer-digits">
-            {digits.map((digit, digitIndex) => <SplitFlapDigit
-              value={digit}
-              key={`${group.unit}-${digitIndex}`}
-            />)}
-          </span>
-          <span className="machine-odometer-axle machine-odometer-axle-right" />
-        </span>
-        <small>{group.unit}</small>
-      </span>;
-    })}
-  </span>;
-}
 
 function TeaTimerNixieReadout({ totalSeconds }: { totalSeconds: number }) {
   const parts = splitTeaLabDuration(totalSeconds);
@@ -649,7 +581,13 @@ export function TeaLabDurationSlider({
           role="timer"
           aria-label={formatTeaLabDuration(remainingSeconds) ?? "0 sec"}
         >
-          <MechanicalClock totalSeconds={remainingSeconds} />
+          <SplitFlapTimer
+            className="machine-split-flap-module"
+            totalSeconds={remainingSeconds}
+            powered={powerOn}
+            running={running}
+            statusText={powerOn ? MACHINE_STATUS_LABELS[timerStatus] : "Power off"}
+          />
         </div>
         <div
           className="machine-status"

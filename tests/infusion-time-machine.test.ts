@@ -18,10 +18,8 @@ describe("standalone Infusion Time Machine", () => {
     expect(html).toContain('aria-label="2 min"');
     expect(html).toContain('data-timer-machine="true"');
     expect(html).toContain('data-timer-status="ready"');
-    expect(html).toContain('class="machine-clock"');
-    expect(html).toContain('class="machine-odometer-digit"');
-    expect(html).toContain('class="machine-split-flap"');
-    expect(html).toContain('class="machine-split-flap-seam"');
+    expect(html).toContain("machine-split-flap-module");
+    expect(html).toContain('data-flipping="false"');
     expect(html).toContain('role="timer"');
     expect(html).toContain("Precision Tea Timer");
     expect(html).toContain('role="switch"');
@@ -84,20 +82,20 @@ describe("standalone Infusion Time Machine", () => {
     expect(redesign).toContain("scroll-snap-type: x proximity");
   });
 
-  it("animates only changing split-flap digits and disables mechanical motion when requested", () => {
-    const source = readFileSync("src/components/tea-lab/TeaLabBrewSliders.tsx", "utf8");
-    const css = readFileSync("src/app/globals.css", "utf8");
-    const redesign = css.slice(css.indexOf("Infusion Time Machine v2"));
+  it("animates only changing digits, drives the gears, and respects reduced motion", () => {
+    const source = readFileSync("src/components/split-flap/SplitFlapTimer.tsx", "utf8");
+    const css = readFileSync("src/components/split-flap/SplitFlapTimer.module.css", "utf8");
 
-    expect(source).toContain('data-changing={transition.previous === transition.current ? "false" : "true"}');
-    expect(source).toContain('key={`${group.unit}-${digitIndex}`}');
-    expect(source).toContain('className="machine-split-flap-face machine-split-flap-flip-out"');
-    expect(source).toContain('className="machine-split-flap-face machine-split-flap-flip-in"');
-    expect(redesign).toContain("machine-split-flap-out 240ms");
-    expect(redesign).toContain("machine-split-flap-in 240ms");
-    expect(redesign).toMatch(/\.machine-split-flap-face\s*>\s*span\s*\{[^}]*transform:\s*translateY\(-\.05em\)/);
-    expect(redesign).toContain("@media (prefers-reduced-motion: reduce)");
-    expect(redesign).toMatch(/prefers-reduced-motion:[\s\S]*machine-split-flap-flip-out[\s\S]*display:\s*none/);
+    expect(source).toContain('data-flipping={transition.flipping ? "true" : "false"}');
+    expect(source).toContain("styles.flipTop");
+    expect(source).toContain("styles.flipBottom");
+    expect(source).toContain("styles.gearLeft");
+    expect(source).toContain("styles.gearRight");
+    expect(css).toContain("@keyframes foldTop");
+    expect(css).toContain("@keyframes foldBottom");
+    expect(css).toContain("@keyframes gearTurnClockwise");
+    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(css).toMatch(/prefers-reduced-motion:[\s\S]*animation:\s*none/);
   });
 
   it("keeps the real logo and existing timer, feedback, and deadline architecture", () => {
