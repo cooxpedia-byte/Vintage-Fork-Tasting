@@ -47,14 +47,6 @@ function adjacentDurationPart(value: number, offset: number, max: number) {
   return (value + offset + max + 1) % (max + 1);
 }
 
-export function shouldShowLongInfusion(hours: number, expanded: boolean) {
-  return expanded || hours > 0;
-}
-
-export function canCollapseLongInfusion(hours: number) {
-  return hours === 0;
-}
-
 const WHEEL_DRAG_DETENT_PX = 22;
 const WHEEL_MIN_DETENT_MS = 64;
 const WHEEL_MAX_COAST_MS = 148;
@@ -103,8 +95,7 @@ function TeaTimerNixieReadout({ totalSeconds }: { totalSeconds: number }) {
   </span>;
 }
 
-function MechanicalNumberDrum({
-  part,
+function DurationWheelColumn({
   id,
   label,
   value,
@@ -112,7 +103,6 @@ function MechanicalNumberDrum({
   disabled,
   onStep
 }: {
-  part: TeaLabDurationPart;
   id: string;
   label: string;
   value: number;
@@ -127,17 +117,15 @@ function MechanicalNumberDrum({
   const wheelDelta = useRef(0);
   const lastDetentAt = useRef(0);
   const coastTimer = useRef<number | null>(null);
-  const activeTimer = useRef<number | null>(null);
   const disabledRef = useRef(disabled);
   const [dragProgress, setDragProgress] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const [active, setActive] = useState(false);
   const [motion, setMotion] = useState({ direction: 0 as -1 | 0 | 1, sequence: 0, intervalMs: WHEEL_MIN_DETENT_MS });
+  const [gearMotion, setGearMotion] = useState({ teeth: 0, intervalMs: WHEEL_MIN_DETENT_MS });
   const labelId = `${id}-label`;
 
   useEffect(() => () => {
     if (coastTimer.current !== null) window.clearTimeout(coastTimer.current);
-    if (activeTimer.current !== null) window.clearTimeout(activeTimer.current);
   }, []);
 
   useEffect(() => {
@@ -159,18 +147,13 @@ function MechanicalNumberDrum({
     return Math.max(WHEEL_MIN_DETENT_MS, Math.min(WHEEL_MAX_COAST_MS, elapsed));
   }
 
-  function markActive() {
-    setActive(true);
-    if (activeTimer.current !== null) window.clearTimeout(activeTimer.current);
-    activeTimer.current = window.setTimeout(() => {
-      setActive(false);
-      activeTimer.current = null;
-    }, 960);
-  }
-
   function animateCoastStep(direction: WheelDirection, intervalMs: number) {
     setMotion(current => ({ direction, intervalMs, sequence: current.sequence + 1 }));
-    markActive();
+    turnGear(direction, intervalMs);
+  }
+
+  function turnGear(direction: WheelDirection, intervalMs: number) {
+    setGearMotion(current => ({ teeth: current.teeth + direction, intervalMs }));
   }
 
   function startCoast(initialVelocity: number) {
@@ -222,7 +205,6 @@ function MechanicalNumberDrum({
     dragVelocity.current = 0;
     setDragProgress(0);
     setDragging(true);
-    markActive();
     setMotion(current => ({ ...current, direction: 0 }));
     event.currentTarget.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -244,7 +226,7 @@ function MechanicalNumberDrum({
       const intervalMs = detentInterval(event.timeStamp);
       if (onStep(direction, intervalMs)) {
         dragDistance.current -= direction * WHEEL_DRAG_DETENT_PX;
-        markActive();
+        turnGear(direction, intervalMs);
       } else {
         dragDistance.current = 0;
         dragVelocity.current = 0;
@@ -290,10 +272,7 @@ function MechanicalNumberDrum({
   }
 
   function pressButton() {
-    if (!disabled) {
-      markActive();
-      playVintageTimerEvent("buttonDown", "softPress");
-    }
+    if (!disabled) playVintageTimerEvent("buttonDown", "softPress");
   }
 
   function releaseButton() {
@@ -301,19 +280,22 @@ function MechanicalNumberDrum({
   }
 
   function stepButton(direction: WheelDirection) {
-    if (onStep(direction, WHEEL_MIN_DETENT_MS)) {
-      markActive();
-      setMotion(current => ({ direction, intervalMs: WHEEL_MIN_DETENT_MS, sequence: current.sequence + 1 }));
-    }
+    if (onStep(direction, WHEEL_MIN_DETENT_MS)) turnGear(direction, WHEEL_MIN_DETENT_MS);
   }
 
-  return <div
-    className="mechanical-number-drum"
-    data-part={part}
-    data-active={active ? "true" : "false"}
-  >
+  return <div className="tea-lab-duration-column">
+    <span
+      className="tea-lab-duration-rotary"
+      aria-hidden="true"
+      style={{
+        "--gear-turn": `${gearMotion.teeth * 18}deg`,
+        "--gear-counter-turn": `${gearMotion.teeth * -27}deg`,
+        "--gear-step-duration": `${gearMotion.intervalMs}ms`
+      } as CSSProperties}
+    />
+    <span className="tea-lab-duration-label" id={labelId}>{label}</span>
     <button
-      className="mechanical-number-drum-step"
+      className="tea-lab-duration-step"
       type="button"
       aria-label={`Increase ${label.toLocaleLowerCase("en-CA")}`}
       data-feedback-silent="true"
@@ -324,7 +306,7 @@ function MechanicalNumberDrum({
       onClick={() => stepButton(1)}
     ><span aria-hidden="true">▲</span></button>
     <div
-      className="mechanical-number-drum-viewport"
+      className="tea-lab-duration-viewport"
       id={id}
       role="spinbutton"
       tabIndex={disabled ? -1 : 0}
@@ -341,10 +323,11 @@ function MechanicalNumberDrum({
       onPointerUp={finishPointer}
       onPointerCancel={cancelPointer}
       onKeyDown={handleKeyDown}
-      onFocus={markActive}
     >
+      <span className="tea-lab-duration-knob tea-lab-duration-knob-left" aria-hidden="true" />
+      <span className="tea-lab-duration-knob tea-lab-duration-knob-right" aria-hidden="true" />
       <div
-        className="mechanical-number-drum-strip"
+        className="tea-lab-duration-strip"
         data-step={motion.direction}
         key={motion.sequence}
         style={{
@@ -356,10 +339,11 @@ function MechanicalNumberDrum({
           ? <strong key={offset}>{paddedDurationPart(value)}</strong>
           : <span aria-hidden="true" key={offset}>{paddedDurationPart(adjacentDurationPart(value, offset, max))}</span>)}
       </div>
-      <span className="mechanical-number-drum-glass" aria-hidden="true" />
+      <span className="tea-lab-duration-glass" aria-hidden="true" />
+      <span className="tea-lab-duration-sight" aria-hidden="true" />
     </div>
     <button
-      className="mechanical-number-drum-step"
+      className="tea-lab-duration-step"
       type="button"
       aria-label={`Decrease ${label.toLocaleLowerCase("en-CA")}`}
       data-feedback-silent="true"
@@ -369,82 +353,7 @@ function MechanicalNumberDrum({
       onPointerCancel={releaseButton}
       onClick={() => stepButton(-1)}
     ><span aria-hidden="true">▼</span></button>
-    <span className="mechanical-number-drum-label" id={labelId}>
-      <span aria-hidden="true">{part === "hours" ? "HR" : part === "minutes" ? "MIN" : "SEC"}</span>
-      <span className="sr-only">{label}</span>
-    </span>
   </div>;
-}
-
-function MechanicalTimeSelector({
-  id,
-  label,
-  parts,
-  disabled,
-  longInfusionExpanded,
-  longInfusionNotice,
-  onLongInfusionToggle,
-  onStep
-}: {
-  id: string;
-  label: string;
-  parts: Record<TeaLabDurationPart, number>;
-  disabled: boolean;
-  longInfusionExpanded: boolean;
-  longInfusionNotice: string | null;
-  onLongInfusionToggle: () => void;
-  onStep: (part: TeaLabDurationPart, direction: WheelDirection, detentIntervalMs?: number) => boolean;
-}) {
-  const showHours = shouldShowLongInfusion(parts.hours, longInfusionExpanded);
-  const visibleParts = DURATION_PARTS.filter(definition => showHours || definition.part !== "hours");
-
-  return <section
-    className="mechanical-time-selector"
-    data-long-infusion={showHours ? "true" : "false"}
-    aria-label={`${label} duration selector`}
-  >
-    <div className="mechanical-time-selector-topline">
-      <button
-        className="mechanical-long-infusion"
-        type="button"
-        data-expanded={showHours ? "true" : "false"}
-        data-feedback-silent="true"
-        disabled={disabled}
-        aria-expanded={showHours}
-        aria-controls={`${id}-drum-bank`}
-        aria-label={`Long Infusion, ${showHours ? "expanded" : "collapsed"}`}
-        onClick={onLongInfusionToggle}
-      >
-        <span className="mechanical-long-infusion-lamp" aria-hidden="true" />
-        <span>Long Infusion</span>
-        <span className="mechanical-long-infusion-lever" aria-hidden="true" />
-      </button>
-      <span className="mechanical-time-selector-status" role="status" aria-live="polite">
-        {longInfusionNotice}
-      </span>
-    </div>
-    <div
-      className="mechanical-time-selector-bank"
-      id={`${id}-drum-bank`}
-      data-columns={showHours ? "3" : "2"}
-      role="group"
-      aria-label={`${label} time drums`}
-    >
-      <span className="mechanical-time-selector-rail" aria-hidden="true" />
-      {visibleParts.map((definition, index) => <div className="mechanical-time-selector-slot" key={definition.part}>
-        {index > 0 ? <span className="mechanical-time-selector-divider" aria-hidden="true" /> : null}
-        <MechanicalNumberDrum
-          part={definition.part}
-          id={`${id}-${definition.part}`}
-          label={definition.label}
-          value={parts[definition.part]}
-          max={definition.max}
-          disabled={disabled}
-          onStep={(direction, intervalMs) => onStep(definition.part, direction, intervalMs)}
-        />
-      </div>)}
-    </div>
-  </section>;
 }
 
 export function TeaLabDurationSlider({
@@ -474,11 +383,8 @@ export function TeaLabDurationSlider({
   const [running, setRunning] = useState(false);
   const [warm, setWarm] = useState(false);
   const [powerOn, setPowerOn] = useState(true);
-  const [longInfusionExpanded, setLongInfusionExpanded] = useState(parts.hours > 0);
-  const [longInfusionNotice, setLongInfusionNotice] = useState<string | null>(null);
   const deadline = useRef<number | null>(null);
   const settleTimer = useRef<number | null>(null);
-  const longInfusionNoticeTimer = useRef<number | null>(null);
   const durationSecondsRef = useRef(totalSeconds);
 
   useEffect(() => {
@@ -512,7 +418,6 @@ export function TeaLabDurationSlider({
 
   useEffect(() => () => {
     if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
-    if (longInfusionNoticeTimer.current !== null) window.clearTimeout(longInfusionNoticeTimer.current);
   }, []);
 
   function scheduleDetent(intervalMs: number) {
@@ -529,7 +434,6 @@ export function TeaLabDurationSlider({
     const nextSeconds = adjustTeaLabDuration(currentSeconds, part, direction);
     if (nextSeconds === currentSeconds) return false;
     durationSecondsRef.current = nextSeconds;
-    if (splitTeaLabDuration(nextSeconds).hours > 0) setLongInfusionExpanded(true);
     if (enableTimer && !running) setRemainingSeconds(nextSeconds);
     onChange(nextSeconds || null);
     scheduleDetent(intervalMs);
@@ -564,28 +468,9 @@ export function TeaLabDurationSlider({
     setRunning(false);
     setWarm(false);
     setRemainingSeconds(0);
-    setLongInfusionExpanded(false);
-    setLongInfusionNotice(null);
     onChange(null);
     playVintageTimerEvent("buttonDown", "softPress");
     window.setTimeout(() => playVintageTimerEvent("buttonRelease", "mechanicalEngage"), 58);
-  }
-
-  function toggleLongInfusion() {
-    if (disabled || running || !powerOn) return;
-    playVintageTimerEvent("buttonDown", "softPress");
-    window.setTimeout(() => playVintageTimerEvent("buttonRelease", "mechanicalEngage"), 48);
-    if (shouldShowLongInfusion(parts.hours, longInfusionExpanded) && !canCollapseLongInfusion(parts.hours)) {
-      setLongInfusionNotice("Set hours to 00 to close");
-      if (longInfusionNoticeTimer.current !== null) window.clearTimeout(longInfusionNoticeTimer.current);
-      longInfusionNoticeTimer.current = window.setTimeout(() => {
-        setLongInfusionNotice(null);
-        longInfusionNoticeTimer.current = null;
-      }, 2400);
-      return;
-    }
-    setLongInfusionNotice(null);
-    setLongInfusionExpanded(current => !current);
   }
 
   function togglePower() {
@@ -608,7 +493,6 @@ export function TeaLabDurationSlider({
     data-timer-warm={warm ? "true" : "false"}
     data-power-on={powerOn ? "true" : "false"}
   >
-    <span className="tea-lab-material-cheeks" aria-hidden="true" />
     <div className="tea-lab-slider-heading">
       <div className="tea-lab-duration-title">
         <TeaTimerBotanicalMark />
@@ -650,16 +534,17 @@ export function TeaLabDurationSlider({
         aria-live="polite"
       ><TeaTimerNixieReadout totalSeconds={enableTimer ? remainingSeconds : totalSeconds} /></output>
     </div>
-    <MechanicalTimeSelector
-      id={id}
-      label={enableTimer ? "Infusion Time Machine" : label}
-      parts={parts}
-      disabled={disabled || running || !powerOn}
-      longInfusionExpanded={longInfusionExpanded}
-      longInfusionNotice={longInfusionNotice}
-      onLongInfusionToggle={toggleLongInfusion}
-      onStep={stepDuration}
-    />
+    <div className="tea-lab-duration-wheel" role="group" aria-label={`${enableTimer ? "Infusion Time Machine" : label} duration`}>
+      {DURATION_PARTS.map(definition => <DurationWheelColumn
+        id={`${id}-${definition.part}`}
+        label={definition.label}
+        value={parts[definition.part]}
+        max={definition.max}
+        disabled={disabled || running || !powerOn}
+        onStep={(steps, intervalMs) => stepDuration(definition.part, steps, intervalMs)}
+        key={definition.part}
+      />)}
+    </div>
     {enableTimer && <div className="tea-lab-timer-controls">
       <button
         className="btn tea-lab-timer-start"

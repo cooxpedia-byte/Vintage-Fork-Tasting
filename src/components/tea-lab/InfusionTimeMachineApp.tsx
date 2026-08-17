@@ -3,11 +3,6 @@
 import { useEffect, useState } from "react";
 import { TeaLabDurationSlider } from "@/components/tea-lab/TeaLabBrewSliders";
 import {
-  TeaPresetRadioDial,
-  type TeaPresetSelectionSource,
-  type TeaTimerPreset
-} from "@/components/tea-lab/TeaPresetRadioDial";
-import {
   activateVintageTimerFeedback,
   isVintageTimerSoundEnabled,
   playVintageTimerEvent,
@@ -22,7 +17,7 @@ const OPENING_FILM_DURATION_MS = 8_000;
 const REDUCED_MOTION_DURATION_MS = 700;
 const OPENING_FADE_DURATION_MS = 260;
 
-export const TEA_TIMER_PRESETS = [
+const TEA_TIMER_PRESETS = [
   { id: "green", label: "Green", seconds: 2 * 60 },
   { id: "white", label: "White", seconds: 4 * 60 },
   { id: "oolong", label: "Oolong", seconds: 3 * 60 },
@@ -32,6 +27,10 @@ export const TEA_TIMER_PRESETS = [
   { id: "rooibos", label: "Rooibos", seconds: 5 * 60 }
 ] as const;
 
+function presetDurationLabel(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 export function InfusionTimeMachineApp() {
   const [durationSeconds, setDurationSeconds] = useState<number | null>(DEFAULT_INFUSION_SECONDS);
   const [filmComplete, setFilmComplete] = useState(false);
@@ -39,7 +38,7 @@ export function InfusionTimeMachineApp() {
   const [feedbackEngaging, setFeedbackEngaging] = useState(false);
   const [openingRemoved, setOpeningRemoved] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(TEA_TIMER_PRESETS[0].id);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [timerRevision, setTimerRevision] = useState(0);
   const openingCanClose = filmComplete && feedbackReady;
 
@@ -108,14 +107,15 @@ export function InfusionTimeMachineApp() {
     playVintageTimerEvent("buttonDown");
   }
 
-  function selectPreset(preset: TeaTimerPreset, source: TeaPresetSelectionSource) {
-    if (selectedPreset === preset.id && durationSeconds === preset.seconds) return;
-    playVintageTimerEvent("wheelSettle", source === "pointer" ? "selectionDetent" : undefined, {
-      volumeScale: .82
-    });
+  function selectPreset(preset: typeof TEA_TIMER_PRESETS[number]) {
+    playVintageTimerEvent("buttonDown", "softPress");
     setSelectedPreset(preset.id);
     setDurationSeconds(preset.seconds);
     setTimerRevision(revision => revision + 1);
+    window.setTimeout(
+      () => playVintageTimerEvent("buttonRelease", "mechanicalEngage"),
+      58
+    );
   }
 
   async function toggleSound() {
@@ -163,12 +163,22 @@ export function InfusionTimeMachineApp() {
         onChange={updateDuration}
       />
     </section>
-    <TeaPresetRadioDial
-      presets={TEA_TIMER_PRESETS}
-      selectedPresetId={selectedPreset}
-      durationSeconds={durationSeconds}
-      onSelect={selectPreset}
-    />
+    <section className="infusion-time-machine-presets" aria-label="Tea timer presets">
+      <div className="infusion-time-machine-preset-bank">
+        {TEA_TIMER_PRESETS.map(preset => <button
+          className="infusion-time-machine-preset"
+          type="button"
+          data-feedback-silent="true"
+          data-tea={preset.id}
+          aria-pressed={selectedPreset === preset.id}
+          onClick={() => selectPreset(preset)}
+          key={preset.id}
+        >
+          <span>{preset.label}</span>
+          <strong>{presetDurationLabel(preset.seconds)}</strong>
+        </button>)}
+      </div>
+    </section>
     {!openingRemoved ? <section
       className={`infusion-time-machine-opening${openingCanClose ? " is-fading" : filmComplete ? " is-awaiting-gesture" : ""}`}
       aria-label="Infusion Time Machine opening"
