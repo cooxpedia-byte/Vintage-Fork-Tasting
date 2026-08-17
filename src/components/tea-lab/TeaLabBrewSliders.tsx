@@ -608,6 +608,7 @@ export function TeaLabDurationSlider({
     data-timer-warm={warm ? "true" : "false"}
     data-power-on={powerOn ? "true" : "false"}
   >
+    <span className="tea-lab-material-cheeks" aria-hidden="true" />
     <div className="tea-lab-slider-heading">
       <div className="tea-lab-duration-title">
         <TeaTimerBotanicalMark />

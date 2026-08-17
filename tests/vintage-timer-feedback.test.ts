@@ -1,13 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   VINTAGE_TIMER_AUDIO_EVENTS,
   VINTAGE_TIMER_COMPLETION_CHIME,
   VINTAGE_TIMER_HAPTIC_EVENTS,
+  playVintageTimerHaptic,
   vintageTimerDetentPlan,
   vintageTimerPitchRate,
   vintageTimerVibrationPattern
 } from "@/lib/vintage-timer-feedback";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("vintage timer feedback contract", () => {
   it("keeps the required shared event vocabulary stable", () => {
@@ -46,6 +51,48 @@ describe("vintage timer feedback contract", () => {
 
   it("uses one strong short web nudge for every wheel detent", () => {
     expect(vintageTimerVibrationPattern("selectionDetent")).toBe(16);
+  });
+
+  it("requests semantic selection haptics through the optional mobile bridge", () => {
+    const postMessage = vi.fn();
+    const vibrate = vi.fn();
+    vi.stubGlobal("window", {
+      VintageForkMobile: { postMessage },
+      localStorage: { getItem: () => null },
+      matchMedia: () => ({ matches: false }),
+      setTimeout
+    });
+    vi.stubGlobal("navigator", { vibrate });
+
+    playVintageTimerHaptic("selectionDetent", { count: 1, intervalMs: 72 });
+
+    expect(postMessage).toHaveBeenCalledWith(JSON.stringify({
+      type: "vintageTimerFeedback",
+      event: "selectionDetent",
+      count: 1,
+      intervalMs: 72
+    }));
+    expect(vibrate).not.toHaveBeenCalled();
+  });
+
+  it("falls back safely when the native haptic bridge is unavailable or rejects", () => {
+    const vibrate = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage: { getItem: () => null },
+      matchMedia: () => ({ matches: false }),
+      setTimeout
+    });
+    vi.stubGlobal("navigator", { vibrate });
+    expect(() => playVintageTimerHaptic("selectionDetent")).not.toThrow();
+    expect(vibrate).toHaveBeenCalledWith(16);
+
+    vi.stubGlobal("window", {
+      VintageForkMobile: { postMessage: () => { throw new Error("bridge unavailable"); } },
+      localStorage: { getItem: () => null },
+      matchMedia: () => ({ matches: false }),
+      setTimeout
+    });
+    expect(() => playVintageTimerHaptic("selectionDetent")).not.toThrow();
   });
 
   it("finishes with simultaneous sharp, resounding C6-E6-G6 bells after the mechanical cue", () => {
