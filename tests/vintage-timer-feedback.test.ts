@@ -48,12 +48,25 @@ describe("vintage timer feedback contract", () => {
     expect(vintageTimerVibrationPattern("selectionDetent")).toBe(16);
   });
 
-  it("finishes with a sharp, resounding C6 bell after the mechanical cue", () => {
-    expect(VINTAGE_TIMER_COMPLETION_CHIME).toEqual({
-      frequencyHz: 1046.502,
-      delayMs: 1180,
-      durationMs: 2600,
-      attackMs: 4
-    });
+  it("finishes with two sharp, resounding bell phrases after the mechanical cue", () => {
+    expect(VINTAGE_TIMER_COMPLETION_CHIME.phrases.map(phrase =>
+      phrase.map(bell => bell.note)
+    )).toEqual([
+      ["A5", "C6", "E6"],
+      ["C6", "G6", "E6"]
+    ]);
+    expect(VINTAGE_TIMER_COMPLETION_CHIME.phrases.map(phrase =>
+      phrase.map(bell => bell.frequencyHz)
+    )).toEqual([
+      [880, 1046.502, 1318.51],
+      [1046.502, 1567.982, 1318.51]
+    ]);
+    expect(VINTAGE_TIMER_COMPLETION_CHIME.delayMs).toBe(1180);
+    expect(VINTAGE_TIMER_COMPLETION_CHIME.durationMs).toBe(2400);
+    expect(VINTAGE_TIMER_COMPLETION_CHIME.attackMs).toBe(4);
+    expect(VINTAGE_TIMER_COMPLETION_CHIME.strikeIntervalMs).toBe(1);
+    expect(VINTAGE_TIMER_COMPLETION_CHIME.phraseGapMs).toBe(720);
+    expect(VINTAGE_TIMER_COMPLETION_CHIME.phraseGapMs)
+      .toBeGreaterThan(VINTAGE_TIMER_COMPLETION_CHIME.strikeIntervalMs);
   });
 });

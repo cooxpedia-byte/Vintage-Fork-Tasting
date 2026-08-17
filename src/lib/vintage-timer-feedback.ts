@@ -48,10 +48,23 @@ const AUDIO_ROOT = "/audio/vintage-timer";
 export const VINTAGE_TIMER_SOUND_STORAGE_KEY = "vf:vintage-timer-sound";
 export const VINTAGE_TIMER_SOUND_EVENT = "vf:vintage-timer-sound-changed";
 export const VINTAGE_TIMER_COMPLETION_CHIME = {
-  frequencyHz: 1046.502,
   delayMs: 1180,
-  durationMs: 2600,
-  attackMs: 4
+  durationMs: 2400,
+  attackMs: 4,
+  strikeIntervalMs: 1,
+  phraseGapMs: 720,
+  phrases: [
+    [
+      { note: "A5", frequencyHz: 880 },
+      { note: "C6", frequencyHz: 1046.502 },
+      { note: "E6", frequencyHz: 1318.51 }
+    ],
+    [
+      { note: "C6", frequencyHz: 1046.502 },
+      { note: "G6", frequencyHz: 1567.982 },
+      { note: "E6", frequencyHz: 1318.51 }
+    ]
+  ]
 } as const;
 const audioFiles: Record<VintageTimerAudioEvent, readonly string[]> = {
   wheelDetent: [`${AUDIO_ROOT}/wheel-detent-a.wav`],
@@ -225,6 +238,17 @@ class VintageTimerAudioManager {
     const when = context.currentTime + Math.max(0, options.delayMs ?? 0) / 1000;
     const duration = VINTAGE_TIMER_COMPLETION_CHIME.durationMs / 1000;
     const volume = eventGain.timerCompleteChime * Math.max(0, options.volumeScale ?? 1);
+    const strikes = VINTAGE_TIMER_COMPLETION_CHIME.phrases.flatMap((phrase, phraseIndex) => {
+      const phraseStartMs = phraseIndex === 0
+        ? 0
+        : (VINTAGE_TIMER_COMPLETION_CHIME.phrases[0].length - 1)
+          * VINTAGE_TIMER_COMPLETION_CHIME.strikeIntervalMs
+          + VINTAGE_TIMER_COMPLETION_CHIME.phraseGapMs;
+      return phrase.map((bell, noteIndex) => ({
+        ...bell,
+        offsetMs: phraseStartMs + noteIndex * VINTAGE_TIMER_COMPLETION_CHIME.strikeIntervalMs
+      }));
+    });
     const master = context.createGain();
     const bellBody = context.createBiquadFilter();
     const presence = context.createDynamicsCompressor();
@@ -245,43 +269,46 @@ class VintageTimerAudioManager {
       { multiplier: 4.09, level: .11, decaySeconds: .82 },
       { multiplier: 5.42, level: .065, decaySeconds: .48 }
     ];
-    let remaining = partials.length;
-    partials.forEach(partial => {
-      const oscillator = context.createOscillator();
-      const partialGain = context.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(
-        VINTAGE_TIMER_COMPLETION_CHIME.frequencyHz * partial.multiplier,
-        when
-      );
-      partialGain.gain.setValueAtTime(.0001, when);
-      partialGain.gain.exponentialRampToValueAtTime(
-        partial.level,
-        when + VINTAGE_TIMER_COMPLETION_CHIME.attackMs / 1000
-      );
-      partialGain.gain.exponentialRampToValueAtTime(
-        Math.max(.0001, partial.level * .58),
-        when + .055
-      );
-      partialGain.gain.exponentialRampToValueAtTime(
-        .0001,
-        when + partial.decaySeconds
-      );
-      oscillator.connect(partialGain).connect(master);
-      this.activeOscillators.push(oscillator);
-      oscillator.addEventListener("ended", () => {
-        this.activeOscillators = this.activeOscillators.filter(candidate => candidate !== oscillator);
-        oscillator.disconnect();
-        partialGain.disconnect();
-        remaining -= 1;
-        if (remaining === 0) {
-          master.disconnect();
-          bellBody.disconnect();
-          presence.disconnect();
-        }
-      }, { once: true });
-      oscillator.start(when);
-      oscillator.stop(when + duration + .04);
+    let remaining = partials.length * strikes.length;
+    strikes.forEach(strike => {
+      const strikeAt = when + strike.offsetMs / 1000;
+      partials.forEach(partial => {
+        const oscillator = context.createOscillator();
+        const partialGain = context.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(
+          strike.frequencyHz * partial.multiplier,
+          strikeAt
+        );
+        partialGain.gain.setValueAtTime(.0001, strikeAt);
+        partialGain.gain.exponentialRampToValueAtTime(
+          partial.level,
+          strikeAt + VINTAGE_TIMER_COMPLETION_CHIME.attackMs / 1000
+        );
+        partialGain.gain.exponentialRampToValueAtTime(
+          Math.max(.0001, partial.level * .58),
+          strikeAt + .055
+        );
+        partialGain.gain.exponentialRampToValueAtTime(
+          .0001,
+          strikeAt + partial.decaySeconds
+        );
+        oscillator.connect(partialGain).connect(master);
+        this.activeOscillators.push(oscillator);
+        oscillator.addEventListener("ended", () => {
+          this.activeOscillators = this.activeOscillators.filter(candidate => candidate !== oscillator);
+          oscillator.disconnect();
+          partialGain.disconnect();
+          remaining -= 1;
+          if (remaining === 0) {
+            master.disconnect();
+            bellBody.disconnect();
+            presence.disconnect();
+          }
+        }, { once: true });
+        oscillator.start(strikeAt);
+        oscillator.stop(strikeAt + duration + .04);
+      });
     });
   }
 
