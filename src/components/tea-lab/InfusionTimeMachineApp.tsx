@@ -108,12 +108,12 @@ export function InfusionTimeMachineApp() {
   }
 
   function selectPreset(preset: typeof TEA_TIMER_PRESETS[number]) {
-    playVintageTimerEvent("buttonDown", "softPress");
+    playVintageTimerEvent("buttonDown", "selectionDetent");
     setSelectedPreset(preset.id);
     setDurationSeconds(preset.seconds);
     setTimerRevision(revision => revision + 1);
     window.setTimeout(
-      () => playVintageTimerEvent("buttonRelease", "mechanicalEngage"),
+      () => playVintageTimerEvent("buttonRelease"),
       58
     );
   }
@@ -164,6 +164,11 @@ export function InfusionTimeMachineApp() {
       />
     </section>
     <section className="infusion-time-machine-presets" aria-label="Tea timer presets">
+      <div className="infusion-time-machine-preset-heading" aria-hidden="true">
+        <span className="infusion-time-machine-program-lamp" />
+        <strong>Tea programs</strong>
+        <small>Select a precision steeping cycle</small>
+      </div>
       <div className="infusion-time-machine-preset-bank">
         {TEA_TIMER_PRESETS.map(preset => <button
           className="infusion-time-machine-preset"
@@ -171,11 +176,14 @@ export function InfusionTimeMachineApp() {
           data-feedback-silent="true"
           data-tea={preset.id}
           aria-pressed={selectedPreset === preset.id}
+          aria-label={`${preset.label} tea preset, ${presetDurationLabel(preset.seconds)}`}
           onClick={() => selectPreset(preset)}
           key={preset.id}
         >
+          <span className="infusion-time-machine-preset-lamp" aria-hidden="true" />
           <span>{preset.label}</span>
           <strong>{presetDurationLabel(preset.seconds)}</strong>
+          <span className="infusion-time-machine-preset-gear" aria-hidden="true" />
         </button>)}
       </div>
     </section>

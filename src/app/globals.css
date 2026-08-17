@@ -1364,3 +1364,1257 @@ body:has(.infusion-time-machine-page)::before { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .infusion-time-machine-opening-film { display: none; }
 }
+
+/* Infusion Time Machine v2: precision Victorian instrument skin.
+   The existing timer DOM, state, deadline logic, feedback bridge and presets remain authoritative. */
+.infusion-time-machine-page,
+.tea-lab-duration-field[data-timer-machine="true"] {
+  --machine-background: #090b0b;
+  --iron-deep: #080a0a;
+  --iron-panel: #171918;
+  --iron-raised: #25231f;
+  --brass-highlight: #f0cf82;
+  --brass-main: #ad7838;
+  --brass-shadow: #4d2d14;
+  --aged-copper: #8b4f2f;
+  --warm-ivory: #f3ead2;
+  --amber-lamp: #ffb12f;
+  --brand-purple: #662461;
+  --engraved-text: #2b190d;
+  --panel-bevel: inset 0 1px rgba(255,223,154,.72), inset 0 -4px rgba(44,21,9,.74);
+  --machine-shadow: 0 24px 56px rgba(0,0,0,.62);
+}
+
+body:has(.infusion-time-machine-page) {
+  min-height: 100svh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 50% -8%,rgba(173,120,56,.16),transparent 31rem),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.012) 0 1px,transparent 1px 8px),
+    linear-gradient(145deg,#171815 0%,#080a0a 54%,#16110d 100%);
+}
+
+.infusion-time-machine-page {
+  width: 100%;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: clamp(.8rem,2vw,1.35rem);
+  padding:
+    max(.7rem,env(safe-area-inset-top))
+    max(.7rem,env(safe-area-inset-right))
+    max(1rem,env(safe-area-inset-bottom))
+    max(.7rem,env(safe-area-inset-left));
+}
+
+.infusion-time-machine-shell,
+.infusion-time-machine-presets {
+  width: min(100%,980px);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  margin: 0;
+  padding: clamp(.8rem,2.2vw,1.5rem);
+  border: clamp(5px,.8vw,9px) ridge var(--brass-main);
+  border-radius: clamp(18px,3vw,34px);
+  color: var(--warm-ivory);
+  background:
+    radial-gradient(circle at 10px 10px,#d49b50 0 2px,#442711 3px 6px,transparent 7px),
+    radial-gradient(circle at calc(100% - 10px) 10px,#d49b50 0 2px,#442711 3px 6px,transparent 7px),
+    radial-gradient(circle at 10px calc(100% - 10px),#d49b50 0 2px,#442711 3px 6px,transparent 7px),
+    radial-gradient(circle at calc(100% - 10px) calc(100% - 10px),#d49b50 0 2px,#442711 3px 6px,transparent 7px),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 1px,transparent 1px 9px),
+    linear-gradient(145deg,#24241f 0%,var(--machine-background) 48%,#201912 100%);
+  box-shadow:
+    inset 0 0 0 2px #211307,
+    inset 0 0 0 7px rgba(216,159,79,.28),
+    inset 0 0 62px #000,
+    var(--machine-shadow);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"]::before {
+  z-index: -1;
+  inset: clamp(8px,1.2vw,13px);
+  border: 3px double var(--brass-main);
+  border-radius: clamp(11px,2vw,24px);
+  background: transparent;
+  box-shadow: inset 0 0 0 2px #070808,inset 0 0 22px #000,0 0 0 2px #24150c;
+  pointer-events: none;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"]::after {
+  z-index: -2;
+  inset: 0;
+  opacity: .5;
+  background:
+    linear-gradient(90deg,transparent 4%,rgba(151,79,39,.33) 4.2% 4.7%,transparent 4.9% 95.1%,rgba(151,79,39,.33) 95.3% 95.8%,transparent 96%),
+    linear-gradient(transparent 6%,rgba(151,79,39,.25) 6.2% 6.6%,transparent 6.8% 93.2%,rgba(151,79,39,.25) 93.4% 93.8%,transparent 94%);
+  pointer-events: none;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-slider-heading {
+  grid-template-columns: minmax(0,1fr);
+  gap: clamp(.65rem,1.4vw,1rem);
+  padding: clamp(.25rem,.8vw,.6rem);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .machine-header {
+  grid-template-columns: clamp(62px,9vw,92px) minmax(0,1fr) clamp(106px,15vw,142px);
+  align-items: center;
+  gap: clamp(.45rem,1.4vw,1rem);
+  min-height: 0;
+  padding: clamp(.55rem,1.2vw,.9rem);
+  border: 3px solid var(--brass-shadow);
+  border-radius: clamp(14px,2vw,22px);
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 1px,transparent 1px 8px),
+    linear-gradient(180deg,#292823 0%,#111312 56%,#242018 100%);
+  box-shadow:
+    inset 0 0 0 2px #080909,
+    inset 0 0 0 5px rgba(173,120,56,.25),
+    inset 0 0 24px #000,
+    0 6px 0 #080706,
+    0 10px 18px rgba(0,0,0,.5);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .machine-header::before {
+  display: none;
+}
+
+.machine-brand-medallion {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  padding: clamp(5px,.8vw,8px);
+  border: 3px ridge var(--brass-highlight);
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(from 2deg,#d6a557 0 5deg,#4c2d16 5deg 10deg);
+  box-shadow:
+    inset 0 0 0 3px #17110c,
+    0 0 0 3px #5c3519,
+    0 5px 12px #000;
+}
+
+.machine-brand-medallion::after {
+  content: "";
+  position: absolute;
+  inset: 13%;
+  border: 1px solid rgba(239,203,124,.65);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .machine-brand-medallion .tea-lab-duration-mark {
+  width: 100%;
+  height: 100%;
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  object-fit: contain;
+  background: var(--brand-purple);
+  box-shadow: inset 0 0 10px rgba(0,0,0,.48);
+  filter: none;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate {
+  min-width: 0;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  gap: .28rem;
+  padding: clamp(.65rem,1.5vw,1.05rem) clamp(.8rem,2vw,1.5rem);
+  border: 4px ridge var(--brass-highlight);
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(103deg,rgba(255,255,255,.07) 0 1px,transparent 1px 7px),
+    linear-gradient(180deg,#5a361b 0%,#d7a252 9%,#a86f34 35%,#e0b566 50%,#95602d 76%,#c68d45 91%,#4b2a15 100%);
+  box-shadow:
+    var(--panel-bevel),
+    inset 0 0 0 2px rgba(68,33,13,.5),
+    0 5px 0 #120d09,
+    0 9px 15px rgba(0,0,0,.52);
+  text-align: center;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate::before,
+.tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate::after {
+  width: 9px;
+  height: 9px;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate .tea-lab-field-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--engraved-text);
+  font-family: var(--font-display);
+  font-size: clamp(.92rem,3.2vw,2rem);
+  font-weight: 900;
+  letter-spacing: .035em;
+  line-height: 1;
+  text-overflow: clip;
+  text-shadow: 0 1px rgba(255,230,167,.68),0 -1px #5c2e14,0 2px 2px rgba(0,0,0,.28);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate small {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: #35200f;
+  background: none;
+  box-shadow: none;
+  font-family: ui-sans-serif,system-ui,sans-serif;
+  font-size: clamp(.48rem,1.2vw,.68rem);
+  font-weight: 900;
+  letter-spacing: .24em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.machine-header-controls {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(48px,1fr) minmax(48px,1fr);
+  align-items: stretch;
+  gap: clamp(.3rem,.7vw,.55rem);
+}
+
+.machine-header-controls[data-has-sound="false"] {
+  grid-template-columns: minmax(48px,1fr);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sound-switch,
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-power-switch {
+  width: 100%;
+  min-width: 44px;
+  min-height: 58px;
+  margin: 0;
+  padding: .35rem .18rem;
+  border: 3px double #8f6538;
+  border-radius: 12px;
+  color: var(--warm-ivory);
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.02) 0 1px,transparent 1px 6px),
+    linear-gradient(145deg,#3c3933,#121413 54%,#2b251e);
+  box-shadow: inset 0 0 0 2px #080909,inset 0 0 11px #000,0 4px 0 #090807,0 7px 10px rgba(0,0,0,.55);
+  font-family: ui-sans-serif,system-ui,sans-serif;
+  cursor: pointer;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sound-switch {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  place-items: center;
+  gap: .15rem;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sound-switch small,
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sound-switch strong {
+  margin: 0!important;
+  padding: 0!important;
+  border: 0!important;
+  color: #d7caaa!important;
+  background: none!important;
+  box-shadow: none!important;
+  font-size: clamp(.47rem,.9vw,.62rem)!important;
+  font-weight: 900;
+  letter-spacing: .08em!important;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sound-switch strong {
+  color: #98866a!important;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sound-switch[data-on="true"] strong {
+  color: var(--brass-highlight)!important;
+}
+
+.machine-sound-lamp {
+  width: 12px;
+  height: 12px;
+  display: block;
+  border: 2px solid #503215;
+  border-radius: 50%;
+  background: #3c2816;
+  box-shadow: inset 0 0 4px #000;
+}
+
+.tea-lab-duration-sound-switch[data-on="true"] .machine-sound-lamp {
+  background: var(--amber-lamp);
+  box-shadow: inset 0 0 3px #fff0a9,0 0 8px rgba(255,177,47,.7);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-power-switch {
+  display: grid;
+  grid-template-rows: auto minmax(24px,1fr) auto;
+  place-items: center;
+  border-radius: 12px;
+  font-size: clamp(.43rem,.8vw,.57rem);
+  letter-spacing: .08em;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-switch-lever {
+  width: 70%;
+  max-width: 42px;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] button:focus-visible,
+.infusion-time-machine-preset:focus-visible,
+.tea-lab-duration-field[data-timer-machine="true"] [role="spinbutton"]:focus-visible {
+  outline: 3px solid #ffe29c;
+  outline-offset: 3px;
+}
+
+.machine-clock-panel {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) clamp(108px,15vw,140px);
+  gap: clamp(.5rem,1.2vw,.85rem);
+  padding: clamp(.55rem,1.2vw,.9rem);
+  border: 3px double var(--brass-main);
+  border-radius: clamp(14px,2vw,22px);
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.012) 0 1px,transparent 1px 9px),
+    linear-gradient(180deg,#191b1a,#080a0a 56%,#17130f);
+  box-shadow: inset 0 0 0 3px #060707,inset 0 0 28px #000,0 5px 0 #080706,0 9px 18px rgba(0,0,0,.56);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .machine-clock-output {
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(112px,18vw,172px);
+  display: grid;
+  place-items: center;
+  padding: clamp(.55rem,1.2vw,.85rem);
+  border: 3px solid #68421f;
+  border-radius: 16px;
+  background: linear-gradient(180deg,#171816,#050606 55%,#12100d);
+  box-shadow: inset 0 0 0 2px #050606,inset 0 0 22px #000,0 0 0 3px #9b6831,0 5px 12px rgba(0,0,0,.62);
+}
+
+.machine-clock {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  align-items: stretch;
+  gap: clamp(.4rem,1.8vw,1.3rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.machine-clock-section {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: minmax(0,1fr) auto;
+  place-items: center;
+  gap: .38rem;
+}
+
+.machine-clock-section:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  top: 42%;
+  left: calc(clamp(.4rem,1.8vw,1.3rem) * -.62);
+  width: clamp(16px,2.6vw,27px);
+  aspect-ratio: 1;
+  border: 2px solid #573617;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle,#c08b48 0 14%,#4d3018 15% 29%,transparent 30%),
+    repeating-conic-gradient(#b57b3b 0 8deg,#2e1b0e 8deg 17deg);
+  box-shadow: 0 2px 4px #000;
+  transform: translate(-50%,-50%);
+  pointer-events: none;
+}
+
+.machine-clock-colon {
+  position: absolute;
+  top: 43%;
+  left: calc(clamp(.4rem,1.8vw,1.3rem) * -.52);
+  z-index: 2;
+  color: var(--warm-ivory);
+  font: 900 clamp(1.2rem,3vw,2rem)/1 Georgia,serif;
+  text-shadow: 0 2px #000;
+  transform: translate(-50%,-50%);
+}
+
+.machine-odometer-module {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  padding: clamp(.36rem,.9vw,.6rem) clamp(.42rem,1.1vw,.72rem);
+  border: 4px ridge var(--brass-main);
+  border-radius: 13px;
+  background: linear-gradient(180deg,#2d2d29,#090a0a 55%,#252018);
+  box-shadow: inset 0 0 0 2px #050606,inset 0 0 13px #000,0 4px 7px #000;
+}
+
+.machine-odometer-digits {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: clamp(2px,.45vw,5px);
+}
+
+.machine-odometer-digit {
+  position: relative;
+  min-width: 0;
+  height: clamp(62px,11vw,106px);
+  overflow: hidden;
+  display: block;
+  border: 1px solid #4a4337;
+  border-radius: 38% / 10%;
+  background:
+    linear-gradient(90deg,#050606,#151715 17%,#090a0a 50%,#151715 83%,#050606),
+    #080909;
+  box-shadow: inset 10px 0 12px #000,inset -10px 0 12px #000,inset 0 10px 13px #000,inset 0 -10px 13px #000;
+  perspective: 440px;
+}
+
+.machine-odometer-digit::before {
+  display: none;
+}
+
+.machine-odometer-track {
+  width: 100%;
+  height: 200%;
+  display: grid;
+  grid-template-rows: repeat(2,50%);
+  color: var(--warm-ivory);
+  transform: translateY(-50%);
+  transform-style: preserve-3d;
+  font-family: Georgia,"Times New Roman",serif;
+  font-size: clamp(2.1rem,7.4vw,5.3rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 2px 2px #000;
+  will-change: transform,opacity;
+}
+
+.machine-odometer-track > span,
+.machine-odometer-track > strong {
+  display: grid;
+  place-items: center;
+  font: inherit;
+}
+
+.machine-odometer-track[data-changing="true"] {
+  animation: machine-odometer-roll 220ms cubic-bezier(.33,.02,.2,1) both;
+}
+
+.machine-odometer-axle {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  width: clamp(7px,1vw,11px);
+  height: 42%;
+  border: 1px solid #3b250f;
+  border-radius: 3px;
+  background: linear-gradient(90deg,#4c2b12,#d29b52 45%,#6d421f);
+  box-shadow: inset 0 0 2px #f1ca83,0 2px 4px #000;
+  transform: translateY(-50%);
+}
+
+.machine-odometer-axle-left { left: clamp(-6px,-.6vw,-3px); }
+.machine-odometer-axle-right { right: clamp(-6px,-.6vw,-3px); }
+
+.machine-clock-section > small {
+  margin: 0!important;
+  padding: .28rem .52rem!important;
+  border: 2px solid #71491f!important;
+  border-radius: 6px!important;
+  color: var(--brass-highlight)!important;
+  background: linear-gradient(#29251e,#111312)!important;
+  box-shadow: inset 0 0 7px #000,0 2px 0 #090807!important;
+  font-family: ui-sans-serif,system-ui,sans-serif!important;
+  font-size: clamp(.52rem,1.1vw,.7rem)!important;
+  font-weight: 900!important;
+  letter-spacing: .14em!important;
+  line-height: 1!important;
+  text-transform: uppercase;
+}
+
+.machine-status {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: .38rem;
+  padding: .65rem .45rem;
+  border: 3px double #79522d;
+  border-radius: 13px;
+  background: linear-gradient(145deg,#33302a,#111312 55%,#292219);
+  box-shadow: inset 0 0 0 2px #080909,inset 0 0 16px #000,0 4px 0 #090807;
+  text-align: center;
+}
+
+.machine-status > span:not(.machine-status-lamp) {
+  color: #9e9178;
+  font-size: clamp(.48rem,.85vw,.62rem);
+  font-weight: 900;
+  letter-spacing: .11em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.machine-status strong {
+  color: var(--brass-highlight);
+  font-family: var(--font-display);
+  font-size: clamp(.7rem,1.3vw,.92rem);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.machine-status-lamp {
+  width: clamp(20px,2.8vw,29px);
+  aspect-ratio: 1;
+  border: 4px ridge #76502b;
+  border-radius: 50%;
+  background: #3c2816;
+  box-shadow: inset 0 0 8px #000,0 3px 4px #000;
+}
+
+.tea-lab-duration-field[data-timer-status="steeping"] .machine-status-lamp,
+.tea-lab-duration-field[data-timer-status="complete"] .machine-status-lamp {
+  background: radial-gradient(circle at 38% 30%,#fff4b0 0 8%,var(--amber-lamp) 24%,#a6500d 72%);
+  box-shadow: inset 0 0 5px #fff1a0,0 0 12px rgba(255,177,47,.72),0 3px 4px #000;
+}
+
+.tea-lab-duration-field[data-timer-status="paused"] .machine-status-lamp {
+  background: #a96922;
+}
+
+.tea-lab-duration-field[data-power-on="false"] .machine-clock-panel,
+.tea-lab-duration-field[data-power-on="false"] .tea-lab-duration-wheel {
+  filter: grayscale(.72) brightness(.54);
+  opacity: .72;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-wheel {
+  position: relative;
+  z-index: 1;
+  gap: clamp(.45rem,1.4vw,1rem);
+  margin: clamp(.7rem,1.5vw,1rem) clamp(.2rem,.8vw,.55rem) 0;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-wheel::before {
+  top: 48%;
+  height: 13px;
+  border: 2px solid #442914;
+  background: repeating-linear-gradient(90deg,#4f2d17 0 12px,#a85d34 12px 18px,#d48a57 18px 21px,#3c2415 21px 34px);
+  box-shadow: inset 0 0 4px #000,0 3px 5px #000;
+  pointer-events: none;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-column {
+  grid-template-rows: clamp(46px,6.4vw,62px) auto minmax(44px,auto) clamp(185px,29vw,300px) minmax(44px,auto);
+  gap: clamp(.3rem,.7vw,.48rem);
+  padding: clamp(.42rem,1vw,.75rem);
+  border: 4px ridge #87603a;
+  border-radius: clamp(14px,2vw,22px);
+  background:
+    radial-gradient(circle at 10px 10px,#bd874b 0 2px,#35210f 3px 5px,transparent 6px),
+    radial-gradient(circle at calc(100% - 10px) 10px,#bd874b 0 2px,#35210f 3px 5px,transparent 6px),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.014) 0 1px,transparent 1px 7px),
+    linear-gradient(145deg,#292925,#101212 55%,#292218);
+  box-shadow: inset 0 0 0 3px #080909,inset 0 0 0 7px rgba(171,112,50,.16),inset 0 0 24px #000,0 9px 16px rgba(0,0,0,.66);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-column::before,
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-column::after {
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle at 35% 30%,#e7bc70,#6c411d 55%,#25160c);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-rotary {
+  width: clamp(46px,6.2vw,64px);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-rotary::before,
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-rotary::after {
+  transition: transform var(--gear-step-duration,64ms) cubic-bezier(.3,.05,.18,1);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-label {
+  min-width: 0;
+  overflow: hidden;
+  padding: .48rem .25rem;
+  border: 3px ridge #a37037;
+  border-radius: 7px;
+  color: #28170b;
+  background: linear-gradient(180deg,#e1b96d,#a77338 48%,#c9954e);
+  box-shadow: var(--panel-bevel),0 3px 0 #100c09;
+  font-family: var(--font-display);
+  font-size: clamp(.54rem,1.5vw,.9rem);
+  font-weight: 900;
+  letter-spacing: .11em;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px rgba(255,231,173,.72);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-step {
+  min-width: 44px;
+  min-height: 44px;
+  border: 2px solid #65401e;
+  border-radius: 9px;
+  color: var(--brass-highlight);
+  background: linear-gradient(180deg,#37332b,#151716 60%,#262017);
+  box-shadow: inset 0 0 0 2px #080909,inset 0 0 10px #000,0 3px 0 #090807,0 5px 8px rgba(0,0,0,.46);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-step:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 4px 9px #000,0 1px 0 #090807;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-step span {
+  font-size: clamp(.9rem,2vw,1.2rem);
+  filter: none;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-viewport {
+  min-width: 0;
+  border: 5px ridge #8d6235;
+  border-radius: 12px;
+  background:
+    linear-gradient(90deg,#050606,#151715 17%,#0a0b0b 50%,#151715 83%,#050606),
+    #080909;
+  box-shadow: inset 15px 0 22px #000,inset -15px 0 22px #000,inset 0 20px 21px #000,inset 0 -20px 21px #000,0 0 0 3px #070808,0 6px 11px #000;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-strip > span {
+  color: #8f876f;
+  font-size: clamp(.82rem,2.4vw,1.45rem);
+  opacity: .52;
+  text-shadow: 0 1px #000;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-strip > strong {
+  z-index: 2;
+  color: var(--warm-ivory);
+  font-size: clamp(1.75rem,5.2vw,3.6rem);
+  text-shadow: 0 2px 3px #000;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-glass {
+  background: linear-gradient(103deg,rgba(255,255,255,.06),transparent 24% 76%,rgba(255,255,255,.04));
+  box-shadow: inset 0 0 18px rgba(0,0,0,.42);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sight {
+  top: 50%;
+  left: 8%;
+  right: 8%;
+  height: 30%;
+  border: 2px solid #8f683b;
+  border-radius: 4px;
+  background: rgba(239,223,188,.035);
+  box-shadow: inset 0 0 9px rgba(255,215,135,.08),0 0 0 2px rgba(16,12,8,.75);
+  transform: translateY(-50%);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sight::before,
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sight::after {
+  display: none;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-controls {
+  grid-template-columns: minmax(0,1fr) minmax(126px,25%);
+  gap: clamp(.55rem,1.1vw,.85rem);
+  margin: clamp(.75rem,1.5vw,1.05rem) clamp(.2rem,.8vw,.55rem) .1rem;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-start {
+  position: relative;
+  isolation: isolate;
+  min-height: clamp(64px,9vw,86px);
+  padding: .8rem 1rem;
+  border: 4px ridge var(--brass-highlight);
+  border-radius: 12px;
+  color: #27150a;
+  background:
+    linear-gradient(180deg,rgba(255,240,177,.76),transparent 17%),
+    repeating-linear-gradient(102deg,rgba(255,255,255,.05) 0 1px,transparent 1px 7px),
+    linear-gradient(180deg,#d8a953 0%,#9e622c 43%,#d5a04e 53%,#75411e 100%);
+  box-shadow: inset 0 1px #fff0b7,inset 0 -7px 11px rgba(55,24,7,.48),0 5px 0 #301a0d,0 10px 17px rgba(0,0,0,.52);
+  font-family: var(--font-display);
+  font-size: clamp(1rem,2.6vw,1.65rem);
+  font-weight: 900;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-shadow: 0 1px rgba(255,230,166,.7),0 -1px #6b3517;
+  text-transform: uppercase;
+  transition: transform 70ms ease,box-shadow 70ms ease,filter 100ms ease;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-start::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  z-index: -1;
+  border: 1px solid rgba(255,225,148,.46);
+  border-radius: 7px;
+  pointer-events: none;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-start:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 4px 11px rgba(52,22,7,.66),inset 0 -2px 5px rgba(55,24,7,.36),0 2px 0 #301a0d,0 5px 9px rgba(0,0,0,.48);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-indicator {
+  width: clamp(16px,2.5vw,23px);
+  height: clamp(16px,2.5vw,23px);
+  border: 3px ridge #755026;
+  background: #473019;
+  box-shadow: inset 0 0 5px #000;
+}
+
+.tea-lab-duration-field[data-timer-running="true"] .tea-lab-timer-indicator,
+.tea-lab-duration-field[data-timer-status="complete"] .tea-lab-timer-indicator {
+  background: radial-gradient(circle at 36% 30%,#fff3a6 0 8%,var(--amber-lamp) 28%,#9c4809 76%);
+  box-shadow: inset 0 0 4px #fff0a0,0 0 10px rgba(255,177,47,.72);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-reset {
+  position: relative;
+  min-width: 126px;
+  min-height: clamp(64px,9vw,86px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: .75rem .8rem;
+  border: 4px ridge #936837;
+  border-radius: 12px;
+  color: var(--brass-highlight);
+  background:
+    radial-gradient(circle at 24% 28%,rgba(194,139,65,.13),transparent 30%),
+    linear-gradient(145deg,#37342d,#121413 55%,#2c251b);
+  box-shadow: inset 0 0 0 2px #080909,inset 0 0 14px #000,0 5px 0 #090807,0 10px 15px rgba(0,0,0,.52);
+  font-family: var(--font-display);
+  font-size: clamp(.78rem,1.6vw,1rem);
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-shadow: 0 2px #000;
+  text-transform: uppercase;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-reset::before {
+  display: none;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-reset > span {
+  width: clamp(28px,4vw,38px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 2px solid #aa7a3f;
+  border-radius: 50%;
+  color: #dfb766;
+  background: #171715;
+  box-shadow: inset 0 0 7px #000,0 2px 3px #000;
+  font-family: ui-sans-serif,system-ui,sans-serif;
+  font-size: 1.1rem;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-reset:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 5px 13px #000,0 2px 0 #090807,0 5px 8px rgba(0,0,0,.48);
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-tip {
+  grid-column: 1/-1;
+  grid-row: 2;
+  margin: 0;
+  padding: .7rem 1rem;
+  border: 3px double #75512f;
+  border-radius: 8px;
+  color: #c5a96f;
+  background: linear-gradient(180deg,#24221d,#0f1110);
+  box-shadow: inset 0 0 9px #000,0 3px 0 #080706;
+  font-family: Georgia,"Times New Roman",serif;
+  font-size: clamp(.66rem,1.5vw,.92rem);
+  font-style: italic;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-tip span {
+  color: var(--brass-highlight);
+}
+
+.infusion-time-machine-presets {
+  position: relative;
+  z-index: 3;
+  left: auto;
+  bottom: auto;
+  overflow: hidden;
+  margin: 0 auto;
+  padding: clamp(.48rem,1vw,.75rem);
+  border: 4px ridge var(--brass-main);
+  border-radius: clamp(14px,2vw,20px);
+  transform: none;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.014) 0 1px,transparent 1px 8px),
+    linear-gradient(145deg,#292924,#0e1010 55%,#251d15);
+  box-shadow: inset 0 0 0 3px #070808,inset 0 0 20px #000,0 10px 22px rgba(0,0,0,.52);
+}
+
+.infusion-time-machine-preset-heading {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .35rem .5rem .55rem;
+  color: var(--warm-ivory);
+  text-transform: uppercase;
+}
+
+.infusion-time-machine-preset-heading strong {
+  color: var(--brass-highlight);
+  font-family: var(--font-display);
+  font-size: clamp(.68rem,1.4vw,.88rem);
+  letter-spacing: .12em;
+}
+
+.infusion-time-machine-preset-heading small {
+  margin-left: auto;
+  color: #938875;
+  font-size: clamp(.5rem,1vw,.65rem);
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.infusion-time-machine-program-lamp,
+.infusion-time-machine-preset-lamp {
+  flex: none;
+  border: 2px solid #543416;
+  border-radius: 50%;
+  background: #4a301a;
+  box-shadow: inset 0 0 4px #000;
+}
+
+.infusion-time-machine-program-lamp {
+  width: 13px;
+  height: 13px;
+  background: var(--amber-lamp);
+  box-shadow: inset 0 0 3px #fff0a0,0 0 7px rgba(255,177,47,.6);
+}
+
+.infusion-time-machine-preset-bank {
+  display: grid;
+  grid-template-columns: repeat(7,minmax(0,1fr));
+  gap: clamp(.35rem,.7vw,.55rem);
+  padding: .25rem;
+}
+
+.infusion-time-machine-preset {
+  position: relative;
+  min-width: 0;
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: .18rem .3rem;
+  padding: .6rem .42rem .52rem;
+  border: 3px ridge #9a6c35;
+  border-radius: 8px;
+  color: #29170a;
+  background:
+    repeating-linear-gradient(103deg,rgba(255,255,255,.07) 0 1px,transparent 1px 7px),
+    linear-gradient(180deg,#dab162,#9e6934 48%,#c78f48);
+  box-shadow: var(--panel-bevel),0 4px 0 #1b1009,0 7px 10px rgba(0,0,0,.44);
+  font-family: var(--font-display);
+  text-align: center;
+  text-transform: uppercase;
+  transition: transform 90ms ease,box-shadow 90ms ease,filter 110ms ease;
+}
+
+.infusion-time-machine-preset::before {
+  inset: 4px;
+  border-color: rgba(255,226,157,.38);
+}
+
+.infusion-time-machine-preset-lamp {
+  grid-row: 1;
+  width: 10px;
+  height: 10px;
+}
+
+.infusion-time-machine-preset > span:not(.infusion-time-machine-preset-lamp):not(.infusion-time-machine-preset-gear) {
+  grid-column: 2;
+  grid-row: 1;
+  overflow: hidden;
+  font-size: clamp(.55rem,1vw,.72rem);
+  font-weight: 900;
+  letter-spacing: .07em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.infusion-time-machine-preset > strong {
+  grid-column: 1/-1;
+  grid-row: 2;
+  color: #3a200e;
+  font-size: clamp(.78rem,1.4vw,1rem);
+  letter-spacing: .1em;
+  line-height: 1;
+  text-shadow: 0 1px rgba(255,230,168,.68);
+}
+
+.infusion-time-machine-preset-gear {
+  grid-column: 3;
+  grid-row: 1;
+  width: 15px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle,#35200e 0 16%,#d2a05a 18% 34%,transparent 36%),
+    repeating-conic-gradient(#4b2d14 0 9deg,transparent 9deg 18deg);
+  transition: transform 180ms cubic-bezier(.3,.05,.18,1);
+  pointer-events: none;
+}
+
+.infusion-time-machine-preset:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.infusion-time-machine-preset:active,
+.infusion-time-machine-preset[aria-pressed="true"] {
+  transform: translateY(2px);
+  box-shadow: inset 0 4px 9px rgba(49,22,7,.52),0 2px 0 #1b1009,0 4px 7px rgba(0,0,0,.42);
+}
+
+.infusion-time-machine-preset[aria-pressed="true"] .infusion-time-machine-preset-lamp {
+  background: var(--amber-lamp);
+  box-shadow: inset 0 0 2px #fff0a0,0 0 7px rgba(255,177,47,.7);
+}
+
+.infusion-time-machine-preset[aria-pressed="true"] .infusion-time-machine-preset-gear,
+.infusion-time-machine-preset:active .infusion-time-machine-preset-gear {
+  transform: rotate(36deg);
+}
+
+@keyframes machine-odometer-roll {
+  from { transform: translateY(0) rotateX(-5deg); opacity: .92; }
+  55% { opacity: 1; }
+  to { transform: translateY(-50%) rotateX(0); opacity: 1; }
+}
+
+@media (max-width: 720px) {
+  .infusion-time-machine-page {
+    gap: .58rem;
+    padding:
+      max(.3rem,env(safe-area-inset-top))
+      max(.28rem,env(safe-area-inset-right))
+      max(.65rem,env(safe-area-inset-bottom))
+      max(.28rem,env(safe-area-inset-left));
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] {
+    padding: .58rem .48rem;
+    border-width: 4px;
+    border-radius: 18px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"]::before {
+    inset: 5px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-slider-heading {
+    gap: .5rem;
+    padding: .16rem;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .machine-header {
+    grid-template-columns: 52px minmax(0,1fr) 92px;
+    gap: .34rem;
+    padding: .38rem;
+    border-radius: 12px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate {
+    gap: .16rem;
+    padding: .52rem .25rem;
+    border-width: 3px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate::before,
+  .tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate::after {
+    display: none;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate .tea-lab-field-label {
+    font-size: clamp(.5rem,2.5vw,.86rem);
+    letter-spacing: 0;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate small {
+    font-size: clamp(.34rem,1.5vw,.46rem);
+    letter-spacing: .1em;
+  }
+
+  .machine-header-controls {
+    grid-template-columns: repeat(2,minmax(44px,1fr));
+    gap: .22rem;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sound-switch,
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-power-switch {
+    min-height: 54px;
+    padding: .2rem .08rem;
+    border-width: 2px;
+    border-radius: 9px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sound-switch small,
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-sound-switch strong {
+    font-size: .4rem!important;
+  }
+
+  .machine-clock-panel {
+    grid-template-columns: minmax(0,1fr);
+    gap: .38rem;
+    padding: .42rem;
+    border-radius: 12px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .machine-clock-output {
+    min-height: 98px;
+    padding: .48rem .34rem;
+    border-radius: 10px;
+  }
+
+  .machine-clock {
+    gap: .42rem;
+  }
+
+  .machine-clock-section:not(:first-child)::before {
+    display: none;
+  }
+
+  .machine-clock-colon {
+    left: -.22rem;
+    font-size: 1.1rem;
+  }
+
+  .machine-odometer-module {
+    padding: .28rem .32rem;
+    border-width: 3px;
+    border-radius: 9px;
+  }
+
+  .machine-odometer-digit {
+    height: clamp(53px,17vw,69px);
+  }
+
+  .machine-odometer-track {
+    font-size: clamp(1.58rem,10.5vw,2.72rem);
+  }
+
+  .machine-clock-section > small {
+    padding: .22rem .36rem!important;
+    font-size: .45rem!important;
+  }
+
+  .machine-status {
+    grid-template-columns: auto auto minmax(0,1fr);
+    justify-content: start;
+    gap: .38rem;
+    min-height: 44px;
+    padding: .4rem .65rem;
+    text-align: left;
+  }
+
+  .machine-status-lamp {
+    width: 19px;
+  }
+
+  .machine-status strong {
+    justify-self: end;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-wheel {
+    gap: .28rem;
+    margin: .55rem .08rem 0;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-wheel::before {
+    height: 8px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-column {
+    grid-template-rows: 42px auto 44px clamp(156px,50vw,208px) 44px;
+    gap: .24rem;
+    padding: .28rem;
+    border-width: 2px;
+    border-radius: 12px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-rotary {
+    width: 40px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-label {
+    padding: .34rem .05rem;
+    border-width: 2px;
+    font-size: clamp(.43rem,2.7vw,.62rem);
+    letter-spacing: .025em;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-step {
+    width: 100%;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-viewport {
+    border-width: 3px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-strip > strong {
+    font-size: clamp(1.65rem,9vw,2.3rem);
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-strip > span {
+    font-size: clamp(.78rem,4.2vw,1.1rem);
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-controls {
+    grid-template-columns: minmax(0,1.7fr) minmax(108px,1fr);
+    gap: .42rem;
+    margin: .58rem .08rem .08rem;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-start,
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-reset {
+    min-height: 58px;
+    padding: .6rem .4rem;
+    border-width: 3px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-start {
+    font-size: clamp(.72rem,4vw,1rem);
+    letter-spacing: .03em;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-reset {
+    min-width: 0;
+    gap: .25rem;
+    font-size: clamp(.62rem,3vw,.8rem);
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-reset > span {
+    width: 28px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-timer-tip {
+    padding: .58rem .5rem;
+    font-size: clamp(.53rem,2.8vw,.7rem);
+    letter-spacing: .025em;
+  }
+
+  .infusion-time-machine-presets {
+    width: 100%;
+    padding: .4rem;
+    border-width: 3px;
+    border-radius: 13px;
+  }
+
+  .infusion-time-machine-preset-heading {
+    padding: .25rem .3rem .42rem;
+  }
+
+  .infusion-time-machine-preset-heading small {
+    display: none;
+  }
+
+  .infusion-time-machine-preset-bank {
+    grid-template-columns: none;
+    grid-auto-columns: minmax(116px,34vw);
+    grid-auto-flow: column;
+    gap: .42rem;
+    overflow-x: auto;
+    padding: .3rem .32rem .72rem;
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: .32rem;
+    scroll-snap-type: x proximity;
+    scrollbar-color: var(--brass-main) #171513;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .infusion-time-machine-preset-bank::after {
+    content: "";
+    width: 1px;
+  }
+
+  .infusion-time-machine-preset {
+    min-height: 68px;
+    scroll-snap-align: start;
+  }
+}
+
+@media (max-width: 350px) {
+  .tea-lab-duration-field[data-timer-machine="true"] .machine-header {
+    grid-template-columns: 46px minmax(0,1fr) 88px;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate .tea-lab-field-label {
+    font-size: .48rem;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .machine-identification-plate small {
+    font-size: .31rem;
+  }
+
+  .machine-clock {
+    gap: .3rem;
+  }
+
+  .machine-odometer-track {
+    font-size: 1.58rem;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-column {
+    padding-inline: .2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .machine-odometer-track[data-changing="true"] {
+    animation: machine-odometer-fade 1ms linear both;
+  }
+
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-rotary::before,
+  .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-rotary::after,
+  .infusion-time-machine-preset-gear {
+    transition: none!important;
+  }
+}
+
+@keyframes machine-odometer-fade {
+  from { opacity: .74; transform: translateY(-50%); }
+  to { opacity: 1; transform: translateY(-50%); }
+}

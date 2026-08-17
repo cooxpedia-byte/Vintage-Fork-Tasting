@@ -79,6 +79,71 @@ function TeaTimerBotanicalMark() {
   />;
 }
 
+type MachineTimerStatus = "ready" | "steeping" | "paused" | "complete";
+
+const MACHINE_STATUS_LABELS: Record<MachineTimerStatus, string> = {
+  ready: "Ready",
+  steeping: "Steeping",
+  paused: "Paused",
+  complete: "Complete"
+};
+
+function OdometerDigit({ value }: { value: string }) {
+  const [transition, setTransition] = useState({
+    previous: value,
+    current: value,
+    sequence: 0
+  });
+
+  if (transition.current !== value) {
+    setTransition({
+      previous: transition.current,
+      current: value,
+      sequence: transition.sequence + 1
+    });
+  }
+
+  return <span className="machine-odometer-digit" aria-hidden="true">
+    <span
+      className="machine-odometer-track"
+      data-changing={transition.previous === transition.current ? "false" : "true"}
+      key={transition.sequence}
+    >
+      <span>{transition.previous}</span>
+      <strong>{transition.current}</strong>
+    </span>
+  </span>;
+}
+
+function MechanicalClock({ totalSeconds }: { totalSeconds: number }) {
+  const parts = splitTeaLabDuration(totalSeconds);
+  const groups = [
+    { value: parts.hours, unit: "hr" },
+    { value: parts.minutes, unit: "min" },
+    { value: parts.seconds, unit: "sec" }
+  ];
+
+  return <span className="machine-clock" aria-hidden="true">
+    {groups.map((group, groupIndex) => {
+      const digits = paddedDurationPart(group.value).split("");
+      return <span className="machine-clock-section" key={group.unit}>
+        {groupIndex > 0 ? <span className="machine-clock-colon">:</span> : null}
+        <span className="machine-odometer-module">
+          <span className="machine-odometer-axle machine-odometer-axle-left" />
+          <span className="machine-odometer-digits">
+            {digits.map((digit, digitIndex) => <OdometerDigit
+              value={digit}
+              key={`${group.unit}-${digitIndex}`}
+            />)}
+          </span>
+          <span className="machine-odometer-axle machine-odometer-axle-right" />
+        </span>
+        <small>{group.unit}</small>
+      </span>;
+    })}
+  </span>;
+}
+
 function TeaTimerNixieReadout({ totalSeconds }: { totalSeconds: number }) {
   const parts = splitTeaLabDuration(totalSeconds);
   const groups = [
@@ -93,6 +158,61 @@ function TeaTimerNixieReadout({ totalSeconds }: { totalSeconds: number }) {
       <small>{group.unit}</small>
     </span>)}
   </span>;
+}
+
+function MachineHeader({
+  soundEnabled,
+  powerOn,
+  disabled,
+  onSoundToggle,
+  onPowerToggle
+}: {
+  soundEnabled: boolean;
+  powerOn: boolean;
+  disabled: boolean;
+  onSoundToggle?: () => void;
+  onPowerToggle: () => void;
+}) {
+  return <div className="tea-lab-duration-title machine-header">
+    <span className="machine-brand-medallion">
+      <TeaTimerBotanicalMark />
+    </span>
+    <div className="tea-lab-duration-copy machine-identification-plate">
+      <span className="tea-lab-field-label">Infusion Time Machine</span>
+      <small>Precision Tea Timer</small>
+    </div>
+    <div className="machine-header-controls" data-has-sound={onSoundToggle ? "true" : "false"}>
+      {onSoundToggle ? <button
+        className="tea-lab-duration-sound-switch"
+        type="button"
+        role="switch"
+        data-on={soundEnabled ? "true" : "false"}
+        data-feedback-silent="true"
+        aria-label={`Mechanical sound ${soundEnabled ? "on" : "off"}`}
+        aria-checked={soundEnabled}
+        onClick={onSoundToggle}
+      >
+        <span className="machine-sound-lamp" aria-hidden="true" />
+        <small>Sound</small>
+        <strong>{soundEnabled ? "On" : "Off"}</strong>
+      </button> : null}
+      <button
+        className="tea-lab-duration-power-switch"
+        type="button"
+        role="switch"
+        data-on={powerOn ? "true" : "false"}
+        data-feedback-silent="true"
+        disabled={disabled}
+        aria-label={powerOn ? "Turn infusion timer power off" : "Turn infusion timer power on"}
+        aria-checked={powerOn}
+        onClick={onPowerToggle}
+      >
+        <span className="tea-lab-duration-switch-on">On</span>
+        <span className="tea-lab-duration-switch-lever" aria-hidden="true" />
+        <span className="tea-lab-duration-switch-off">Off</span>
+      </button>
+    </div>
+  </div>;
 }
 
 function DurationWheelColumn({
@@ -271,19 +391,11 @@ function DurationWheelColumn({
     }
   }
 
-  function pressButton() {
-    if (!disabled) playVintageTimerEvent("buttonDown", "softPress");
-  }
-
-  function releaseButton() {
-    if (!disabled) playVintageTimerEvent("buttonRelease", "mechanicalEngage", { delayMs: 48 });
-  }
-
   function stepButton(direction: WheelDirection) {
     if (onStep(direction, WHEEL_MIN_DETENT_MS)) turnGear(direction, WHEEL_MIN_DETENT_MS);
   }
 
-  return <div className="tea-lab-duration-column">
+  return <div className="tea-lab-duration-column" data-machine-part={label.toLocaleLowerCase("en-CA")}>
     <span
       className="tea-lab-duration-rotary"
       aria-hidden="true"
@@ -300,9 +412,6 @@ function DurationWheelColumn({
       aria-label={`Increase ${label.toLocaleLowerCase("en-CA")}`}
       data-feedback-silent="true"
       disabled={disabled}
-      onPointerDown={pressButton}
-      onPointerUp={releaseButton}
-      onPointerCancel={releaseButton}
       onClick={() => stepButton(1)}
     ><span aria-hidden="true">▲</span></button>
     <div
@@ -348,9 +457,6 @@ function DurationWheelColumn({
       aria-label={`Decrease ${label.toLocaleLowerCase("en-CA")}`}
       data-feedback-silent="true"
       disabled={disabled}
-      onPointerDown={pressButton}
-      onPointerUp={releaseButton}
-      onPointerCancel={releaseButton}
       onClick={() => stepButton(-1)}
     ><span aria-hidden="true">▼</span></button>
   </div>;
@@ -383,6 +489,8 @@ export function TeaLabDurationSlider({
   const [running, setRunning] = useState(false);
   const [warm, setWarm] = useState(false);
   const [powerOn, setPowerOn] = useState(true);
+  const [timerStatus, setTimerStatus] = useState<MachineTimerStatus>("ready");
+  const [completionAnnouncement, setCompletionAnnouncement] = useState("");
   const deadline = useRef<number | null>(null);
   const settleTimer = useRef<number | null>(null);
   const durationSecondsRef = useRef(totalSeconds);
@@ -405,6 +513,8 @@ export function TeaLabDurationSlider({
       deadline.current = null;
       setRunning(false);
       setWarm(false);
+      setTimerStatus("complete");
+      setCompletionAnnouncement("Infusion complete.");
       playVintageTimerEvent("timerCompletePrimary", "timerComplete");
       window.setTimeout(() => playVintageTimerEvent("timerCompleteSecondary"), 500);
       playVintageTimerEvent("timerCompleteChime", undefined, {
@@ -434,7 +544,11 @@ export function TeaLabDurationSlider({
     const nextSeconds = adjustTeaLabDuration(currentSeconds, part, direction);
     if (nextSeconds === currentSeconds) return false;
     durationSecondsRef.current = nextSeconds;
-    if (enableTimer && !running) setRemainingSeconds(nextSeconds);
+    if (enableTimer && !running) {
+      setRemainingSeconds(nextSeconds);
+      setTimerStatus("ready");
+      setCompletionAnnouncement("");
+    }
     onChange(nextSeconds || null);
     scheduleDetent(intervalMs);
     return true;
@@ -448,6 +562,8 @@ export function TeaLabDurationSlider({
       setRemainingSeconds(next);
       setRunning(false);
       setWarm(false);
+      setTimerStatus("paused");
+      setCompletionAnnouncement("");
       playVintageTimerEvent("buttonDown", "softPress");
       window.setTimeout(() => playVintageTimerEvent("buttonRelease", "mechanicalEngage"), 58);
       return;
@@ -458,6 +574,8 @@ export function TeaLabDurationSlider({
     setRemainingSeconds(duration);
     setRunning(true);
     setWarm(true);
+    setTimerStatus("steeping");
+    setCompletionAnnouncement("");
     playVintageTimerEvent("startMechanical", "startTimer");
     window.setTimeout(() => playVintageTimerEvent("startRelay", "mechanicalEngage"), 82);
   }
@@ -468,6 +586,8 @@ export function TeaLabDurationSlider({
     setRunning(false);
     setWarm(false);
     setRemainingSeconds(0);
+    setTimerStatus("ready");
+    setCompletionAnnouncement("");
     onChange(null);
     playVintageTimerEvent("buttonDown", "softPress");
     window.setTimeout(() => playVintageTimerEvent("buttonRelease", "mechanicalEngage"), 58);
@@ -479,6 +599,8 @@ export function TeaLabDurationSlider({
       deadline.current = null;
       setRunning(false);
       setWarm(false);
+      setTimerStatus("ready");
+      setCompletionAnnouncement("");
     }
     setPowerOn(nextPowerOn);
     playVintageTimerEvent("buttonDown", "softPress");
@@ -491,48 +613,43 @@ export function TeaLabDurationSlider({
     data-preferred-unit={preferredUnit}
     data-timer-running={running ? "true" : "false"}
     data-timer-warm={warm ? "true" : "false"}
+    data-timer-status={timerStatus}
     data-power-on={powerOn ? "true" : "false"}
+    data-timer-machine={enableTimer ? "true" : "false"}
   >
     <div className="tea-lab-slider-heading">
-      <div className="tea-lab-duration-title">
+      {enableTimer ? <MachineHeader
+        soundEnabled={soundEnabled}
+        powerOn={powerOn}
+        disabled={disabled}
+        onSoundToggle={onSoundToggle}
+        onPowerToggle={togglePower}
+      /> : <div className="tea-lab-duration-title">
         <TeaTimerBotanicalMark />
         <div className="tea-lab-duration-copy">
-          <span className="tea-lab-field-label">{enableTimer ? "Infusion Time Machine" : label}</span>
-          {onSoundToggle ? <button
-            className="tea-lab-duration-sound-switch"
-            type="button"
-            data-on={soundEnabled ? "true" : "false"}
-            data-feedback-silent="true"
-            aria-label={`Mechanical sound ${soundEnabled ? "on" : "off"}`}
-            aria-pressed={soundEnabled}
-            onClick={onSoundToggle}
-          >
-            <span aria-hidden="true">{soundEnabled ? "♪" : "×"}</span>
-            <small>Sound</small>
-            <strong>{soundEnabled ? "On" : "Off"}</strong>
-          </button> : null}
+          <span className="tea-lab-field-label">{label}</span>
         </div>
-        {enableTimer && <div className="tea-lab-duration-switch-bank">
-          <button
-            className="tea-lab-duration-power-switch"
-            type="button"
-            data-on={powerOn ? "true" : "false"}
-            data-feedback-silent="true"
-            disabled={disabled}
-            aria-label={powerOn ? "Turn infusion timer power off" : "Turn infusion timer power on"}
-            aria-pressed={powerOn}
-            onClick={togglePower}
-          >
-            <span className="tea-lab-duration-switch-on">On</span>
-            <span className="tea-lab-duration-switch-lever" aria-hidden="true" />
-            <span className="tea-lab-duration-switch-off">Off</span>
-          </button>
-        </div>}
-      </div>
-      <output
-        aria-label={formatTeaLabDuration(enableTimer ? remainingSeconds : totalSeconds) ?? "0 sec"}
-        aria-live="polite"
-      ><TeaTimerNixieReadout totalSeconds={enableTimer ? remainingSeconds : totalSeconds} /></output>
+      </div>}
+      {enableTimer ? <div className="machine-clock-panel">
+        <div
+          className="machine-clock-output"
+          role="timer"
+          aria-label={formatTeaLabDuration(remainingSeconds) ?? "0 sec"}
+        >
+          <MechanicalClock totalSeconds={remainingSeconds} />
+        </div>
+        <div
+          className="machine-status"
+          role="status"
+          aria-label={`Timer status: ${powerOn ? MACHINE_STATUS_LABELS[timerStatus] : "Power off"}`}
+        >
+          <span className="machine-status-lamp" aria-hidden="true" />
+          <span>Machine status</span>
+          <strong>{powerOn ? MACHINE_STATUS_LABELS[timerStatus] : "Power off"}</strong>
+        </div>
+      </div> : <output aria-label={formatTeaLabDuration(totalSeconds) ?? "0 sec"}>
+        <TeaTimerNixieReadout totalSeconds={totalSeconds} />
+      </output>}
     </div>
     <div className="tea-lab-duration-wheel" role="group" aria-label={`${enableTimer ? "Infusion Time Machine" : label} duration`}>
       {DURATION_PARTS.map(definition => <DurationWheelColumn
@@ -553,9 +670,22 @@ export function TeaLabDurationSlider({
         disabled={!powerOn || (!running && !remainingSeconds && !totalSeconds)}
         aria-pressed={running}
         onClick={toggleTimer}
-      ><span className="tea-lab-timer-indicator" aria-hidden="true" />{running ? "Pause steep" : remainingSeconds > 0 && remainingSeconds !== totalSeconds ? "Resume steep" : "Start steep"}</button>
-      <button className="btn btn-quiet tea-lab-timer-reset" type="button" data-feedback-silent="true" disabled={disabled || !powerOn} onClick={resetTimer}>↻ Reset</button>
-      <p className="tea-lab-timer-tip"><span aria-hidden="true">❧</span> Good tea takes patience. Breathe, steep, enjoy.</p>
+      >
+        <span className="tea-lab-timer-indicator" aria-hidden="true" />
+        <span>{running ? "Pause steep" : timerStatus === "paused" ? "Resume steep" : "Start steep"}</span>
+      </button>
+      <button
+        className="btn btn-quiet tea-lab-timer-reset"
+        type="button"
+        data-feedback-silent="true"
+        disabled={disabled || !powerOn}
+        aria-label="Reset infusion timer to zero"
+        onClick={resetTimer}
+      ><span aria-hidden="true">↻</span> Reset</button>
+      <p className="tea-lab-timer-tip"><span aria-hidden="true">❧</span> Good tea takes patience. Breathe. Steep. Enjoy.</p>
+      <span className="sr-only" role="status" aria-live="assertive" aria-atomic="true">
+        {completionAnnouncement}
+      </span>
     </div>}
   </div>;
 }
