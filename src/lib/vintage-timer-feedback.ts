@@ -52,18 +52,10 @@ export const VINTAGE_TIMER_COMPLETION_CHIME = {
   durationMs: 2400,
   attackMs: 4,
   strikeIntervalMs: 1,
-  phraseGapMs: 720,
-  phrases: [
-    [
-      { note: "A5", frequencyHz: 880 },
-      { note: "C6", frequencyHz: 1046.502 },
-      { note: "E6", frequencyHz: 1318.51 }
-    ],
-    [
-      { note: "C6", frequencyHz: 1046.502 },
-      { note: "G6", frequencyHz: 1567.982 },
-      { note: "E6", frequencyHz: 1318.51 }
-    ]
+  bells: [
+    { note: "C6", frequencyHz: 1046.502 },
+    { note: "G6", frequencyHz: 1567.982 },
+    { note: "E6", frequencyHz: 1318.51 }
   ]
 } as const;
 const audioFiles: Record<VintageTimerAudioEvent, readonly string[]> = {
@@ -238,17 +230,10 @@ class VintageTimerAudioManager {
     const when = context.currentTime + Math.max(0, options.delayMs ?? 0) / 1000;
     const duration = VINTAGE_TIMER_COMPLETION_CHIME.durationMs / 1000;
     const volume = eventGain.timerCompleteChime * Math.max(0, options.volumeScale ?? 1);
-    const strikes = VINTAGE_TIMER_COMPLETION_CHIME.phrases.flatMap((phrase, phraseIndex) => {
-      const phraseStartMs = phraseIndex === 0
-        ? 0
-        : (VINTAGE_TIMER_COMPLETION_CHIME.phrases[0].length - 1)
-          * VINTAGE_TIMER_COMPLETION_CHIME.strikeIntervalMs
-          + VINTAGE_TIMER_COMPLETION_CHIME.phraseGapMs;
-      return phrase.map((bell, noteIndex) => ({
-        ...bell,
-        offsetMs: phraseStartMs + noteIndex * VINTAGE_TIMER_COMPLETION_CHIME.strikeIntervalMs
-      }));
-    });
+    const strikes = VINTAGE_TIMER_COMPLETION_CHIME.bells.map((bell, noteIndex) => ({
+      ...bell,
+      offsetMs: noteIndex * VINTAGE_TIMER_COMPLETION_CHIME.strikeIntervalMs
+    }));
     const master = context.createGain();
     const bellBody = context.createBiquadFilter();
     const presence = context.createDynamicsCompressor();
