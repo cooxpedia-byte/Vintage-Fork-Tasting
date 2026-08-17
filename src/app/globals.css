@@ -1851,6 +1851,7 @@ body:has(.infusion-time-machine-page) {
   display: grid;
   place-items: center;
   font: inherit;
+  transform: translateY(-.05em);
 }
 
 .machine-split-flap-top,

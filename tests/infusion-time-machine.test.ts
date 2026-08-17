@@ -95,6 +95,7 @@ describe("standalone Infusion Time Machine", () => {
     expect(source).toContain('className="machine-split-flap-face machine-split-flap-flip-in"');
     expect(redesign).toContain("machine-split-flap-out 240ms");
     expect(redesign).toContain("machine-split-flap-in 240ms");
+    expect(redesign).toMatch(/\.machine-split-flap-face\s*>\s*span\s*\{[^}]*transform:\s*translateY\(-\.05em\)/);
     expect(redesign).toContain("@media (prefers-reduced-motion: reduce)");
     expect(redesign).toMatch(/prefers-reduced-motion:[\s\S]*machine-split-flap-flip-out[\s\S]*display:\s*none/);
   });
