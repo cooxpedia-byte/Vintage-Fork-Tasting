@@ -1778,6 +1778,7 @@ body:has(.infusion-time-machine-page) {
 }
 
 .machine-odometer-digit {
+  --split-flap-font-size: clamp(2.1rem,7.4vw,5.3rem);
   position: relative;
   min-width: 0;
   height: clamp(62px,11vw,106px);
@@ -1792,36 +1793,116 @@ body:has(.infusion-time-machine-page) {
   perspective: 440px;
 }
 
-.machine-odometer-digit::before {
-  display: none;
+.machine-odometer-digit::before,
+.machine-odometer-digit::after {
+  content: "";
+  position: absolute;
+  z-index: 8;
+  top: 50%;
+  width: clamp(3px,.42vw,5px);
+  height: clamp(11px,1.8vw,18px);
+  border: 1px solid #27180c;
+  border-radius: 2px;
+  background: linear-gradient(90deg,#3a2210,#c28742 48%,#4a2b14);
+  box-shadow: inset 0 0 2px rgba(255,217,139,.48),0 1px 3px #000;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
-.machine-odometer-track {
-  width: 100%;
-  height: 200%;
-  display: grid;
-  grid-template-rows: repeat(2,50%);
+.machine-odometer-digit::before { left: 1px; }
+.machine-odometer-digit::after { right: 1px; }
+
+.machine-split-flap {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: inherit;
   color: var(--warm-ivory);
-  transform: translateY(-50%);
   transform-style: preserve-3d;
   font-family: Georgia,"Times New Roman",serif;
-  font-size: clamp(2.1rem,7.4vw,5.3rem);
+  font-size: var(--split-flap-font-size);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 1;
   text-shadow: 0 2px 2px #000;
-  will-change: transform,opacity;
 }
 
-.machine-odometer-track > span,
-.machine-odometer-track > strong {
+.machine-split-flap-face {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  overflow: hidden;
+  display: grid;
+  background:
+    linear-gradient(90deg,#050606,#151715 17%,#090a0a 50%,#151715 83%,#050606),
+    #080909;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.machine-split-flap-face > span {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 200%;
   display: grid;
   place-items: center;
   font: inherit;
 }
 
-.machine-odometer-track[data-changing="true"] {
-  animation: machine-odometer-roll 220ms cubic-bezier(.33,.02,.2,1) both;
+.machine-split-flap-top,
+.machine-split-flap-flip-out {
+  top: 0;
+  border-radius: 22% 22% 3px 3px / 12% 12% 3px 3px;
+  box-shadow: inset 0 10px 13px #000,inset 0 -1px rgba(224,181,104,.13);
+}
+
+.machine-split-flap-top > span,
+.machine-split-flap-flip-out > span { top: 0; }
+
+.machine-split-flap-bottom,
+.machine-split-flap-flip-in {
+  bottom: 0;
+  border-radius: 3px 3px 22% 22% / 3px 3px 12% 12%;
+  box-shadow: inset 0 -10px 13px #000,inset 0 1px rgba(255,220,150,.08);
+}
+
+.machine-split-flap-bottom > span,
+.machine-split-flap-flip-in > span { bottom: 0; }
+
+.machine-split-flap-flip-out {
+  z-index: 5;
+  transform-origin: 50% 100%;
+}
+
+.machine-split-flap-flip-in {
+  z-index: 4;
+  transform: rotateX(90deg);
+  transform-origin: 50% 0;
+}
+
+.machine-split-flap[data-changing="true"] .machine-split-flap-flip-out {
+  animation: machine-split-flap-out 240ms cubic-bezier(.38,.03,.7,.22) both;
+}
+
+.machine-split-flap[data-changing="true"] .machine-split-flap-flip-in {
+  animation: machine-split-flap-in 240ms cubic-bezier(.2,.72,.3,1) both;
+}
+
+.machine-split-flap-seam {
+  position: absolute;
+  z-index: 7;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg,#050505,#6b4d2c 12%,#17120d 50%,#6b4d2c 88%,#050505);
+  box-shadow: 0 -1px rgba(0,0,0,.92),0 1px rgba(230,191,117,.12),0 2px 4px rgba(0,0,0,.7);
+  transform: translateY(-1px);
+  pointer-events: none;
 }
 
 .machine-odometer-axle {
@@ -2321,10 +2402,14 @@ body:has(.infusion-time-machine-page) {
   transform: rotate(36deg);
 }
 
-@keyframes machine-odometer-roll {
-  from { transform: translateY(0) rotateX(-5deg); opacity: .92; }
-  55% { opacity: 1; }
-  to { transform: translateY(-50%) rotateX(0); opacity: 1; }
+@keyframes machine-split-flap-out {
+  0%,46% { transform: rotateX(0); filter: brightness(1); }
+  100% { transform: rotateX(-90deg); filter: brightness(.46); }
+}
+
+@keyframes machine-split-flap-in {
+  0%,48% { transform: rotateX(90deg); filter: brightness(.48); }
+  100% { transform: rotateX(0); filter: brightness(1); }
 }
 
 @media (max-width: 720px) {
@@ -2434,8 +2519,8 @@ body:has(.infusion-time-machine-page) {
     height: clamp(53px,17vw,69px);
   }
 
-  .machine-odometer-track {
-    font-size: clamp(1.58rem,10.5vw,2.72rem);
+  .machine-odometer-digit {
+    --split-flap-font-size: clamp(1.58rem,10.5vw,2.72rem);
   }
 
   .machine-clock-section > small {
@@ -2598,8 +2683,8 @@ body:has(.infusion-time-machine-page) {
     gap: .3rem;
   }
 
-  .machine-odometer-track {
-    font-size: 1.58rem;
+  .machine-odometer-digit {
+    --split-flap-font-size: 1.58rem;
   }
 
   .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-column {
@@ -2608,8 +2693,9 @@ body:has(.infusion-time-machine-page) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .machine-odometer-track[data-changing="true"] {
-    animation: machine-odometer-fade 1ms linear both;
+  .machine-split-flap[data-changing="true"] .machine-split-flap-flip-out,
+  .machine-split-flap[data-changing="true"] .machine-split-flap-flip-in {
+    display: none;
   }
 
   .tea-lab-duration-field[data-timer-machine="true"] .tea-lab-duration-rotary::before,
@@ -2617,9 +2703,4 @@ body:has(.infusion-time-machine-page) {
   .infusion-time-machine-preset-gear {
     transition: none!important;
   }
-}
-
-@keyframes machine-odometer-fade {
-  from { opacity: .74; transform: translateY(-50%); }
-  to { opacity: 1; transform: translateY(-50%); }
 }

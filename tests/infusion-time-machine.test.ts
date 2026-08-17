@@ -20,6 +20,8 @@ describe("standalone Infusion Time Machine", () => {
     expect(html).toContain('data-timer-status="ready"');
     expect(html).toContain('class="machine-clock"');
     expect(html).toContain('class="machine-odometer-digit"');
+    expect(html).toContain('class="machine-split-flap"');
+    expect(html).toContain('class="machine-split-flap-seam"');
     expect(html).toContain('role="timer"');
     expect(html).toContain("Precision Tea Timer");
     expect(html).toContain('role="switch"');
@@ -82,16 +84,19 @@ describe("standalone Infusion Time Machine", () => {
     expect(redesign).toContain("scroll-snap-type: x proximity");
   });
 
-  it("animates only changing odometer digits and disables mechanical motion when requested", () => {
+  it("animates only changing split-flap digits and disables mechanical motion when requested", () => {
     const source = readFileSync("src/components/tea-lab/TeaLabBrewSliders.tsx", "utf8");
     const css = readFileSync("src/app/globals.css", "utf8");
     const redesign = css.slice(css.indexOf("Infusion Time Machine v2"));
 
     expect(source).toContain('data-changing={transition.previous === transition.current ? "false" : "true"}');
     expect(source).toContain('key={`${group.unit}-${digitIndex}`}');
-    expect(redesign).toContain("machine-odometer-roll 220ms");
+    expect(source).toContain('className="machine-split-flap-face machine-split-flap-flip-out"');
+    expect(source).toContain('className="machine-split-flap-face machine-split-flap-flip-in"');
+    expect(redesign).toContain("machine-split-flap-out 240ms");
+    expect(redesign).toContain("machine-split-flap-in 240ms");
     expect(redesign).toContain("@media (prefers-reduced-motion: reduce)");
-    expect(redesign).toContain("animation: machine-odometer-fade 1ms");
+    expect(redesign).toMatch(/prefers-reduced-motion:[\s\S]*machine-split-flap-flip-out[\s\S]*display:\s*none/);
   });
 
   it("keeps the real logo and existing timer, feedback, and deadline architecture", () => {

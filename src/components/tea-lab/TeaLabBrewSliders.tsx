@@ -88,7 +88,7 @@ const MACHINE_STATUS_LABELS: Record<MachineTimerStatus, string> = {
   complete: "Complete"
 };
 
-function OdometerDigit({ value }: { value: string }) {
+function SplitFlapDigit({ value }: { value: string }) {
   const [transition, setTransition] = useState({
     previous: value,
     current: value,
@@ -105,12 +105,25 @@ function OdometerDigit({ value }: { value: string }) {
 
   return <span className="machine-odometer-digit" aria-hidden="true">
     <span
-      className="machine-odometer-track"
+      className="machine-split-flap"
       data-changing={transition.previous === transition.current ? "false" : "true"}
       key={transition.sequence}
     >
-      <span>{transition.previous}</span>
-      <strong>{transition.current}</strong>
+      <span className="machine-split-flap-face machine-split-flap-top">
+        <span>{transition.current}</span>
+      </span>
+      <span className="machine-split-flap-face machine-split-flap-bottom">
+        <span>{transition.current}</span>
+      </span>
+      {transition.previous !== transition.current ? <>
+        <span className="machine-split-flap-face machine-split-flap-flip-out">
+          <span>{transition.previous}</span>
+        </span>
+        <span className="machine-split-flap-face machine-split-flap-flip-in">
+          <span>{transition.current}</span>
+        </span>
+      </> : null}
+      <span className="machine-split-flap-seam" />
     </span>
   </span>;
 }
@@ -131,7 +144,7 @@ function MechanicalClock({ totalSeconds }: { totalSeconds: number }) {
         <span className="machine-odometer-module">
           <span className="machine-odometer-axle machine-odometer-axle-left" />
           <span className="machine-odometer-digits">
-            {digits.map((digit, digitIndex) => <OdometerDigit
+            {digits.map((digit, digitIndex) => <SplitFlapDigit
               value={digit}
               key={`${group.unit}-${digitIndex}`}
             />)}
