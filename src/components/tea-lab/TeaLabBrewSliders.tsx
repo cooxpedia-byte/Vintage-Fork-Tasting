@@ -340,70 +340,157 @@ function DurationWheelColumn({
     if (onStep(direction, WHEEL_MIN_DETENT_MS)) turnGear(direction, WHEEL_MIN_DETENT_MS);
   }
 
-  return <div className="tea-lab-duration-column" data-machine-part={label.toLocaleLowerCase("en-CA")}>
+  return <div
+    className="tea-lab-duration-column"
+    data-machine-part={label.toLocaleLowerCase("en-CA")}
+    style={{
+      "--gear-turn": `${gearMotion.teeth * 18}deg`,
+      "--gear-counter-turn": `${gearMotion.teeth * -27}deg`,
+      "--tourbillon-turn": `${gearMotion.teeth * 43}deg`,
+      "--balance-turn": `${gearMotion.teeth * -67}deg`,
+      "--escapement-turn": `${gearMotion.teeth * -9}deg`,
+      "--gear-step-duration": `${gearMotion.intervalMs}ms`
+    } as CSSProperties}
+  >
     <span
       className="tea-lab-duration-rotary"
       aria-hidden="true"
       style={{
         "--gear-turn": `${gearMotion.teeth * 18}deg`,
         "--gear-counter-turn": `${gearMotion.teeth * -27}deg`,
+        "--tourbillon-turn": `${gearMotion.teeth * 43}deg`,
+        "--balance-turn": `${gearMotion.teeth * -67}deg`,
+        "--escapement-turn": `${gearMotion.teeth * -9}deg`,
         "--gear-step-duration": `${gearMotion.intervalMs}ms`
       } as CSSProperties}
-    />
-    <span className="tea-lab-duration-label" id={labelId}>{label}</span>
-    <button
-      className="tea-lab-duration-step"
-      type="button"
-      aria-label={`Increase ${label.toLocaleLowerCase("en-CA")}`}
-      data-feedback-silent="true"
-      disabled={disabled}
-      onClick={() => stepButton(1)}
-    ><span aria-hidden="true">▲</span></button>
-    <div
-      className="tea-lab-duration-viewport"
-      id={id}
-      role="spinbutton"
-      tabIndex={disabled ? -1 : 0}
-      aria-labelledby={labelId}
-      aria-valuemin={0}
-      aria-valuemax={max}
-      aria-valuenow={value}
-      aria-valuetext={`${value} ${label.toLocaleLowerCase("en-CA")}`}
-      aria-disabled={disabled}
-      data-dragging={dragging ? "true" : "false"}
-      onWheel={handleWheel}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={finishPointer}
-      onPointerCancel={cancelPointer}
-      onKeyDown={handleKeyDown}
     >
-      <span className="tea-lab-duration-knob tea-lab-duration-knob-left" aria-hidden="true" />
-      <span className="tea-lab-duration-knob tea-lab-duration-knob-right" aria-hidden="true" />
-      <div
-        className="tea-lab-duration-strip"
-        data-step={motion.direction}
-        key={motion.sequence}
-        style={{
-          "--wheel-drag-offset": `${-20 - dragProgress * 20}%`,
-          "--wheel-step-duration": `${motion.intervalMs}ms`
-        } as CSSProperties}
-      >
-        {([-2, -1, 0, 1, 2] as const).map(offset => offset === 0
-          ? <strong key={offset}>{paddedDurationPart(value)}</strong>
-          : <span aria-hidden="true" key={offset}>{paddedDurationPart(adjacentDurationPart(value, offset, max))}</span>)}
+      <span className="tea-lab-duration-gear-depth">
+        <i className="tea-lab-duration-back-gear tea-lab-duration-back-gear-left" />
+        <i className="tea-lab-duration-back-gear tea-lab-duration-back-gear-right" />
+        <i className="tea-lab-duration-drive-shaft" />
+        <i className="tea-lab-duration-gear-link" />
+      </span>
+      <span className="tea-lab-duration-tourbillon">
+        <i className="tea-lab-duration-tourbillon-cage" />
+        <i className="tea-lab-duration-tourbillon-balance" />
+        <i className="tea-lab-duration-tourbillon-escapement" />
+        <i className="tea-lab-duration-tourbillon-jewel" />
+      </span>
+    </span>
+    <span className="tea-lab-duration-label" id={labelId}>{label}</span>
+    <div className="tea-lab-duration-mechanism">
+      <div className="tea-lab-duration-step-plate tea-lab-duration-step-plate-up">
+        <button
+          className="tea-lab-duration-step tea-lab-duration-step-up"
+          type="button"
+          aria-label={`Increase ${label.toLocaleLowerCase("en-CA")}`}
+          data-feedback-silent="true"
+          disabled={disabled}
+          onClick={() => stepButton(1)}
+        ><span aria-hidden="true">▲</span></button>
       </div>
-      <span className="tea-lab-duration-glass" aria-hidden="true" />
-      <span className="tea-lab-duration-sight" aria-hidden="true" />
+      <div
+        className="tea-lab-duration-viewport"
+        id={id}
+        role="spinbutton"
+        tabIndex={disabled ? -1 : 0}
+        aria-labelledby={labelId}
+        aria-valuemin={0}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        aria-valuetext={`${value} ${label.toLocaleLowerCase("en-CA")}`}
+        aria-disabled={disabled}
+        data-dragging={dragging ? "true" : "false"}
+        onWheel={handleWheel}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finishPointer}
+        onPointerCancel={cancelPointer}
+        onKeyDown={handleKeyDown}
+      >
+        <span className="tea-lab-duration-knob tea-lab-duration-knob-left" aria-hidden="true" />
+        <span className="tea-lab-duration-knob tea-lab-duration-knob-right" aria-hidden="true" />
+        <div
+          className="tea-lab-duration-strip"
+          data-step={motion.direction}
+          key={motion.sequence}
+          style={{
+            "--wheel-drag-offset": `${-20 - dragProgress * 20}%`,
+            "--wheel-step-duration": `${motion.intervalMs}ms`
+          } as CSSProperties}
+        >
+          {([-2, -1, 0, 1, 2] as const).map(offset => {
+            const displayedValue = paddedDurationPart(offset === 0
+              ? value
+              : adjacentDurationPart(value, offset, max));
+            const number = <span className="tea-lab-duration-number" data-value={displayedValue}>{displayedValue}</span>;
+            return offset === 0
+              ? <strong key={offset}>{number}</strong>
+              : <span aria-hidden="true" key={offset}>{number}</span>;
+          })}
+        </div>
+        <span className="tea-lab-duration-glass" aria-hidden="true" />
+        <span className="tea-lab-duration-sight" aria-hidden="true" />
+      </div>
+      <div className="tea-lab-duration-step-plate tea-lab-duration-step-plate-down">
+        <button
+          className="tea-lab-duration-step tea-lab-duration-step-down"
+          type="button"
+          aria-label={`Decrease ${label.toLocaleLowerCase("en-CA")}`}
+          data-feedback-silent="true"
+          disabled={disabled}
+          onClick={() => stepButton(-1)}
+        ><span aria-hidden="true">▼</span></button>
+      </div>
+      <span className="tea-lab-duration-side-drive tea-lab-duration-side-drive-left" aria-hidden="true">
+        <span className="tea-lab-duration-drive-pipe" />
+        <span className="tea-lab-duration-drive-gear" />
+        <span className="tea-lab-duration-drive-lamp" />
+      </span>
+      <span className="tea-lab-duration-side-drive tea-lab-duration-side-drive-right" aria-hidden="true">
+        <span className="tea-lab-duration-drive-pipe" />
+        <span className="tea-lab-duration-drive-gear" />
+        <span className="tea-lab-duration-drive-lamp" />
+      </span>
     </div>
-    <button
-      className="tea-lab-duration-step"
-      type="button"
-      aria-label={`Decrease ${label.toLocaleLowerCase("en-CA")}`}
-      data-feedback-silent="true"
-      disabled={disabled}
-      onClick={() => stepButton(-1)}
-    ><span aria-hidden="true">▼</span></button>
+  </div>;
+}
+
+export function TeaLabDurationWheelDesignPreview() {
+  const [value, setValue] = useState(0);
+  const valueRef = useRef(0);
+  const settleTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    void preloadVintageTimerFeedback();
+    return () => {
+      if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
+    };
+  }, []);
+
+  function stepPreview(direction: WheelDirection, intervalMs = WHEEL_MIN_DETENT_MS) {
+    const next = Math.min(TEA_LAB_MAX_DURATION_HOURS, Math.max(0, valueRef.current + direction));
+    if (next === valueRef.current) return false;
+    valueRef.current = next;
+    setValue(next);
+    playVintageWheelDetents(1, intervalMs);
+    if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
+    settleTimer.current = window.setTimeout(() => {
+      playVintageTimerEvent("wheelSettle", "wheelSettle");
+      settleTimer.current = null;
+    }, Math.max(92, Math.min(180, intervalMs * 2.4)));
+    return true;
+  }
+
+  return <div className="duration-reel-isolation" data-timer-machine="true">
+    <DurationWheelColumn
+      id="duration-reel-design-preview-hours"
+      label="Hours"
+      value={value}
+      max={TEA_LAB_MAX_DURATION_HOURS}
+      disabled={false}
+      onStep={stepPreview}
+    />
   </div>;
 }
 
@@ -553,7 +640,7 @@ export function TeaLabDurationSlider({
   }
 
   return <div
-    className="field tea-lab-slider-field tea-lab-duration-field"
+    className={`field tea-lab-slider-field tea-lab-duration-field${enableTimer ? " duration-reel-integrated" : ""}`}
     id={id}
     data-preferred-unit={preferredUnit}
     data-timer-running={running ? "true" : "false"}

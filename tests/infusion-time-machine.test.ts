@@ -11,7 +11,7 @@ describe("standalone Infusion Time Machine", () => {
     const html = renderToStaticMarkup(createElement(InfusionTimeMachineApp));
 
     expect(html).toContain("Vintage Fork Infusion Time Machine");
-    expect(html).toContain('class="field tea-lab-slider-field tea-lab-duration-field"');
+    expect(html).toContain('class="field tea-lab-slider-field tea-lab-duration-field duration-reel-integrated"');
     expect(html).toContain('id="infusion-time-machine-hours"');
     expect(html).toContain('id="infusion-time-machine-minutes"');
     expect(html).toContain('id="infusion-time-machine-seconds"');
@@ -20,6 +20,10 @@ describe("standalone Infusion Time Machine", () => {
     expect(html).toContain('data-timer-status="ready"');
     expect(html).toContain("machine-split-flap-module");
     expect(html).toContain('data-flipping="false"');
+    expect(html).toContain('class="tea-lab-duration-mechanism"');
+    expect(html).toContain('class="tea-lab-duration-step-plate tea-lab-duration-step-plate-up"');
+    expect(html).toContain('class="tea-lab-duration-tourbillon"');
+    expect(html).toContain('class="tea-lab-duration-side-drive tea-lab-duration-side-drive-left"');
     expect(html).toContain('role="timer"');
     expect(html).toContain("Precision Tea Timer");
     expect(html).toContain('role="switch"');
@@ -80,6 +84,17 @@ describe("standalone Infusion Time Machine", () => {
     expect(redesign).toMatch(/\.infusion-time-machine-preset-bank\s*\{[^}]*grid-auto-flow:\s*column/);
     expect(redesign).toContain("overscroll-behavior-x: contain");
     expect(redesign).toContain("scroll-snap-type: x proximity");
+  });
+
+  it("keeps one structural border per machine layer instead of stacked outlines", () => {
+    const css = readFileSync("src/app/globals.css", "utf8");
+    const streamlined = css.slice(css.indexOf("Streamlined machine hierarchy"));
+
+    expect(streamlined).toMatch(/data-timer-machine="true"\]\s*::before\s*\{[^}]*display:\s*none/);
+    expect(streamlined).toMatch(/\.machine-clock-panel\s*\{[^}]*border:\s*2px solid/);
+    expect(streamlined).toMatch(/\.tea-lab-duration-column\s*\{[^}]*border:\s*2px solid/);
+    expect(streamlined).toMatch(/\.tea-lab-duration-viewport\s*\{[^}]*border:\s*2px solid/);
+    expect(streamlined).toMatch(/\.infusion-time-machine-preset::before\s*\{[^}]*display:\s*none/);
   });
 
   it("animates only changing digits, drives the gears, and respects reduced motion", () => {
