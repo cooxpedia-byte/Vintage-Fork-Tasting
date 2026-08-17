@@ -48,7 +48,11 @@ const AUDIO_ROOT = "/audio/vintage-timer";
 export const VINTAGE_TIMER_SOUND_STORAGE_KEY = "vf:vintage-timer-sound";
 export const VINTAGE_TIMER_SOUND_EVENT = "vf:vintage-timer-sound-changed";
 export const VINTAGE_TIMER_COMPLETION_CHIME = {
-  frequencyHz: 1046.502,
+  notes: [
+    { name: "C6", frequencyHz: 1046.502, level: .92 },
+    { name: "E6", frequencyHz: 1318.51, level: .72 },
+    { name: "G6", frequencyHz: 1567.982, level: .8 }
+  ],
   delayMs: 1180,
   durationMs: 2600,
   attackMs: 4
@@ -245,22 +249,22 @@ class VintageTimerAudioManager {
       { multiplier: 4.09, level: .11, decaySeconds: .82 },
       { multiplier: 5.42, level: .065, decaySeconds: .48 }
     ];
-    let remaining = partials.length;
-    partials.forEach(partial => {
+    let remaining = partials.length * VINTAGE_TIMER_COMPLETION_CHIME.notes.length;
+    VINTAGE_TIMER_COMPLETION_CHIME.notes.forEach(note => partials.forEach(partial => {
       const oscillator = context.createOscillator();
       const partialGain = context.createGain();
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(
-        VINTAGE_TIMER_COMPLETION_CHIME.frequencyHz * partial.multiplier,
+        note.frequencyHz * partial.multiplier,
         when
       );
       partialGain.gain.setValueAtTime(.0001, when);
       partialGain.gain.exponentialRampToValueAtTime(
-        partial.level,
+        partial.level * note.level,
         when + VINTAGE_TIMER_COMPLETION_CHIME.attackMs / 1000
       );
       partialGain.gain.exponentialRampToValueAtTime(
-        Math.max(.0001, partial.level * .58),
+        Math.max(.0001, partial.level * note.level * .58),
         when + .055
       );
       partialGain.gain.exponentialRampToValueAtTime(
@@ -282,7 +286,7 @@ class VintageTimerAudioManager {
       }, { once: true });
       oscillator.start(when);
       oscillator.stop(when + duration + .04);
-    });
+    }));
   }
 
   private getContext() {

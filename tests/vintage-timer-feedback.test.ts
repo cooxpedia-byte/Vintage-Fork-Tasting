@@ -48,9 +48,13 @@ describe("vintage timer feedback contract", () => {
     expect(vintageTimerVibrationPattern("selectionDetent")).toBe(16);
   });
 
-  it("finishes with a sharp, resounding C6 bell after the mechanical cue", () => {
+  it("finishes with simultaneous sharp, resounding C6-E6-G6 bells after the mechanical cue", () => {
     expect(VINTAGE_TIMER_COMPLETION_CHIME).toEqual({
-      frequencyHz: 1046.502,
+      notes: [
+        { name: "C6", frequencyHz: 1046.502, level: .92 },
+        { name: "E6", frequencyHz: 1318.51, level: .72 },
+        { name: "G6", frequencyHz: 1567.982, level: .8 }
+      ],
       delayMs: 1180,
       durationMs: 2600,
       attackMs: 4

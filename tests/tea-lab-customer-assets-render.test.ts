@@ -167,11 +167,12 @@ describe("Tea Lab customer assets", () => {
     expect(html).toContain("Flavour descriptors");
     expect(html).toContain("Brewing record");
     expect(html).toContain("Brew stages");
-    expect(html).toContain('id="edit-stage-time-card-1-0-hours"');
+    expect(html).not.toContain('id="edit-stage-time-card-1-0-hours"');
     expect(html).toContain('id="edit-stage-time-card-1-0-minutes"');
     expect(html).toContain('id="edit-stage-time-card-1-0-seconds"');
+    expect(html).toContain('aria-label="Long Infusion, collapsed"');
     expect(html).toMatch(/id="edit-stage-temp-card-1-0" type="range" min="0" max="100"/);
-    expect(html).toContain('aria-label="Infusion time duration"');
+    expect(html).toContain('aria-label="Infusion time duration selector"');
     expect(html).toContain(">+ Add infusion</button>");
     expect(html).toContain("Passport stays intact.");
     expect(html).toContain("Save card");
