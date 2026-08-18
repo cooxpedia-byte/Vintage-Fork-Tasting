@@ -49,4 +49,10 @@ describe("Gold Leaves live interface",()=>{
     expect(host).toContain("No Leaves are paid for flavors, chat, reactions, speaking, breakouts, spokesperson roles, or Cheers");
     expect(guest).not.toMatch(/pickup|collect leaf|countdown/i);
   });
+
+  it("fails closed when the canonical loyalty schema is not installed",()=>{
+    expect(route).toContain("isMissingRewardSchema");
+    expect(route).toContain("available:false");
+    expect(route).toContain("PGRST205");
+  });
 });

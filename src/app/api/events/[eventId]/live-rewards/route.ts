@@ -31,9 +31,16 @@ export async function GET(request:Request,{params}:{params:Promise<{eventId:stri
     }
     return response({viewer:"guest",snapshot:await loadParticipantLiveRewards({admin,eventId,userId:participant.user_id??null})});
   }catch(error){
+    if(isMissingRewardSchema(error))return response({snapshot:{available:false,enabled:false,balance:null,label:"Gold Leaves",award:null}},200);
     logger.error("live_reward_state_failed",error,{eventId});
     return response({error:"Your Gold Leaves could not be loaded. The tasting is unaffected."},503);
   }
+}
+
+function isMissingRewardSchema(error:unknown){
+  if(!error||typeof error!=="object")return false;
+  const candidate=error as{code?:unknown;message?:unknown};
+  return candidate.code==="PGRST205"&&typeof candidate.message==="string"&&/event_live_reward|live_tasting_reward|merchant_wallet/i.test(candidate.message);
 }
 
 function response(body:Record<string,unknown>,status=200){
