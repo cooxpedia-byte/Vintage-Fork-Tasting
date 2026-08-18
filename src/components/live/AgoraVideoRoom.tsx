@@ -12,6 +12,8 @@ import type {
 } from "agora-rtc-sdk-ng";
 import {
   AGORA_ACTIVE_SPEAKER_HOLD_MS,
+  AGORA_ACTIVE_SPEAKER_LEVEL,
+  AGORA_SPEECH_ACTIVITY_EVENT,
   AGORA_OPERATION_TIMEOUT_MS,
   agoraErrorCode,
   type AgoraVideoCodec,
@@ -22,6 +24,7 @@ import {
   selectAgoraVideoCodec,
   withAgoraTimeout
 } from "@/lib/agora-session";
+import type { ConductorVideoEmphasis } from "@/lib/conductor";
 
 type RoomToken = {
   appId: string;
@@ -37,11 +40,17 @@ type VideoLayout = "speaker" | "grid";
 export function AgoraVideoRoom({
   eventId,
   displayName,
-  presentation = "guest"
+  presentation = "guest",
+  emphasis = "normal",
+  breakoutRoomId = null,
+  roomLabel
 }: {
   eventId: string;
   displayName: string;
   presentation?: "guest" | "host";
+  emphasis?: ConductorVideoEmphasis;
+  breakoutRoomId?:string|null;
+  roomLabel?:string;
 }) {
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const agoraRef = useRef<IAgoraRTC | null>(null);
@@ -56,7 +65,11 @@ export function AgoraVideoRoom({
   const intentionalLeaveRef = useRef(false);
   const mountedRef = useRef(true);
   const activeSpeakerRef = useRef<string | null>(null);
+  const activeRoomRef=useRef<string|null>(null);
+  const codecRef=useRef<AgoraVideoCodec>("vp8");
   const speakerSilenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechSilenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechActiveRef=useRef(false);
 
   const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);
   const [status, setStatus] = useState<RoomStatus>("idle");
@@ -96,15 +109,21 @@ export function AgoraVideoRoom({
       clientRef.current = null;
       if (speakerSilenceTimerRef.current) clearTimeout(speakerSilenceTimerRef.current);
       speakerSilenceTimerRef.current = null;
+      if(speechSilenceTimerRef.current)clearTimeout(speechSilenceTimerRef.current);
+      speechSilenceTimerRef.current=null;
+      if(speechActiveRef.current)window.dispatchEvent(new CustomEvent<boolean>(AGORA_SPEECH_ACTIVITY_EVENT,{detail:false}));
+      speechActiveRef.current=false;
       activeSpeakerRef.current = null;
     };
   }, []);
 
-  async function fetchToken() {
+  async function fetchToken(targetBreakoutRoomId=breakoutRoomId) {
     const controller = new AbortController();
     try {
       const result = await withAgoraTimeout(fetch(`/api/events/${eventId}/agora-token`, {
         method: "POST",
+        headers:{"content-type":"application/json"},
+        body:JSON.stringify({breakoutRoomId:targetBreakoutRoomId}),
         cache: "no-store",
         signal: controller.signal
       }), AGORA_OPERATION_TIMEOUT_MS.credentials, "The secure video room took too long to respond.");
@@ -135,6 +154,64 @@ export function AgoraVideoRoom({
     });
   }
 
+  async function releaseClient() {
+    const client = clientRef.current;
+    clientRef.current = null;
+    if (!client) return;
+    client.removeAllListeners();
+    await withAgoraTimeout(client.leave(), AGORA_OPERATION_TIMEOUT_MS.leave, "Video took too long to close.").catch(() => undefined);
+  }
+
+  function closeLocalTracks() {
+    audioTrackRef.current?.close();
+    videoTrackRef.current?.close();
+    audioTrackRef.current = null;
+    videoTrackRef.current = null;
+    if (!mountedRef.current) return;
+    setHasMicrophone(false);
+    setHasCamera(false);
+    setLocalTrackReady(false);
+    setMicOn(false);
+    setCameraOn(false);
+    microphoneBusyRef.current = false;
+    cameraBusyRef.current = false;
+    setMicrophoneBusy(false);
+    setCameraBusy(false);
+  }
+
+  function promoteActiveSpeaker(id: string) {
+    if (activeSpeakerRef.current !== id) {
+      activeSpeakerRef.current = id;
+      setActiveSpeakerId(id);
+    }
+    if (speakerSilenceTimerRef.current) clearTimeout(speakerSilenceTimerRef.current);
+    speakerSilenceTimerRef.current = setTimeout(() => {
+      activeSpeakerRef.current = null;
+      speakerSilenceTimerRef.current = null;
+      if (mountedRef.current) setActiveSpeakerId(null);
+    }, AGORA_ACTIVE_SPEAKER_HOLD_MS);
+  }
+
+  function holdSpeechActivity(){
+    if(!speechActiveRef.current){
+      speechActiveRef.current=true;
+      window.dispatchEvent(new CustomEvent<boolean>(AGORA_SPEECH_ACTIVITY_EVENT,{detail:true}));
+    }
+    if(speechSilenceTimerRef.current)clearTimeout(speechSilenceTimerRef.current);
+    speechSilenceTimerRef.current=setTimeout(()=>{
+      speechSilenceTimerRef.current=null;
+      speechActiveRef.current=false;
+      if(mountedRef.current)window.dispatchEvent(new CustomEvent<boolean>(AGORA_SPEECH_ACTIVITY_EVENT,{detail:false}));
+    },AGORA_ACTIVE_SPEAKER_HOLD_MS);
+  }
+
+  function clearActiveSpeaker() {
+    if (speakerSilenceTimerRef.current) clearTimeout(speakerSilenceTimerRef.current);
+    speakerSilenceTimerRef.current = null;
+    activeSpeakerRef.current = null;
+    if (mountedRef.current) setActiveSpeakerId(null);
+  }
+
   function configureClient(client: IAgoraRTCClient) {
     const refreshRemoteUsers = () => setRemoteUsers([...client.remoteUsers]);
     client.on("user-published", (user, mediaType) => {
@@ -157,6 +234,7 @@ export function AgoraVideoRoom({
     client.enableAudioVolumeIndicator();
     client.on("volume-indicator", levels => {
       if (clientRef.current !== client) return;
+      if(levels.some(sample=>sample.level>=AGORA_ACTIVE_SPEAKER_LEVEL))holdSpeechActivity();
       const localUid = client.uid === undefined ? "" : String(client.uid);
       const visibleCameraIds = new Set(
         client.remoteUsers.filter(user => Boolean(user.videoTrack)).map(user => String(user.uid))
@@ -258,6 +336,7 @@ export function AgoraVideoRoom({
       }
       const supportedCodecs = await AgoraRTC.getSupportedCodec().catch(() => ({ video: [], audio: [] }));
       const codec = selectAgoraVideoCodec(supportedCodecs.video);
+      codecRef.current=codec;
       connectionStage = "join";
       setProgress("Joining the video room…");
       // Do not force startProxyServer here. Agora cloud proxy needs separate
@@ -265,9 +344,17 @@ export function AgoraVideoRoom({
       const client = await createAndJoinClient(AgoraRTC, credentials, codec, attempt);
 
       setStatus("joined");
-      setProgress("Connected. Opening microphone…");
+      activeRoomRef.current=breakoutRoomId;
       setRemoteUsers([...client.remoteUsers]);
-      void initializeLocalMedia(AgoraRTC, client, attempt);
+      if(audioTrackRef.current||videoTrackRef.current){
+        setProgress("Restoring your camera and microphone…");
+        await publishPreservedTracks(client,attempt);
+        if(attempt===attemptRef.current)setProgress("");
+      }else{
+        setProgress("Connected. Opening microphone…");
+        void initializeLocalMedia(AgoraRTC, client, attempt);
+      }
+      if(presentation==="guest"&&breakoutRoomId)void markBreakoutConnected();
     } catch (joinError) {
       if (attempt !== attemptRef.current) return;
       reportClientIssue(`${connectionStage}_failed`, joinError);
@@ -281,6 +368,60 @@ export function AgoraVideoRoom({
       if (attempt === attemptRef.current) joiningRef.current = false;
     }
   }
+
+  async function publishPreservedTracks(client:IAgoraRTCClient,attempt:number){
+    const tracks=[audioTrackRef.current,videoTrackRef.current].filter(Boolean) as (IMicrophoneAudioTrack|ICameraVideoTrack)[];
+    if(!tracks.length)return;
+    await withAgoraTimeout(client.publish(tracks),AGORA_OPERATION_TIMEOUT_MS.publish,"Camera and microphone took too long to restore.");
+    if(attempt!==attemptRef.current||clientRef.current!==client)await client.unpublish(tracks).catch(()=>undefined);
+  }
+
+  async function markBreakoutConnected(){
+    await fetch(`/api/events/${eventId}/breakouts`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"mark_connected"})}).catch(()=>undefined);
+  }
+
+  async function transitionRoom(targetBreakoutRoomId:string|null){
+    if(joiningRef.current||!clientRef.current||!agoraRef.current||activeRoomRef.current===targetBreakoutRoomId)return;
+    joiningRef.current=true;
+    intentionalLeaveRef.current=true;
+    const attempt=++attemptRef.current;
+    setStatus("joining");
+    setProgress(targetBreakoutRoomId?"Moving to your tasting table…":"Bringing everyone back to the main tasting…");
+    setConnectionError("");
+    setRemoteUsers([]);
+    clearActiveSpeaker();
+    try{
+      const credentials=await fetchToken(targetBreakoutRoomId);
+      if(attempt!==attemptRef.current)return;
+      await releaseClient();
+      const client=await createAndJoinClient(agoraRef.current,credentials,codecRef.current,attempt);
+      await publishPreservedTracks(client,attempt);
+      if(attempt!==attemptRef.current)return;
+      activeRoomRef.current=targetBreakoutRoomId;
+      setRemoteUsers([...client.remoteUsers]);
+      setStatus("joined");
+      setProgress("");
+      if(presentation==="guest"&&targetBreakoutRoomId)void markBreakoutConnected();
+    }catch(error){
+      if(attempt!==attemptRef.current)return;
+      reportClientIssue("room_transition",error,{targetBreakoutRoomId});
+      await releaseClient();
+      setStatus("error");
+      setProgress("");
+      setConnectionError("Video could not change rooms. Your tasting notes and timer are safe; reconnect video to try again.");
+    }finally{
+      intentionalLeaveRef.current=false;
+      if(attempt===attemptRef.current)joiningRef.current=false;
+    }
+  }
+
+  const transitionRoomRef=useRef(transitionRoom);
+  useEffect(()=>{transitionRoomRef.current=transitionRoom});
+
+  useEffect(()=>{
+    if(status!=="joined"||!clientRef.current||activeRoomRef.current===breakoutRoomId)return;
+    void transitionRoomRef.current(breakoutRoomId);
+  },[breakoutRoomId,status]);
 
   async function initializeLocalMedia(AgoraRTC: IAgoraRTC, client: IAgoraRTCClient, attempt: number) {
     await startMicrophone(AgoraRTC, client, attempt);
@@ -415,31 +556,6 @@ export function AgoraVideoRoom({
     intentionalLeaveRef.current = false;
   }
 
-  async function releaseClient() {
-    const client = clientRef.current;
-    clientRef.current = null;
-    if (!client) return;
-    client.removeAllListeners();
-    await withAgoraTimeout(client.leave(), AGORA_OPERATION_TIMEOUT_MS.leave, "Video took too long to close.").catch(() => undefined);
-  }
-
-  function closeLocalTracks() {
-    audioTrackRef.current?.close();
-    videoTrackRef.current?.close();
-    audioTrackRef.current = null;
-    videoTrackRef.current = null;
-    if (!mountedRef.current) return;
-    setHasMicrophone(false);
-    setHasCamera(false);
-    setLocalTrackReady(false);
-    setMicOn(false);
-    setCameraOn(false);
-    microphoneBusyRef.current = false;
-    cameraBusyRef.current = false;
-    setMicrophoneBusy(false);
-    setCameraBusy(false);
-  }
-
   async function toggleMicrophone() {
     const track = audioTrackRef.current;
     if (!track) return retryMicrophone();
@@ -457,37 +573,18 @@ export function AgoraVideoRoom({
     if (!next && activeSpeakerRef.current === "local") clearActiveSpeaker();
   }
 
-  function promoteActiveSpeaker(id: string) {
-    if (activeSpeakerRef.current !== id) {
-      activeSpeakerRef.current = id;
-      setActiveSpeakerId(id);
-    }
-    if (speakerSilenceTimerRef.current) clearTimeout(speakerSilenceTimerRef.current);
-    speakerSilenceTimerRef.current = setTimeout(() => {
-      activeSpeakerRef.current = null;
-      speakerSilenceTimerRef.current = null;
-      if (mountedRef.current) setActiveSpeakerId(null);
-    }, AGORA_ACTIVE_SPEAKER_HOLD_MS);
-  }
-
-  function clearActiveSpeaker() {
-    if (speakerSilenceTimerRef.current) clearTimeout(speakerSilenceTimerRef.current);
-    speakerSilenceTimerRef.current = null;
-    activeSpeakerRef.current = null;
-    if (mountedRef.current) setActiveSpeakerId(null);
-  }
-
   const joined = status === "joined";
   const visibleRemoteUsers = remoteUsers.filter(user => Boolean(user.videoTrack));
   const speakerView = presentation === "host" && videoLayout === "speaker";
   const visibleVideoCount = visibleRemoteUsers.length + (hasCamera && cameraOn ? 1 : 0);
-  const roomClass = `agora-room agora-room-${presentation}${collapsed ? " agora-room-collapsed" : ""}`;
+  const roomClass = `agora-room agora-room-${presentation} agora-room-emphasis-${emphasis}${collapsed ? " agora-room-collapsed" : ""}`;
   const entryLabel = status === "joining" ? (progress || "Connecting to video…") : status === "error" ? "Reconnect video" : "Join with camera & mic";
+  const activeRoomLabel=breakoutRoomId?(roomLabel??"Small tasting table"):"Live tasting video";
   const localVideoTile = <article className="agora-video-tile agora-video-tile-local"><div ref={localVideoRef} className="agora-video-surface" /><span>{displayName} · you</span>{(!hasCamera || !cameraOn) && <div className="agora-camera-off">{cameraBusy ? "Opening camera…" : hasCamera ? "Camera off" : "Camera unavailable"}</div>}</article>;
 
   return <section className={roomClass} aria-label="Live tasting video room">
     <header className="agora-room-header">
-      <div><span className={`agora-live-dot${joined ? " active" : ""}`} aria-hidden="true" /><strong>{joined ? "Live tasting video" : "Join the tasting video"}</strong>{joined && <small>{visibleVideoCount} {visibleVideoCount === 1 ? "camera" : "cameras"}</small>}</div>
+      <div><span className={`agora-live-dot${joined ? " active" : ""}`} aria-hidden="true" /><strong>{joined ? activeRoomLabel : `Join ${breakoutRoomId?"your small table":"the tasting video"}`}</strong>{joined && <small>{visibleVideoCount} {visibleVideoCount === 1 ? "camera" : "cameras"}</small>}</div>
       {joined && <button className="btn btn-quiet agora-collapse" onClick={() => setCollapsed(value => !value)} aria-expanded={!collapsed}>{collapsed ? "Show video" : "Hide video"}</button>}
     </header>
     <div className="agora-room-body">

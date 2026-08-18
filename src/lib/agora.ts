@@ -10,6 +10,13 @@ export function agoraChannelName(eventId: string) {
   return `vf_${compactId}`;
 }
 
+export function agoraBreakoutChannelName(eventId:string,roomId:string){
+  const eventPart=eventId.replace(/[^a-zA-Z0-9]/g,"").slice(0,20);
+  const roomPart=roomId.replace(/[^a-zA-Z0-9]/g,"").slice(0,20);
+  if(!eventPart||!roomPart)throw new Error("Invalid small tasting room ID.");
+  return `vf_b_${eventPart}_${roomPart}`;
+}
+
 export function agoraUserAccount(kind: "host" | "guest", id: string) {
   const compactId = id.replace(/[^a-zA-Z0-9]/g, "");
   if (!compactId) throw new Error("Invalid tasting participant ID.");

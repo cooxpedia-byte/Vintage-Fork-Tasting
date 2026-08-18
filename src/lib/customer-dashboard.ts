@@ -1,9 +1,9 @@
 const UPCOMING_EVENT_STATUSES = new Set(["scheduled", "live"]);
 const INACTIVE_PARTICIPANT_STATUSES = new Set(["left", "removed"]);
-const CUSTOMER_DASHBOARD_SECTIONS = new Set(["home", "journal", "passport", "saved", "merchant"]);
+const CUSTOMER_DASHBOARD_SECTIONS = new Set(["home", "journal", "passport", "saved", "merchant", "discovery"]);
 const DEFAULT_EVENT_TIME_ZONE = "America/Edmonton";
 
-export type CustomerDashboardSection = "home" | "journal" | "passport" | "saved" | "merchant";
+export type CustomerDashboardSection = "home" | "journal" | "passport" | "saved" | "merchant" | "discovery";
 
 function supportedEventTimeZone(timeZone: string | null | undefined): string {
   if (!timeZone) return DEFAULT_EVENT_TIME_ZONE;

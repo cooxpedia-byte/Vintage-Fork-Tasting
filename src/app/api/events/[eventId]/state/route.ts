@@ -4,6 +4,10 @@ import { requireParticipant } from "@/lib/guest-token";
 import { maskEmail, protectGuestState } from "@/lib/guest-privacy";
 import { logger } from "@/lib/logger";
 import { createTriviaDeadlineToken } from "@/lib/trivia-token";
+import type {BreakoutState} from "@/lib/breakouts";
+import {loadParticipantDiscoveryBoard} from "@/lib/discovery-board-server";
+import {loadGroupRevealSnapshot} from "@/lib/group-reveal-server";
+import {loadParticipantCheers} from "@/lib/cheers-server";
 
 export async function GET(_: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const serverReceivedTime = new Date().toISOString();
@@ -12,7 +16,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
   if (!participant) return NextResponse.json({ error: "Participation session expired." }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: event, error: eventError } = await admin.from("events").select("id,title,status,phase,sequence_number,current_flight_item_id,current_trivia_question_id,tasting_opened_flight_item_id,reveal_at,timer_started_at,timer_ends_at,trivia_opened_at,trivia_closes_at,starts_at,location_mode,video_call_url,venue_name,venue_address,completed_at").eq("id", eventId).single();
+  const { data: event, error: eventError } = await admin.from("events").select("id,title,status,phase,sequence_number,current_flight_item_id,current_trivia_question_id,tasting_opened_flight_item_id,reveal_at,timer_started_at,timer_ends_at,trivia_opened_at,trivia_closes_at,starts_at,location_mode,video_call_url,venue_name,venue_address,completed_at,conductor_stage,conductor_stage_started_at,conductor_stage_duration_seconds,conductor_paused_at,conductor_remaining_seconds,conductor_sequence_version,current_brew_id,current_breakout_session_id").eq("id", eventId).single();
   if (!event && eventError?.code === "PGRST116") return NextResponse.json({ error: "Event not found." }, { status: 404 });
   if (eventError) return stateLoadFailure(eventId, eventError);
   if (!event) return NextResponse.json({ error: "Event not found." }, { status: 404 });
@@ -24,11 +28,55 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
   const betweenTeas = Boolean(rawCurrent && event.phase === "tasting" && !tastingIsOpen);
   const includeResults = ["recap", "ended"].includes(event.phase) || event.status === "completed";
   const revealVisible = Boolean(rawCurrent && (
+    event.conductor_stage !== "arrival"
+    ||
     ["reveal", "brewing", "trivia", "recap", "ended"].includes(event.phase)
     || (event.phase === "tasting" && tastingIsOpen)
     || event.status === "completed"
   ));
   const current = revealVisible ? rawCurrent : null;
+  const ownStageSignalResult = rawCurrent && ["prepare", "brew"].includes(event.conductor_stage)
+    ? await admin.from("event_stage_signals").select("signal").eq("event_id", eventId).eq("participant_id", participant.id).eq("event_flight_item_id", rawCurrent.id).eq("stage", event.conductor_stage).maybeSingle()
+    : { data: null, error: null };
+  if (ownStageSignalResult.error) return stateLoadFailure(eventId, ownStageSignalResult.error);
+  const currentBrewResult = event.current_brew_id
+    ? await admin.from("event_brews").select("id,event_id,event_flight_item_id,infusion_number,started_at,duration_ms,status,paused_at,accumulated_pause_ms,host_id,completed_at").eq("id", event.current_brew_id).maybeSingle()
+    : { data: null, error: null };
+  if (currentBrewResult.error) return stateLoadFailure(eventId, currentBrewResult.error);
+  const brewNoteResult = currentBrewResult.data
+    ? await admin.from("participant_brew_notes").select("note").eq("participant_id",participant.id).eq("event_brew_id",currentBrewResult.data.id).maybeSingle()
+    : {data:null,error:null};
+  if(brewNoteResult.error)return stateLoadFailure(eventId,brewNoteResult.error);
+
+  let breakout:BreakoutState|null=null;
+  if(event.current_breakout_session_id){
+    const [sessionResult,memberResult]=await Promise.all([
+      admin.from("event_breakout_sessions").select("id,event_id,event_flight_item_id,origin_stage,status,room_size,assignment_mode,prompt,starts_at,ends_at,host_id,completed_at").eq("id",event.current_breakout_session_id).eq("event_id",eventId).maybeSingle(),
+      admin.from("event_breakout_members").select("breakout_room_id,status").eq("session_id",event.current_breakout_session_id).eq("participant_id",participant.id).maybeSingle()
+    ]);
+    if(sessionResult.error)return stateLoadFailure(eventId,sessionResult.error);
+    if(memberResult.error)return stateLoadFailure(eventId,memberResult.error);
+    if(sessionResult.data&&memberResult.data){
+      const [roomResult,membersResult,signalResult]=await Promise.all([
+        admin.from("event_breakout_rooms").select("id,session_id,event_id,room_number,prompt,status,snapshot").eq("id",memberResult.data.breakout_room_id).maybeSingle(),
+        admin.from("event_breakout_members").select("participant_id,status,participant:participants(display_name)").eq("session_id",event.current_breakout_session_id).eq("breakout_room_id",memberResult.data.breakout_room_id),
+        admin.from("event_breakout_signals").select("signal").eq("session_id",event.current_breakout_session_id).eq("participant_id",participant.id).maybeSingle()
+      ]);
+      if(roomResult.error)return stateLoadFailure(eventId,roomResult.error);
+      if(membersResult.error)return stateLoadFailure(eventId,membersResult.error);
+      if(signalResult.error)return stateLoadFailure(eventId,signalResult.error);
+      if(roomResult.data)breakout={
+        session:sessionResult.data,
+        room:roomResult.data,
+        memberStatus:memberResult.data.status,
+        members:(membersResult.data??[]).map(member=>{
+          const relation=member.participant as unknown as {display_name?:string}|Array<{display_name?:string}>|null;
+          return{id:member.participant_id,displayName:(Array.isArray(relation)?relation[0]?.display_name:relation?.display_name)??"Guest",status:member.status};
+        }),
+        signal:signalResult.data?.signal??null
+      };
+    }
+  }
 
   let trivia: Record<string, unknown> | null = null;
   if (rawCurrent && event.current_trivia_question_id && (event.phase === "trivia" || includeResults)) {
@@ -63,8 +111,17 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
     }
   }
 
-  const { data: responses, error: responsesError } = await admin.from("tea_responses").select("id,event_flight_item_id,first_impression,descriptors,intensity,rating,personal_notes,saved,completed_at,stamp_released_at").eq("participant_id", participant.id);
+  const { data: responses, error: responsesError } = await admin.from("tea_responses").select("id,event_flight_item_id,aroma_descriptors,aroma_intensity,first_impression,descriptors,intensity,rating,personal_notes,saved,completed_at,stamp_released_at").eq("participant_id", participant.id);
   if (responsesError) return stateLoadFailure(eventId, responsesError);
+  let discoveryBoard:Awaited<ReturnType<typeof loadParticipantDiscoveryBoard>>=null;
+  try{discoveryBoard=await loadParticipantDiscoveryBoard({admin,eventId,eventFlightItemId:rawCurrent?.id??null,participantId:participant.id})}
+  catch(discoveryError){return stateLoadFailure(eventId,discoveryError)}
+  let groupReveal:Awaited<ReturnType<typeof loadGroupRevealSnapshot>>=null;
+  try{groupReveal=await loadGroupRevealSnapshot({admin,eventId,eventFlightItemId:rawCurrent?.id??null,participantId:participant.id})}
+  catch(revealError){return stateLoadFailure(eventId,revealError)}
+  let cheers:Awaited<ReturnType<typeof loadParticipantCheers>>=null;
+  try{cheers=await loadParticipantCheers({admin,eventId,participantId:participant.id})}
+  catch(cheersError){return stateLoadFailure(eventId,cheersError)}
   let analytics: { average_rating: number | null } | null = null;
   let participantTrivia: { answered: number; correct: number; total: number } | null = null;
   if (includeResults) {
@@ -108,6 +165,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ eventId: s
     currentItem: current,
     currentPosition: rawCurrent?.position ?? 0,
     betweenTeas,
+    stageSignal: ownStageSignalResult.data?.signal ?? null,
+    brew: currentBrewResult.data,
+    brewNote: brewNoteResult.data?.note??"",
+    breakout,
+    discoveryBoard,
+    groupReveal,
+    cheers,
     trivia,
     responses: responses ?? [],
     allItems: includeResults ? flight : undefined,

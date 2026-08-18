@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { DashboardHero } from "@/components/DashboardHero";
+import {DiscoveryProfile} from "@/components/dashboard/DiscoveryProfile";
 import { JournalSessionCard } from "@/components/dashboard/JournalSessionCard";
 import { TeaLabWorkspace } from "@/components/tea-lab/TeaLabWorkspace";
 import { TeaLibrary } from "@/components/tea-lab/TeaLibrary";
@@ -15,17 +16,20 @@ import type { TeaLabSoloDraft } from "@/lib/tea-lab/offline";
 import type { TeaLibraryItem } from "@/lib/tea-lab/library";
 import { buildPassportSeals, type PassportSeal } from "@/lib/tea-lab/passport";
 import type { LoyaltySummary, MerchantCard, MerchantListing } from "@/lib/loyalty";
+import {UNAVAILABLE_DISCOVERY_PROFILE,type DiscoveryProfileSnapshot} from "@/lib/discovery-identity";
 
 const DASHBOARD_NAV_ITEMS = {
   standard: [
     { section: "home", icon: "⌂", label: "Home" },
     { section: "journal", icon: "▤", label: "Tastings" },
+    { section: "discovery", icon: "⌁", label: "Discovery", mobileLabel: "Discover" },
     { section: "passport", icon: "✦", label: "Tea Cellar" },
     { section: "saved", icon: "♡", label: "Saved teas", mobileLabel: "Saved" }
   ],
   teaLab: [
     { section: "home", icon: "⌂", label: "Lab" },
     { section: "journal", icon: "▤", label: "Journal" },
+    { section: "discovery", icon: "⌁", label: "Discovery", mobileLabel: "Discover" },
     { section: "saved", icon: "♡", label: "Library" },
     { section: "passport", icon: "✦", label: "Tea Cellar" }
   ]
@@ -47,9 +51,10 @@ type CustomerDashboardProps = {
   loyaltySummary?: LoyaltySummary | null;
   merchantCards?: MerchantCard[];
   merchantListings?: MerchantListing[];
+  discoveryProfile?:DiscoveryProfileSnapshot;
 };
 
-export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLabEnabled = false, journalSessions = [], archivedJournalSessions = [], libraryItems = [], passportSeals = [], teaOptions = [], descriptorOptions = [], serverDrafts = [], loyaltySummary = null, merchantCards = [], merchantListings = [] }: CustomerDashboardProps) {
+export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLabEnabled = false, journalSessions = [], archivedJournalSessions = [], libraryItems = [], passportSeals = [], teaOptions = [], descriptorOptions = [], serverDrafts = [], loyaltySummary = null, merchantCards = [], merchantListings = [],discoveryProfile=UNAVAILABLE_DISCOVERY_PROFILE }: CustomerDashboardProps) {
   const searchParams = useSearchParams();
   const [showArchivedJournal, setShowArchivedJournal] = useState(false);
   const routeSection = searchParams.get("section");
@@ -98,6 +103,7 @@ export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLa
           <div className="section-label"><span>Your last evening</span></div>
           {events[0] ? <EventCard event={events[0]} /> : <div className="empty-state"><h2>Your cellar is ready.</h2><p>Join a tasting to begin your journal and Passport.</p></div>}
         </>}
+        {tab === "discovery" && <DiscoveryProfile initialSnapshot={discoveryProfile}/>}
         {tab === "journal" && <>
           <h1 className="page-title">Your Tasting Journal</h1><p className="page-lede">Historical notes are private to you.</p>
           <div className="stack" style={{ marginTop: 20 }}>{teaLabEnabled
@@ -116,7 +122,7 @@ export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLa
         {tab === "saved" && !teaLabEnabled && <>
           <h1 className="page-title">Saved to Remember</h1><p className="page-lede">Saving never adds a product to a cart or charges you.</p>
           <div className="stack" style={{ marginTop: 20 }}>{saved.map(r => <article className="card" key={r.id}><div className="card-header"><div><h2 className="card-title">{r.flight?.tea?.name ?? r.flight?.reveal_title}</h2><p className="card-meta">{r.flight?.tea?.origin}</p></div><span className="chip chip-success">Saved</span></div><p>{r.descriptors.join(" · ") || "No descriptors recorded"}</p><div className="card-footer"><span>{r.rating ? `${"★".repeat(r.rating)}${"☆".repeat(5-r.rating)}` : "Not rated"}</span><a className="btn btn-primary btn-attention" href="https://vintagefork.ca/" target="_blank" rel="noreferrer">Visit the tea shop</a></div></article>)}</div>
-          {!saved.length && <div className="empty-state"><h2>Nothing saved yet.</h2><p>Use “Save This Tea” during a tasting to keep it here.</p></div>}
+          {!saved.length && <div className="empty-state"><h2>Nothing saved yet.</h2><p>Use “Save to my tasting” during a tasting to keep it here.</p></div>}
         </>}
       </main>
     </div>

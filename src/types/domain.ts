@@ -1,6 +1,7 @@
 export type UserRole = "customer" | "host" | "admin";
 export type EventStatus = "draft" | "scheduled" | "live" | "completed" | "cancelled";
 export type SessionPhase = "lobby" | "welcome" | "reveal" | "brewing" | "tasting" | "trivia" | "recap" | "ended";
+export type ConductorStage = "arrival" | "prepare" | "brew" | "aroma" | "first_sip" | "explore" | "discuss" | "reveal" | "debrief" | "close_tea" | "transition";
 export type ParticipantStatus = "registered" | "waiting" | "admitted" | "active" | "left" | "removed";
 
 export interface Tea {
@@ -71,6 +72,15 @@ export interface TastingEvent {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  conductor_stage: ConductorStage;
+  conductor_stage_started_at: string | null;
+  conductor_stage_duration_seconds: number | null;
+  conductor_paused_at: string | null;
+  conductor_remaining_seconds: number | null;
+  conductor_sequence_version: number;
+  conductor_id: string | null;
+  current_brew_id: string | null;
+  current_breakout_session_id:string|null;
   flight_items?: FlightItem[];
 }
 
@@ -110,4 +120,53 @@ export type EventCommand =
   | "return_to_tasting"
   | "next_tea"
   | "start_recap"
+  | "advance_stage"
+  | "start_brew"
+  | "restart_brew"
+  | "start_next_infusion"
+  | "end_brew_early"
+  | "pause_stage"
+  | "resume_stage"
+  | "extend_stage"
+  | "skip_stage"
+  | "go_back_stage"
+  | "jump_stage"
+  | "launch_breakouts"
+  | "extend_breakouts"
+  | "end_breakouts"
+  | "open_discovery_card"
+  | "compare_discovery_card"
+  | "surface_discovery_curiosity"
+  | "close_discovery_cards"
+  | "invite_discovery_spokesperson"
+  | "complete_discovery_share"
+  | "reveal_group_aroma"
+  | "reveal_group_taste"
+  | "combine_group_reveal"
+  | "show_group_timeline"
+  | "set_group_timeline"
+  | "highlight_group_flavor"
+  | "clear_group_flavor"
+  | "show_group_producer_notes"
+  | "hide_group_producer_notes"
+  | "freeze_group_fingerprint"
+  | "return_group_discussion"
+  | "open_cheers"
+  | "resolve_cheers"
+  | "cancel_cheers"
+  | "set_reward_mode"
+  | "grant_reward_completion"
+  | "set_conversation_prompts_enabled"
+  | "send_conversation_prompt"
+  | "configure_living_map"
+  | "start_living_map"
+  | "pause_living_map"
+  | "resume_living_map"
+  | "freeze_living_map"
+  | "start_living_map_replay"
+  | "pause_living_map_replay"
+  | "resume_living_map_replay"
+  | "seek_living_map_replay"
+  | "commit_living_map_fingerprint"
+  | "reopen_living_map"
   | "end_session";

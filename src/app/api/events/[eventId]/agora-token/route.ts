@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   AGORA_TOKEN_TTL_SECONDS,
+  agoraBreakoutChannelName,
   agoraChannelName,
   agoraUserAccount,
   canManageAgoraEvent,
@@ -15,12 +16,14 @@ import { createRequestClient } from "@/lib/supabase/request-auth";
 export async function POST(request: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
   try {
+    const requestBody=await request.json().catch(()=>({})) as {breakoutRoomId?:unknown};
+    const requestedBreakoutRoomId=typeof requestBody.breakoutRoomId==="string"?requestBody.breakoutRoomId:null;
     const admin = createAdminClient();
     const [{ client: supabase, user }, eventResult, participant] = await Promise.all([
       createRequestClient(request),
       admin
         .from("events")
-        .select("id,status,phase,location_mode,owner_user_id,host_user_id,backup_host_user_id")
+        .select("id,status,phase,location_mode,owner_user_id,host_user_id,backup_host_user_id,current_breakout_session_id")
         .eq("id", eventId)
         .maybeSingle(),
       requireParticipant(eventId)
@@ -53,7 +56,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ eve
       return response({ error: "Video is waiting for its final secure configuration." }, 503);
     }
 
-    const channel = agoraChannelName(eventId);
+    let channel=agoraChannelName(eventId);
+    if(requestedBreakoutRoomId){
+      if(identity.kind!=="guest"||!participant)return response({error:"Only an assigned tasting guest can enter that small room."},403);
+      if(!event.current_breakout_session_id)return response({error:"That small tasting room has already returned."},409);
+      const [sessionResult,memberResult]=await Promise.all([
+        admin.from("event_breakout_sessions").select("status,ends_at").eq("id",event.current_breakout_session_id).eq("event_id",eventId).maybeSingle(),
+        admin.from("event_breakout_members").select("breakout_room_id,status").eq("session_id",event.current_breakout_session_id).eq("participant_id",participant.id).maybeSingle()
+      ]);
+      if(sessionResult.error)throw sessionResult.error;
+      if(memberResult.error)throw memberResult.error;
+      const session=sessionResult.data;
+      const member=memberResult.data;
+      if(!session||!member||member.breakout_room_id!==requestedBreakoutRoomId||member.status==="stayed_main"||member.status==="returned"){
+        return response({error:"That small tasting room is not assigned to this seat."},403);
+      }
+      if(session.status!=="active"||new Date(session.ends_at).getTime()<=Date.now())return response({error:"That small tasting room is returning to the main tasting."},409);
+      if(member.status!=="connected"){
+        const joiningResult=await admin.from("event_breakout_members").update({status:"joining",updated_at:new Date().toISOString()}).eq("session_id",event.current_breakout_session_id).eq("participant_id",participant.id);
+        if(joiningResult.error)throw joiningResult.error;
+      }
+      channel=agoraBreakoutChannelName(eventId,requestedBreakoutRoomId);
+    }
     const account = agoraUserAccount(identity.kind, identity.id);
     const token = createAgoraRtcToken({ ...config, channel, account });
     return response({

@@ -47,8 +47,8 @@ describe("guest state privacy boundary", () => {
     expect(html).toContain("Golden Dawn");
     expect(html).toContain("Cloud Mist");
     expect(html).toContain("correct · answered 2 of 4");
-    expect(html).toContain("Remove from saved teas");
-    expect(html).toContain("Save this tea");
+    expect(html).toContain("Remove from my tasting");
+    expect(html).toContain("Save to my tasting");
     expect(html).toContain("Not tasted");
     expect(html).not.toContain("Not rated");
     expect(html).not.toContain("75%");

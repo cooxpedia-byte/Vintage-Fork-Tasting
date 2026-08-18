@@ -27,7 +27,7 @@ export function getHostPrimaryAnnouncement({
   label: string | null;
   disabled: boolean;
 }): string {
-  if (phase === "ended") return "Next action: See results.";
+  if (phase === "ended") return "Next action: See what we discovered.";
   if (!consoleCurrent) return "Host controls are paused while the console reconnects.";
   if (!holder) return "Host controls are unavailable. You are watching this tasting.";
   if (!label) return "There is no next phase action right now.";

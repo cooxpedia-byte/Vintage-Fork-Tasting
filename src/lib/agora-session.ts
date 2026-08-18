@@ -17,6 +17,7 @@ export type AgoraVideoCodec = "vp8" | "h264";
 
 export const AGORA_ACTIVE_SPEAKER_LEVEL = 45;
 export const AGORA_ACTIVE_SPEAKER_HOLD_MS = 3_500;
+export const AGORA_SPEECH_ACTIVITY_EVENT = "vf:agora-speech-activity";
 
 export function selectAgoraActiveSpeaker(
   levels: Array<{ id: string; level: number }>,

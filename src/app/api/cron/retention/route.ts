@@ -18,12 +18,14 @@ export async function GET() {
     return NextResponse.json({ error: "Cleanup failed" }, { status: 500 });
   }
   const emailCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-  const [tokenCleanup, deliveryCleanup] = await Promise.all([
+  const reactionCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const [tokenCleanup, deliveryCleanup, reactionCleanup] = await Promise.all([
     admin.from("participant_deletion_tokens").delete().lt("expires_at", cutoff).select("id"),
-    admin.from("recap_email_deliveries").delete().lt("requested_at", emailCutoff).select("id")
+    admin.from("recap_email_deliveries").delete().lt("requested_at", emailCutoff).select("id"),
+    admin.from("event_reactions").delete().lt("created_at", reactionCutoff).select("id")
   ]);
-  if (tokenCleanup.error || deliveryCleanup.error) {
-    const cleanupError = tokenCleanup.error ?? deliveryCleanup.error;
+  if (tokenCleanup.error || deliveryCleanup.error || reactionCleanup.error) {
+    const cleanupError = tokenCleanup.error ?? deliveryCleanup.error ?? reactionCleanup.error;
     const { error: auditError } = await admin.from("operational_job_runs").insert({ job_name: "retention", status: "failed", started_at: startedAt, details: { code: cleanupError?.code } });
     if (auditError) logger.error("retention_audit_failed", auditError);
     logger.error("guest_privacy_retention_failed", cleanupError);
@@ -32,8 +34,15 @@ export async function GET() {
   const details = {
     deleted: data?.length ?? 0,
     expired_deletion_tokens: tokenCleanup.data?.length ?? 0,
-    expired_recap_deliveries: deliveryCleanup.data?.length ?? 0
+    expired_recap_deliveries: deliveryCleanup.data?.length ?? 0,
+    expired_live_reactions: reactionCleanup.data?.length ?? 0,
+    live_reward_reconciliation: "not_run" as "not_run"|"complete"|"deferred"
   };
+  const rewardRetry=await admin.rpc("process_live_tasting_rewards",{});
+  if(rewardRetry.error){
+    details.live_reward_reconciliation="deferred";
+    logger.warn("live_reward_reconciliation_deferred",{code:rewardRetry.error.code});
+  }else details.live_reward_reconciliation="complete";
   const { error:auditError }=await admin.from("operational_job_runs").insert({ job_name:"retention",status:"succeeded",started_at:startedAt,details });
   if(auditError){logger.error("retention_audit_failed",auditError);return NextResponse.json({error:"Cleanup completed but audit evidence failed"},{status:500})}
   logger.info("retention_cleanup_complete", details);

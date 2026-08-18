@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   agoraChannelName,
+  agoraBreakoutChannelName,
   agoraUserAccount,
   canManageAgoraEvent,
   createAgoraRtcToken,
@@ -17,6 +18,7 @@ afterEach(() => vi.unstubAllEnvs());
 describe("Agora live tasting security", () => {
   it("derives stable channels and opaque accounts from server-owned IDs", () => {
     expect(agoraChannelName("aa11-bb22-cc33")).toBe("vf_aa11bb22cc33");
+    expect(agoraBreakoutChannelName("aa11-bb22-cc33","dd44-ee55-ff66")).toBe("vf_b_aa11bb22cc33_dd44ee55ff66");
     expect(agoraUserAccount("host", "aa11-bb22")).toBe("host_aa11bb22");
     expect(agoraUserAccount("guest", "cc33-dd44")).toBe("guest_cc33dd44");
   });

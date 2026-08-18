@@ -1,10 +1,38 @@
-import type { EventCommand } from "@/types/domain";
+import type { BreakoutAssignmentMode } from "@/lib/breakouts";
+import type { ConductorStage, EventCommand } from "@/types/domain";
+import type { CheersContext } from "@/lib/cheers";
+
+export type HostCommandPayload = {
+  targetStage?: ConductorStage;
+  seconds?: number;
+  durationSeconds?: number;
+  countdownSeconds?: number;
+  roomSize?: number;
+  assignmentMode?: BreakoutAssignmentMode;
+  prompt?: string;
+  cardId?: string;
+  participantId?: string;
+  flavorKey?: string;
+  timelineIndex?: number;
+  cheersWindowSeconds?: 5|8|10;
+  cheersContext?: CheersContext;
+  cheersSoundEnabled?: boolean;
+  rewardModeEnabled?: boolean;
+  conversationPromptsEnabled?: boolean;
+  conversationPromptId?: string;
+  conversationPromptTarget?: "main"|"breakouts";
+  visibilityMode?: "quiet_start"|"shared_live";
+  customNotesEnabled?: boolean;
+  replayPositionMs?: number;
+};
 
 type HostCommandRequest = {
   eventId: string;
   command: EventCommand;
   expectedSequence: number;
   leaseToken: string;
+  clientCommandId?: string;
+  payload?: HostCommandPayload;
 };
 
 export type HostCommandOutcome<T> =
@@ -23,7 +51,9 @@ export async function requestHostCommand<T>(
       body: JSON.stringify({
         command: request.command,
         expectedSequence: request.expectedSequence,
-        leaseToken: request.leaseToken
+        leaseToken: request.leaseToken,
+        clientCommandId: request.clientCommandId ?? crypto.randomUUID(),
+        payload: request.payload ?? {}
       })
     });
     const result = await response.json().catch(() => null) as { error?: string; event?: T } | null;

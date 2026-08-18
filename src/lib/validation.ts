@@ -26,6 +26,8 @@ export const joinSchema = z.object({
 
 export const responseSchema = z.object({
   flightItemId: z.string().uuid(),
+  aromaDescriptors: z.array(z.string().max(40)).max(5).optional(),
+  aromaIntensity: z.enum(["subtle", "clear", "dominant"]).nullable().optional(),
   firstImpression: z.string().max(600).nullable().optional(),
   descriptors: z.array(z.string().max(40)).max(5),
   intensity: z.enum(["subtle", "clear", "dominant"]).nullable().optional(),

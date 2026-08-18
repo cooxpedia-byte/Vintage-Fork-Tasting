@@ -2,6 +2,8 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { CustomerDashboard } from "@/components/dashboard/CustomerDashboard";
 import { requireUser } from "@/lib/auth";
 import { parseCustomerDashboardSection, shouldShowJournalEvent } from "@/lib/customer-dashboard";
+import {UNAVAILABLE_DISCOVERY_PROFILE} from "@/lib/discovery-identity";
+import {refreshPrivateDiscoveryProfile} from "@/lib/discovery-identity-server";
 import { getServerFeatureFlags } from "@/lib/feature-flags";
 import { logger } from "@/lib/logger";
 import { mapLoyaltySummary, mapMerchantCards, mapMerchantListings } from "@/lib/loyalty";
@@ -48,7 +50,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const user = await requireUser();
   const supabase = await createClient();
   const featureFlags = getServerFeatureFlags();
-  const [profileResult, participantsResult, loyaltyResult, merchantCardsResult, merchantMarketResult] = await Promise.all([
+  const discoveryProfilePromise=(async()=>{
+    try{return await refreshPrivateDiscoveryProfile(createAdminClient(),user.id)}
+    catch(error){
+      logger.warn("customer_dashboard_discovery_profile_load_failed",{surface:"customer_dashboard",reason:error instanceof Error?error.message:"unknown"});
+      return UNAVAILABLE_DISCOVERY_PROFILE;
+    }
+  })();
+  const [profileResult, participantsResult, loyaltyResult, merchantCardsResult, merchantMarketResult,discoveryProfile] = await Promise.all([
     supabase.from("profiles").select("display_name").eq("id", user.id).single(),
     supabase.from("participants").select(`
       id,event_id,status,
@@ -58,7 +67,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     `).eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.rpc("get_my_loyalty_summary"),
     supabase.rpc("get_my_merchant_cards"),
-    supabase.rpc("get_merchant_market")
+    supabase.rpc("get_merchant_market"),
+    discoveryProfilePromise
   ]);
   if (profileResult.error) {
     logger.warn("customer_dashboard_profile_load_failed", {
@@ -222,5 +232,5 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const merchantCards = mapMerchantCards(merchantCardsResult.data);
   const merchantListings = mapMerchantListings(merchantMarketResult.data);
 
-  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} ownerUserId={user.id} events={completed} initialTab={parseCustomerDashboardSection(section)} teaLabEnabled={teaLabReady} journalSessions={journalSessions} archivedJournalSessions={archivedJournalSessions} libraryItems={libraryItems} passportSeals={passportSeals} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} loyaltySummary={loyaltySummary} merchantCards={merchantCards} merchantListings={merchantListings} /></>;
+  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} ownerUserId={user.id} events={completed} initialTab={parseCustomerDashboardSection(section)} teaLabEnabled={teaLabReady} journalSessions={journalSessions} archivedJournalSessions={archivedJournalSessions} libraryItems={libraryItems} passportSeals={passportSeals} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} loyaltySummary={loyaltySummary} merchantCards={merchantCards} merchantListings={merchantListings} discoveryProfile={discoveryProfile} /></>;
 }

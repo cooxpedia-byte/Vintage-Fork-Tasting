@@ -48,6 +48,7 @@ describe("customer dashboard section URLs", () => {
     expect(parseCustomerDashboardSection("saved")).toBe("saved");
     expect(parseCustomerDashboardSection("tea-merchant")).toBe("merchant");
     expect(parseCustomerDashboardSection("merchant")).toBe("merchant");
+    expect(parseCustomerDashboardSection("discovery")).toBe("discovery");
   });
 
   it("falls back to home for missing or invalid sections", () => {
