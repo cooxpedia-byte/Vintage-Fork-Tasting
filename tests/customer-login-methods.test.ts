@@ -7,7 +7,7 @@ const login = readFileSync(
   "utf8"
 );
 
-describe("customer sign-in methods", () => {
+describe("web sign-in methods", () => {
   it("offers Apple, Google and the Vintage Fork password while preserving next", () => {
     expect(login).toContain('beginProviderSignIn("apple")');
     expect(login).toContain('beginProviderSignIn("google")');
@@ -21,8 +21,9 @@ describe("customer sign-in methods", () => {
     expect(login).toContain("sharedWordPressLoginUrl(next)");
   });
 
-  it("keeps staff authentication on the assigned Vintage Fork account", () => {
-    expect(login).toContain("if (staff && !callbackError)");
-    expect(login).toContain("window.location.replace(signInUrl)");
+  it("keeps staff sign-in independent from WordPress lockouts", () => {
+    expect(login).toContain("verified email assigned to your tasting staff account");
+    expect(login).toContain("Apple and Google stay inside the tasting sign-in flow");
+    expect(login).not.toContain("window.location.replace(signInUrl)");
   });
 });

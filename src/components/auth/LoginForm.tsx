@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Brand } from "@/components/Brand";
 import { safeNextPath } from "@/lib/auth-redirect";
@@ -49,25 +49,19 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
     }
   }
 
-  useEffect(() => {
-    if (staff && !callbackError) {
-      window.location.replace(signInUrl);
-    }
-  }, [callbackError, signInUrl, staff]);
-
   return (
     <main className="auth-page" id="main-content">
       <section className="auth-card enter">
         <Brand href="/" />
         <p className="eyebrow">{staff ? "Tasting administration" : "Customer dashboard"}</p>
         <h1 className="page-title">{staff ? "Staff sign in" : "Welcome back"}</h1>
-        <p className="page-lede">{staff ? "Use your assigned Vintage Fork staff account." : "Your tasting notes, Passport and saved teas are waiting."}</p>
+        <p className="page-lede">{staff ? "Sign in directly with the account assigned to your tasting team." : "Your tasting notes, Passport and saved teas are waiting."}</p>
         {callbackError && <div className="form-error" role="status">{callbackError}</div>}
-        {!staff && <div className="stack" style={{ marginTop: 20 }}>
+        <div className="stack" style={{ marginTop: 20 }}>
           <div className="field">
             <label htmlFor="account-email">Vintage Fork account email</label>
             <input className="input" id="account-email" type="email" autoComplete="email" required value={accountEmail} onChange={event => setAccountEmail(event.target.value)} />
-            <span className="help">Use the same email you use in the Vintage Fork mobile app.</span>
+            <span className="help">{staff ? "Use the verified email assigned to your tasting staff account." : "Use the same email you use in the Vintage Fork mobile app."}</span>
           </div>
           <button className="btn btn-primary btn-attention" style={{ width: "100%" }} type="button" disabled={busyMethod !== null} onClick={() => void beginProviderSignIn("apple")}>
             {busyMethod === "apple" ? "Connecting…" : "Continue with Apple"}
@@ -76,17 +70,17 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
             {busyMethod === "google" ? "Connecting…" : "Continue with Google"}
           </button>
           <div className="section-label" aria-hidden="true"><span>or</span></div>
-        </div>}
+        </div>
         <button
-          className={staff ? "btn btn-primary btn-attention" : "btn btn-secondary"}
-          style={{ width: "100%", marginTop: staff ? 20 : 0 }}
+          className="btn btn-secondary"
+          style={{ width: "100%" }}
           type="button"
           disabled={busyMethod !== null}
           onClick={beginSharedSignIn}
         >
-          {busyMethod === "vintage-fork" ? "Connecting…" : staff ? "Continue with Vintage Fork" : "Use Vintage Fork password"}
+          {busyMethod === "vintage-fork" ? "Connecting…" : "Use Vintage Fork password"}
         </button>
-        <p className="help">Use Apple, Google, or the same Vintage Fork password you use for Tea Lab, Tea Merchant and your mobile account.</p>
+        <p className="help">{staff ? "Apple and Google stay inside the tasting sign-in flow. The shared password option opens vintagefork.ca." : "Use Apple, Google, or the same Vintage Fork password you use for Tea Lab, Tea Merchant and your mobile account."}</p>
       </section>
     </main>
   );
