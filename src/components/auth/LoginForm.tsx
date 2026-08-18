@@ -69,18 +69,21 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
           <button className="btn btn-secondary" style={{ width: "100%" }} type="button" disabled={busyMethod !== null} onClick={() => void beginProviderSignIn("google")}>
             {busyMethod === "google" ? "Connecting…" : "Continue with Google"}
           </button>
-          <div className="section-label" aria-hidden="true"><span>or</span></div>
+          {!staff && <div className="section-label" aria-hidden="true"><span>or</span></div>}
         </div>
-        <button
-          className="btn btn-secondary"
-          style={{ width: "100%" }}
-          type="button"
-          disabled={busyMethod !== null}
-          onClick={beginSharedSignIn}
-        >
-          {busyMethod === "vintage-fork" ? "Connecting…" : "Use Vintage Fork password"}
-        </button>
-        <p className="help">{staff ? "Apple and Google stay inside the tasting sign-in flow. The shared password option opens vintagefork.ca." : "Use Apple, Google, or the same Vintage Fork password you use for Tea Lab, Tea Merchant and your mobile account."}</p>
+        {!staff && <>
+          <button
+            className="btn btn-secondary"
+            style={{ width: "100%" }}
+            type="button"
+            disabled={busyMethod !== null}
+            onClick={beginSharedSignIn}
+          >
+            {busyMethod === "vintage-fork" ? "Connecting…" : "Use Vintage Fork password"}
+          </button>
+          <p className="help">Use Apple, Google, or the same Vintage Fork password you use for Tea Lab, Tea Merchant and your mobile account.</p>
+        </>}
+        {staff && <p className="help">Staff sign-in stays within the tasting account flow and does not use WordPress.</p>}
       </section>
     </main>
   );

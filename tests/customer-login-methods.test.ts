@@ -23,7 +23,8 @@ describe("web sign-in methods", () => {
 
   it("keeps staff sign-in independent from WordPress lockouts", () => {
     expect(login).toContain("verified email assigned to your tasting staff account");
-    expect(login).toContain("Apple and Google stay inside the tasting sign-in flow");
+    expect(login).toContain("Staff sign-in stays within the tasting account flow and does not use WordPress");
+    expect(login).toContain("{!staff && <>");
     expect(login).not.toContain("window.location.replace(signInUrl)");
   });
 });
