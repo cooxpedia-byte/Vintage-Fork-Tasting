@@ -19,6 +19,13 @@ describe("conductor live interfaces", () => {
     expect(rail).toContain("window.confirm");
   });
 
+  it("always gives the host a way out without ending the tasting", () => {
+    expect(host).toContain('className="live-console-exit"');
+    expect(host).toContain('href={`/admin/events/${event.id}`}');
+    expect(host).toContain("Exit console without ending the tasting");
+    expect(css).toContain(".live-console-exit");
+  });
+
   it("renders every participant stage through the same persistent shell", () => {
     for(const stage of ["prepare","brew","aroma","first_sip","explore","discuss","reveal","debrief","close_tea","transition"])expect(guest).toContain(`conductorStage === "${stage}"`);
     expect(guest).toContain("<ConductorStageHeader");
