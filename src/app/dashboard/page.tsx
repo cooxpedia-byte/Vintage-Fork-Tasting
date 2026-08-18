@@ -61,7 +61,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     supabase.from("profiles").select("display_name").eq("id", user.id).single(),
     supabase.from("participants").select(`
       id,event_id,status,
-      event:events!inner(id,title,starts_at,timezone,location_mode,status,invite_code),
+      event:events!participants_event_id_fkey!inner(id,title,starts_at,timezone,location_mode,status,invite_code),
       responses:tea_responses(id,rating,first_impression,personal_notes,descriptors,intensity,saved,completed_at,stamp_released_at,
         flight:event_flight_items(id,reveal_title,position,brewing_instructions,steep_seconds,temperature_c,leaf_grams,water_ml,tea:teas(id,name,producer,origin,tea_type,default_steep_seconds)))
     `).eq("user_id", user.id).order("created_at", { ascending: false }),
