@@ -124,7 +124,17 @@ describe("authentication proxy", () => {
     expect(auth.getClaims).toHaveBeenCalledWith("rotated-access");
   });
 
-  it("commits revoked-session cookie deletion on the auth redirect", async () => {
+  it.each([
+    ["/dashboard", "/dashboard"],
+    ["/dashboard?section=tea-cellar", "/dashboard?section=tea-cellar"],
+    ["/dashboard?section=tea-merchant", "/dashboard?section=tea-cellar"],
+    ["/dashboard?section=merchant", "/dashboard?section=tea-cellar"],
+    ["/dashboard?section=passport", "/dashboard?section=tea-cellar"],
+    ["/dashboard?section=journal", "/dashboard?section=journal"],
+    ["/dashboard?section=saved", "/dashboard?section=saved"],
+    ["/dashboard?section=https%3A%2F%2Fexample.com", "/dashboard"],
+    ["/dashboard?section=tea-cellar&section=merchant", "/dashboard?section=tea-cellar"]
+  ])("commits revoked-session cookie deletion and preserves a safe return from %s", async (path, next) => {
     const session = {
       access_token: "still-valid-access",
       refresh_token: "revoked-refresh",
@@ -140,12 +150,12 @@ describe("authentication proxy", () => {
       }]
     });
 
-    const response = await proxy(new NextRequest("http://localhost/dashboard"));
+    const response = await proxy(new NextRequest(`http://localhost${path}`));
 
     expect(auth.signOut).not.toHaveBeenCalled();
     expect(auth.getClaims).not.toHaveBeenCalled();
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://localhost/login?next=%2Fdashboard");
+    expect(response.headers.get("location")).toBe(`http://localhost/login?next=${encodeURIComponent(next)}`);
     expect(response.headers.get("set-cookie")).toContain("sb-project-auth-token=");
     expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
     expect(response.headers.get("cache-control")).toBe("private, no-store");

@@ -1,7 +1,7 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { CustomerDashboard } from "@/components/dashboard/CustomerDashboard";
 import { requireUser } from "@/lib/auth";
-import { parseCustomerDashboardSection, shouldShowJournalEvent } from "@/lib/customer-dashboard";
+import { customerDashboardPath, parseCustomerDashboardSection, shouldShowJournalEvent } from "@/lib/customer-dashboard";
 import { getServerFeatureFlags } from "@/lib/feature-flags";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -44,7 +44,8 @@ type DashboardResponse = Omit<LiveJournalEventRow["responses"][number], "flight"
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ section?: string | string[] }> }) {
   const { section } = await searchParams;
-  const user = await requireUser();
+  const initialTab = parseCustomerDashboardSection(section);
+  const user = await requireUser(customerDashboardPath(section));
   const supabase = await createClient();
   const featureFlags = getServerFeatureFlags();
   const [profileResult, participantsResult] = await Promise.all([
@@ -212,5 +213,5 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const libraryItems = teaLabReady ? buildTeaLibrary(completed, personalRows, soloRows) : [];
   const cellarRecords = teaLabReady ? buildCellarRecords(completed, soloRows) : [];
 
-  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} ownerUserId={user.id} events={completed} initialTab={parseCustomerDashboardSection(section)} teaLabEnabled={teaLabReady} journalSessions={journalSessions} archivedJournalSessions={archivedJournalSessions} libraryItems={libraryItems} cellarRecords={cellarRecords} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} /></>;
+  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} ownerUserId={user.id} events={completed} initialTab={initialTab} teaLabEnabled={teaLabReady} journalSessions={journalSessions} archivedJournalSessions={archivedJournalSessions} libraryItems={libraryItems} cellarRecords={cellarRecords} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} /></>;
 }

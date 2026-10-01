@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { customerDashboardPath } from "@/lib/customer-dashboard";
 
 const SESSION_REFRESH_MARGIN_MS = 90 * 1000;
 const TIME_MACHINE_HOSTNAME = "timemachine.vintagefork.ca";
@@ -37,7 +38,10 @@ function deadSessionResponse(request: NextRequest, response: NextResponse) {
 
   if (pathname === "/" || pathname.startsWith("/dashboard")) {
     redirectUrl = new URL("/login", request.url);
-    redirectUrl.searchParams.set("next", pathname === "/" ? "/dashboard" : pathname);
+    const next = pathname === "/dashboard" || pathname === "/dashboard/"
+      ? customerDashboardPath(request.nextUrl.searchParams.getAll("section"))
+      : pathname === "/" ? "/dashboard" : pathname;
+    redirectUrl.searchParams.set("next", next);
   } else if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
     redirectUrl = new URL("/admin/login", request.url);
   } else if (pathname === "/logout") {

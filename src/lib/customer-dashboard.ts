@@ -60,3 +60,9 @@ export function parseCustomerDashboardSection(value: string | string[] | undefin
   if (section === "tea-cellar" || section === "tea-merchant" || section === "merchant") return "passport";
   return section && CUSTOMER_DASHBOARD_SECTIONS.has(section) ? section as CustomerDashboardSection : "home";
 }
+
+export function customerDashboardPath(value: string | string[] | undefined): string {
+  const section = parseCustomerDashboardSection(value);
+  if (section === "home") return "/dashboard";
+  return `/dashboard?section=${section === "passport" ? "tea-cellar" : section}`;
+}
