@@ -8,12 +8,13 @@ export async function SiteHeader() {
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = user ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle() : { data: null };
   const staff = profile?.role === "host" || profile?.role === "admin";
+  const admin = profile?.role === "admin";
 
   return <header className="site-header"><div className="site-header-inner">
-    <Brand href={staff ? "/admin" : "/dashboard"} prefetch={staff ? false : undefined} />
+    <Brand href={admin ? "/admin" : staff ? "/admin/events" : "/dashboard"} prefetch={staff ? false : undefined} />
     <nav className="site-nav" aria-label="Primary">
       <Link href="/dashboard">My cellar</Link>
-      {staff && <><Link href="/admin" prefetch={false}>Events</Link><Link href="/admin/teas" prefetch={false}>Teas</Link></>}
+      {staff && <>{admin && <Link href="/admin" prefetch={false}>Operations</Link>}<Link href="/admin/events" prefetch={false}>Events</Link></>}
       <FeedbackToggle />
       {user ? <Link className="keep-mobile" href="/logout" prefetch={false}>Sign out</Link> : <Link className="keep-mobile" href="/login">Sign in</Link>}
     </nav>

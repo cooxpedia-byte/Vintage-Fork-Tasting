@@ -1,0 +1,117 @@
+import Link from "next/link";
+import type { AdminOrder, CommerceOverview } from "@/lib/admin/commerce";
+import { OrderContact } from "@/components/admin/OrderContact";
+import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
+import { OrderStatusControl } from "@/components/admin/OrderStatusControl";
+import type { OrderOperation } from "@/lib/admin/order-operations";
+import { productEditorUrl } from "@/lib/admin/store-tools";
+
+const storefront = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "https://www.vintagefork.ca";
+
+function money(cents: number, currency = "cad") {
+  return new Intl.NumberFormat("en-CA", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
+}
+
+function orderDate(value: string) {
+  return new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone:"America/Edmonton" }).format(new Date(value));
+}
+
+function OrderRows({ orders, full = false, operations }: { orders: AdminOrder[]; full?: boolean; operations?:Map<string,OrderOperation> }) {
+  if (!orders.length) return <div className="admin-commerce-empty"><strong>No orders to show yet</strong><span>New web and subscription orders will appear here.</span></div>;
+  return (
+    <div className="admin-order-table" role="table" aria-label="Recent orders">
+      {orders.map((order) => {
+        const operation=operations?.get("native:"+order.id)??order.operation;
+        return (
+        <div className={`admin-order-row ${full ? "is-full" : ""}`} role="row" key={order.id}>
+          <div role="cell"><Link className="admin-order-number-link" href={"/admin/orders/native/"+encodeURIComponent(order.id)} prefetch={false} aria-label={`Open order #${order.orderNumber}`}><strong>#{order.orderNumber}</strong></Link><small>{orderDate(order.placedAt)}</small></div>
+          <div role="cell"><span>{order.customerEmail}</span><small>{order.source.replaceAll("_", " ")}</small></div>
+          {full && <div role="cell"><small>Payment</small><span>{order.paymentStatus?.replaceAll("_", " ") || "Unknown"}</span></div>}
+          <div role="cell"><OrderStatusBadge source="native" status={order.status} operation={operation}/></div>
+          <strong role="cell">{money(order.totalCents, order.currency)}</strong>
+          {full && <div className="admin-order-contact-cell" role="cell"><OrderContact contact={order.contact}/></div>}
+          {full&&<div role="cell" className="admin-order-actions"><Link className="btn btn-gold" href={"/admin/orders/native/"+encodeURIComponent(order.id)} prefetch={false}>Open order</Link>{operation&&<OrderStatusControl key={order.id+":"+operation.revision+":"+operation.sourceVersion} order={operation} number={order.orderNumber}/>}</div>}
+        </div>
+      );})}
+    </div>
+  );
+}
+
+export function CommerceAdminOverview({ commerce }: { commerce: CommerceOverview }) {
+  const cards = [
+    { label: "Net sales", value: commerce.connected ? money(commerce.netSalesCents, commerce.currency) : "—", detail: `${commerce.orderCount} paid orders · last 30 days`, href: "/admin/orders" },
+    { label: "Orders to fulfil", value: commerce.fulfilmentCount ?? "—", detail: "New purchases · open imported orders also available in the queue", href: "/admin/orders?status=fulfilment" },
+    { label: "Commerce customers", value: commerce.customersConnected ? commerce.customerCount : "—", detail: "New-store customer records", href: "/admin/accounts" },
+    { label: "Active subscriptions", value: commerce.subscriptionsConnected ? commerce.subscriptionCount : "—", detail: "Active, trialing or past due", href: "/admin/store" },
+  ];
+
+  return (
+    <main className="admin-page admin-overview-page">
+      <div className="admin-page-heading">
+        <div>
+          <p className="eyebrow">Commerce</p>
+          <h1>Your store at a glance.</h1>
+          <p>Sales, orders, customers, subscriptions and inventory lead the daily staff workspace.</p>
+        </div>
+        <div className="admin-heading-actions">
+          <a className="btn btn-secondary" href={productEditorUrl} rel="noreferrer" target="_blank">Edit products ↗</a>
+          <Link className="btn btn-secondary" href="/admin/orders" prefetch={false}>Review orders</Link>
+          <a className="btn btn-gold" href={`${storefront}/admin/pos/`} rel="noreferrer" target="_blank">Open POS ↗</a>
+        </div>
+      </div>
+
+      {!commerce.connected && (
+        <div className="admin-commerce-notice" role="status">
+          <div><strong>New-store order data could not be loaded</strong><span>This does not mean there are no orders. Imported orders have a separate connection.</span></div>
+          <Link href="/admin/orders?source=imported" prefetch={false}>View imported orders</Link>
+        </div>
+      )}
+
+      <section className="admin-kpi-grid" aria-label="Commerce summary">
+        {cards.map((card) => (
+          <Link className="admin-kpi-card" href={card.href} key={card.label} prefetch={false}>
+            <span>{card.label}</span><strong>{card.value}</strong><small>{card.detail}<b aria-hidden="true">→</b></small>
+          </Link>
+        ))}
+      </section>
+
+      <div className="admin-commerce-workspace">
+        <section className="admin-panel">
+          <div className="admin-panel-heading"><div><p className="eyebrow">Last 30 days</p><h2>Recent orders</h2></div><Link href="/admin/orders" prefetch={false}>View all →</Link></div>
+          {commerce.ordersConnected ? <OrderRows orders={commerce.recentOrders.slice(0, 6)} /> : <p role="alert">Order data is temporarily unavailable.</p>}
+        </section>
+
+        <aside className="admin-panel">
+          <div className="admin-panel-heading"><div><p className="eyebrow">Stock watch</p><h2>Inventory attention</h2></div><a href={productEditorUrl} rel="noreferrer" target="_blank">Products ↗</a></div>
+          {!commerce.inventoryConnected ? <p>Inventory data is temporarily unavailable.</p> : commerce.inventoryAlerts.length ? (
+            <div className="admin-inventory-list">
+              {commerce.inventoryAlerts.slice(0, 5).map((item) => <article key={item.id}><div><strong>{item.productName}</strong><small>{item.variantLabel} · {item.sku}</small></div><span className={item.quantity === 0 ? "is-empty" : ""}>{item.quantity} left</span></article>)}
+            </div>
+          ) : <div className="admin-side-empty"><span>✓</span><strong>No low-stock products</strong><small>Tracked inventory is above its alert threshold.</small></div>}
+        </aside>
+      </div>
+
+      <div className="admin-overview-grid">
+        <section className="admin-panel admin-attention-panel">
+          <div className="admin-panel-heading"><div><p className="eyebrow">Commerce queue</p><h2>Keep the store moving</h2></div><span className="chip chip-warning">Daily</span></div>
+          <div className="admin-action-list">
+            <Link href="/admin/orders?status=fulfilment" prefetch={false}><span className="admin-action-icon">▣</span><span><strong>Review orders for fulfillment</strong><small>New purchases and imported open orders</small></span><b>Open →</b></Link>
+            <Link href="/admin/orders?source=imported" prefetch={false}><span className="admin-action-icon">▣</span><span><strong>All imported orders</strong><small>Browse records and items saved during migration</small></span><b>Open →</b></Link>
+            <a href={productEditorUrl} rel="noreferrer" target="_blank"><span className="admin-action-icon">▦</span><span><strong>Edit products and inventory</strong><small>{commerce.productCount} active · {commerce.draftProductCount} draft products</small></span><b>Open ↗</b></a>
+            <Link href="/admin/gold-leaves" prefetch={false}><span className="admin-action-icon">◆</span><span><strong>Manage customer rewards</strong><small>Award Gold Leaves from the protected loyalty ledger</small></span><b>Open →</b></Link>
+          </div>
+        </section>
+
+        <aside className="admin-panel admin-quick-panel">
+          <div className="admin-panel-heading"><div><p className="eyebrow">Shortcuts</p><h2>Quick actions</h2></div></div>
+          <Link href="/admin/orders" prefetch={false}>Find an order <span>⌕</span></Link>
+          <Link href="/admin/accounts" prefetch={false}>Find a customer <span>♙</span></Link>
+          <Link href="/admin/gold-leaves" prefetch={false}>Give Gold Leaves <span>◆</span></Link>
+          <a href={productEditorUrl} rel="noreferrer" target="_blank">Edit products <span>↗</span></a>
+        </aside>
+      </div>
+    </main>
+  );
+}
+
+export { OrderRows };

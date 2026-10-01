@@ -1,7 +1,7 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { safeNextPath } from "@/lib/auth-redirect";
+import { safeNextPath, loginPathForDestination } from "@/lib/auth-redirect";
 
 export async function GET(request: NextRequest) {
   const tokenHash = request.nextUrl.searchParams.get("token_hash");
@@ -14,6 +14,6 @@ export async function GET(request: NextRequest) {
     if (!error) return NextResponse.redirect(new URL(next, request.url));
   }
 
-  const loginPath = next.startsWith("/admin") ? "/admin/login" : "/login";
+  const loginPath = loginPathForDestination(next);
   return NextResponse.redirect(new URL(`${loginPath}?next=${encodeURIComponent(next)}&authError=confirmation_failed`, request.url));
 }

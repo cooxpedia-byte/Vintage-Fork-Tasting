@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { customerDashboardPath } from "@/lib/customer-dashboard";
+import { COMMERCE_COOKIE, commerceConfig, commerceCookieOptions } from "@/lib/supabase/commerce-config";
 
 const SESSION_REFRESH_MARGIN_MS = 90 * 1000;
 const TIME_MACHINE_HOSTNAME = "timemachine.vintagefork.ca";
@@ -122,6 +123,29 @@ export async function proxy(request: NextRequest) {
   if (session) {
     response.headers.set("Cache-Control", "private, no-store");
     await supabase.auth.getClaims(session.access_token);
+  }
+  // The store has a separate staff session. Preserve refreshed tasting cookies.
+  if (session && request.nextUrl.pathname.startsWith("/admin") && request.cookies.getAll().some(cookie => cookie.name === COMMERCE_COOKIE || cookie.name.startsWith(COMMERCE_COOKIE + "."))) {
+    try {
+      const commerceSettings = commerceConfig();
+      if (commerceSettings) {
+        const commerce = createServerClient(commerceSettings.url, commerceSettings.key, {
+          cookieOptions: commerceCookieOptions,
+          cookies: {
+            getAll: () => request.cookies.getAll(),
+            setAll: (values) => {
+              values.forEach(({ name, value }) => request.cookies.set(name, value));
+              const next = NextResponse.next({ request });
+              copyCookies(response, next);
+              values.forEach(({ name, value, options }) => next.cookies.set(name, value, options));
+              next.headers.set("Cache-Control", "private, no-store");
+              response = next;
+            },
+          },
+        });
+        await commerce.auth.getUser();
+      }
+    } catch { /* The order page will ask to reconnect. */ }
   }
   return response;
 }

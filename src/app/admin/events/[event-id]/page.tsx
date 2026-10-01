@@ -34,7 +34,7 @@ export default async function EventEditorPage({ params }: { params: Promise<{ "e
   const record = existing as { title?: string; status?: string } | undefined;
   const locked = Boolean(record?.status && ["live", "completed", "cancelled"].includes(record.status));
   return <><SiteHeader /><main className="page-shell" id="main-content">
-    <Link href="/admin" prefetch={false} className="btn btn-quiet">← All events</Link>
+    <Link href="/admin/events" prefetch={false} className="btn btn-quiet">← All events</Link>
     <div className="row"><div><p className="eyebrow">Event workspace</p><h1 className="page-title">{eventId === "new" ? "New tasting" : record?.title}</h1></div>
       {eventId !== "new" && record?.status === "scheduled" && <><span className="spacer" /><Link className="btn btn-primary btn-attention" href={`/admin/events/${eventId}/live`} prefetch={false}>Launch live console</Link></>}
       {eventId !== "new" && record?.status === "live" && <><span className="spacer" /><Link className="btn btn-primary btn-attention" href={`/admin/events/${eventId}/live`} prefetch={false}>Resume live console</Link></>}
