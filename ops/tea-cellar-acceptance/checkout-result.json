@@ -1,0 +1,302 @@
+{
+  "status": "passed",
+  "completedAt": "2026-10-01T02:23:32.335Z",
+  "testCount": 24,
+  "sourceSha256": {
+    "item2": "c9626c5cbf27142107a2773babc25e96f7674f306c48b0f095b78ebed595c36a",
+    "item3": "27dda97f7378ec28ae0c1310e4df641a68a42c2abbd70ec497f1da471ad547dc",
+    "cases": "0176ac43e53e2bb292adfc3d5d5a3e7c6cc499010b650370a8e295d244738773",
+    "runner": "e48b16ce308a23687079d941d9ebd3b33f4a6444b8ed73058a84e5fb8c74a9ba",
+    "loader": "60723838c4dc1b2d1a876ff1a8e6bf0cc62db68b0d2777204ab268aa2c4a4410",
+    "bridge": "b7488c43ebf67a805696ba415ffe76ad5401bc53bd46a633f330c0124b94567e",
+    "enrollment": "c63706fdd87b74d6ab3a80b91c97338dcce03625642bdaa7e3cd0f5f1cf6144a",
+    "wordpressEnrollment": "1070fb1c0f9654cae7ed6cbe4def474f57972f1b2c92ae4915ef5cc81c05ed04"
+  },
+  "restore": {
+    "archiveSha256": "c9ffc2014f5150d9a31193ebf7034d9f916d1f0cd4e36659048bdd9036383524",
+    "decodedSqlSha256": "f490417bb7e49ebbb8b71c5a43d9eb2c58d43d6388c92d8d191129e0a42d6e01",
+    "rolesSha256": "f8bb9939344aa6d1a4009d084ae01883593b24dae9f328ff175439d08e1282be",
+    "engine": {
+      "version": "17.5",
+      "version_num": 170005,
+      "build": "PostgreSQL 17.5 on aarch64-unknown-linux-gnu, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit"
+    },
+    "package": {
+      "name": "@electric-sql/pglite",
+      "version": "0.3.16"
+    },
+    "restoredEntries": 1691,
+    "restoredDataTables": 122,
+    "excluded": [
+      {
+        "name": "supabase_vault",
+        "type": "EXTENSION",
+        "schema": "-",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "EXTENSION supabase_vault",
+        "type": "COMMENT",
+        "schema": "-",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "secrets",
+        "type": "TABLE DATA",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "FUNCTION _crypto_aead_det_decrypt(message bytea, additional bytea, key_id bigint, context bytea, nonce bytea)",
+        "type": "ACL",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "FUNCTION create_secret(new_secret text, new_name text, new_description text, new_key_id uuid)",
+        "type": "ACL",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "FUNCTION update_secret(secret_id uuid, new_secret text, new_name text, new_description text, new_key_id uuid)",
+        "type": "ACL",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "TABLE secrets",
+        "type": "ACL",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "TABLE decrypted_secrets",
+        "type": "ACL",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      }
+    ],
+    "roleAdaptations": [
+      "All roles NOLOGIN; passwords and per-role settings omitted.",
+      "Two isolated restore/bootstrap superusers added; archived postgres retains its original non-superuser capabilities.",
+      "Role memberships retain effective options; original membership grantor provenance is remapped to the local restore administrator."
+    ]
+  },
+  "productionSqlApplied": false,
+  "networkCalls": 0,
+  "realPaymentOperations": 0,
+  "baseline": {
+    "merchant_wallets": {
+      "rows": "2278",
+      "digest": "de29cfe81d01cf9af90c8c20fd9dc1f9"
+    },
+    "merchant_ledger_entries": {
+      "rows": "202",
+      "digest": "c98a81d93c0054b180868e0a3e1a3787"
+    },
+    "mobile_customer_links": {
+      "rows": "2278",
+      "digest": "7228a20d3b13e91e1eac6470f94d5698"
+    },
+    "gold_leaves_store_links_v1": {
+      "rows": "2276",
+      "digest": "f63a24672fb96316c7737c867347876e"
+    },
+    "gold_leaves_store_attempts_v1": {
+      "rows": "39",
+      "digest": "953d97fedf8bcb4671bc5fa42f368e02"
+    },
+    "gold_leaves_identity_migration_v1": {
+      "rows": "190",
+      "digest": "a001bef835c1c2e2ae5f7f4aef8dcb53"
+    },
+    "gold_leaves_identity_migration_audit_v1": {
+      "rows": "1",
+      "digest": "dcdb1c8040d1391885eca9070a0c9572"
+    },
+    "totals": {
+      "wallets": "2278",
+      "balance": "14973"
+    },
+    "ledger": {
+      "entries": "202",
+      "delta": "14973"
+    },
+    "auth.users": {
+      "rows": "2278",
+      "digest": "bd70f97efb32d30d13d2c91ada513791"
+    },
+    "public.profiles": {
+      "rows": "2278",
+      "digest": "2adc3356c20bca10672f1cbc8d1523f5"
+    }
+  },
+  "protectedBefore": [
+    {
+      "proname": "get_mobile_loyalty_summary",
+      "oid": "16821",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "1c6a94cf6a4df2535ef3a833a497e6ce"
+    },
+    {
+      "proname": "get_my_loyalty_summary",
+      "oid": "16822",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres,authenticated=X/postgres}",
+      "definition_digest": "cb8be704d821205c9f067f24475dc941"
+    },
+    {
+      "proname": "get_wordpress_loyalty_summary",
+      "oid": "16824",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "2fc141fa054e5df4b63aca00fb75fc57"
+    },
+    {
+      "proname": "gold_leaves_activate_store_v1",
+      "oid": "16825",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "8569dd2370cebd4176356bddec9bf0ff"
+    },
+    {
+      "proname": "gold_leaves_connect_store_v1",
+      "oid": "16826",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "a27b8a415c68e7a15b7b830bd83f2a00"
+    },
+    {
+      "proname": "gold_leaves_identity_v1",
+      "oid": "16827",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "c6fe0e0d0a018c02619318f5df4d6825"
+    },
+    {
+      "proname": "gold_leaves_migration_audit_v1",
+      "oid": "16828",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "e6525adfbcb7ce7e4bd14f5d48866816"
+    },
+    {
+      "proname": "gold_leaves_migration_batch_v1",
+      "oid": "16829",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "18a60760c29ce7fa9b5a11579a05d720"
+    },
+    {
+      "proname": "gold_leaves_migration_result_v1",
+      "oid": "16830",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "1e900eaf6f626a3a4e58c87fc0373395"
+    },
+    {
+      "proname": "gold_leaves_refund_store_v1",
+      "oid": "16831",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "b3b2789990d80cc94b4eda8f8e13b343"
+    },
+    {
+      "proname": "gold_leaves_release_store_v1",
+      "oid": "16832",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "5f84955c3f698acda3f7a23641143968"
+    },
+    {
+      "proname": "gold_leaves_reserve_store_v1",
+      "oid": "16833",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "cd5cb5fb3a14fb0a48e238c6381f7d36"
+    },
+    {
+      "proname": "gold_leaves_settle_store_v1",
+      "oid": "16834",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "8745692e2bba5b6e169159c5f4263bf0"
+    },
+    {
+      "proname": "post_gold_leaves_entry",
+      "oid": "16842",
+      "proowner": "16392",
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "definition_digest": "f13504e65d75b4b3d8816adf38da2627"
+    }
+  ],
+  "stages": [
+    {
+      "stage": "before-retirement",
+      "cases": [
+        "restored grants allow only trusted service execution; anonymous and customer-role RPC calls are denied",
+        "existing-account connection and retries preserve wallet identity; conflicting account links reject atomically",
+        "verified new-account activation creates one empty wallet; unverified canonical identity is rejected",
+        "checkout reservation debits once, survives exact retry, and rejects changed owner or amounts",
+        "unverified payment cannot earn; verified purchase earns whole eligible dollars exactly once and cannot be cancelled",
+        "partial and full verified merchandise refunds proportionally restore redemption and reverse earning once; stale/excess refunds reject",
+        "verified cancellation returns reserved Leaves once; released attempt cannot later settle or reserve again",
+        "purchase without redemption earns once; overspend and redemption beyond eligible merchandise reject",
+        "cash refund without merchandise allocation and changed payment verification cannot award new Leaves",
+        "bridge authentication denies untrusted callers and account history/quotes stay wallet-scoped",
+        "refund reversal can create existing-policy debt; new overspending rejects and valid release restores balance",
+        "all synthetic account/order/ledger activity rolls back; historical row digests and financial totals remain exact"
+      ],
+      "syntheticOnly": {
+        "wallets": 3,
+        "balance": "1525",
+        "entries": 15,
+        "delta": "1525"
+      },
+      "historicalPreserved": true,
+      "networkCalls": 0,
+      "injectedTransportRequests": 86,
+      "canonicalRpcCalls": 41,
+      "serviceRoleRpcExecutions": 39,
+      "serviceRoleRestReads": 33
+    },
+    {
+      "stage": "after-retirement",
+      "cases": [
+        "restored grants allow only trusted service execution; anonymous and customer-role RPC calls are denied",
+        "existing-account connection and retries preserve wallet identity; conflicting account links reject atomically",
+        "verified new-account activation creates one empty wallet; unverified canonical identity is rejected",
+        "checkout reservation debits once, survives exact retry, and rejects changed owner or amounts",
+        "unverified payment cannot earn; verified purchase earns whole eligible dollars exactly once and cannot be cancelled",
+        "partial and full verified merchandise refunds proportionally restore redemption and reverse earning once; stale/excess refunds reject",
+        "verified cancellation returns reserved Leaves once; released attempt cannot later settle or reserve again",
+        "purchase without redemption earns once; overspend and redemption beyond eligible merchandise reject",
+        "cash refund without merchandise allocation and changed payment verification cannot award new Leaves",
+        "bridge authentication denies untrusted callers and account history/quotes stay wallet-scoped",
+        "refund reversal can create existing-policy debt; new overspending rejects and valid release restores balance",
+        "all synthetic account/order/ledger activity rolls back; historical row digests and financial totals remain exact"
+      ],
+      "syntheticOnly": {
+        "wallets": 3,
+        "balance": "1525",
+        "entries": 15,
+        "delta": "1525"
+      },
+      "historicalPreserved": true,
+      "networkCalls": 0,
+      "injectedTransportRequests": 86,
+      "canonicalRpcCalls": 41,
+      "serviceRoleRpcExecutions": 39,
+      "serviceRoleRestReads": 33
+    }
+  ],
+  "limitations": [
+    "Full archived database restored into isolated PGlite PostgreSQL 17.5; no native multi-session concurrency test.",
+    "Exact storefront bridge uses injected synthetic verified-payment context; Stripe/PayPal verification and live gateway delivery are not exercised.",
+    "Refund settlement tests supply verified merchandise allocations directly to the canonical RPC; existing bridge intentionally requests review for aggregate cash refunds.",
+    "Provider transport and native-store commerce rows are synthetic; canonical account, wallet, ledger, reservation, grants, and functions are restored archived objects.",
+    "No live or production changes. All synthetic rows are rolled back separately before and after migration."
+  ]
+}

@@ -1,0 +1,175 @@
+{
+  "status": "passed",
+  "testCount": 9,
+  "tests": [
+    "all 122 restored table-data sections match exact archive COPY row multisets and counts",
+    "canonical wallet/ledger/identity aggregates reconcile exactly",
+    "all captured canonical media bytes retain original custody hashes",
+    "item 2 preserves archive rows, all function definitions/ACLs, policies and sequences",
+    "item 3 preserves all archive rows, 35 protected definitions/ACLs, RLS policies, table ownership and sequences",
+    "repeated item 3 apply is data/schema idempotent on restored archive",
+    "item 3 rollback restores exact prior function/trigger definitions and privileges",
+    "item 2 rollback returns to original archived definitions/privileges without data changes",
+    "both migrations reapply with identical definitions and all original data preserved"
+  ],
+  "metadata": {
+    "engine": {
+      "version": "17.5",
+      "version_num": 170005,
+      "build": "PostgreSQL 17.5 on aarch64-unknown-linux-gnu, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit"
+    },
+    "package": {
+      "name": "@electric-sql/pglite",
+      "version": "0.3.16"
+    },
+    "source": {
+      "archiveSha256": "c9ffc2014f5150d9a31193ebf7034d9f916d1f0cd4e36659048bdd9036383524",
+      "decodedSqlSha256": "f490417bb7e49ebbb8b71c5a43d9eb2c58d43d6388c92d8d191129e0a42d6e01",
+      "decodedBytes": 5501260,
+      "source": "item 1 private canonical archive",
+      "productionChanges": false,
+      "rolesSha256": "f8bb9939344aa6d1a4009d084ae01883593b24dae9f328ff175439d08e1282be"
+    },
+    "restoredEntries": 1691,
+    "restoredDataTables": 122,
+    "excluded": [
+      {
+        "name": "supabase_vault",
+        "type": "EXTENSION",
+        "schema": "-",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "EXTENSION supabase_vault",
+        "type": "COMMENT",
+        "schema": "-",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "secrets",
+        "type": "TABLE DATA",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "FUNCTION _crypto_aead_det_decrypt(message bytea, additional bytea, key_id bigint, context bytea, nonce bytea)",
+        "type": "ACL",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "FUNCTION create_secret(new_secret text, new_name text, new_description text, new_key_id uuid)",
+        "type": "ACL",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "FUNCTION update_secret(secret_id uuid, new_secret text, new_name text, new_description text, new_key_id uuid)",
+        "type": "ACL",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "TABLE secrets",
+        "type": "ACL",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      },
+      {
+        "name": "TABLE decrypted_secrets",
+        "type": "ACL",
+        "schema": "vault",
+        "reason": "supabase_vault platform extension unavailable; no application/auth/storage object omitted"
+      }
+    ],
+    "roleCredentialsRestored": false,
+    "network": false,
+    "persistentDatabase": false,
+    "roleAdaptations": [
+      "All roles NOLOGIN; passwords and per-role settings omitted.",
+      "Two isolated restore/bootstrap superusers added; archived postgres retains its original non-superuser capabilities.",
+      "Role memberships retain effective options; original membership grantor provenance is remapped to the local restore administrator."
+    ],
+    "rowSecurityTables": 102,
+    "policies": 59
+  },
+  "tableDataSections": 122,
+  "totalRestoredCopyRows": 18240,
+  "rowDataMutations": 0,
+  "loyalty": {
+    "wallets": 2278,
+    "leaves": "14973",
+    "ledger_entries": 202,
+    "store_links": 2276,
+    "ledger_balance_mismatches": 0,
+    "owner_mapping_mismatches": 0
+  },
+  "media": {
+    "objects": 1,
+    "bytes": 2404272,
+    "allHashesMatched": true
+  },
+  "stages": [
+    {
+      "label": "item2 applied",
+      "tableDigestsMatched": 122,
+      "rowsRewritten": 0
+    },
+    {
+      "label": "item3 applied",
+      "tableDigestsMatched": 122,
+      "rowsRewritten": 0
+    },
+    {
+      "label": "item3 repeated",
+      "tableDigestsMatched": 122,
+      "rowsRewritten": 0
+    },
+    {
+      "label": "item3 rolled back",
+      "tableDigestsMatched": 122,
+      "rowsRewritten": 0
+    },
+    {
+      "label": "item2 rolled back",
+      "tableDigestsMatched": 122,
+      "rowsRewritten": 0
+    },
+    {
+      "label": "items2and3 reapplied",
+      "tableDigestsMatched": 122,
+      "rowsRewritten": 0
+    }
+  ],
+  "schemaPreserved": {
+    "protectedFunctions": 35,
+    "rowLevelSecurityTables": 102,
+    "policies": 59,
+    "ownersAndACLs": true,
+    "sequences": true
+  },
+  "sourceSha256": {
+    "records/apply": "c9626c5cbf27142107a2773babc25e96f7674f306c48b0f095b78ebed595c36a",
+    "records/rollback": "6bf9d0f9125878fd09ee8fbeebacdf185301189955f2de43fd9ff39a53f26d28",
+    "retirement/apply": "27dda97f7378ec28ae0c1310e4df641a68a42c2abbd70ec497f1da471ad547dc",
+    "retirement/rollback": "57125e85e9ff97011a3edb60efb141ca73f5ece60cb0d6968b1a8f5389acfa29"
+  },
+  "harnessSha256": {
+    "loader": "60723838c4dc1b2d1a876ff1a8e6bf0cc62db68b0d2777204ab268aa2c4a4410",
+    "rehearsal": "a6b2919a574e124009efb3f1473dd45345b070bbe7f7f78a6bfac9a27e7f9fc7"
+  },
+  "native": {
+    "attempted": true,
+    "version": "17.11",
+    "initialized": false,
+    "reason": "macOS SysV shmget exhaustion persists with explicit mmap/posix; no host settings changed"
+  },
+  "limits": [
+    "Unsupported supabase_vault extension and its dependent objects omitted; all public/auth/storage objects restored.",
+    "PGlite provides one in-memory PostgreSQL session; native multi-session lock/concurrency acceptance remains unverified.",
+    "Role login credentials/default settings omitted and membership grantor provenance adapted for isolation.",
+    "Hosted authentication, Realtime delivery and Storage service behavior are outside the in-memory database restore."
+  ],
+  "productionChanges": false,
+  "completedAt": "2026-10-01T02:22:20.786Z"
+}
