@@ -84,6 +84,19 @@ function dashboardClient(
 }
 
 describe("Tea Lab Journal dashboard query", () => {
+  it.each(["tea-cellar", "tea-merchant", "journal", undefined])("opens %s without market or wallet RPCs", async section => {
+    vi.stubEnv("TEA_LAB_ENABLED", "true");
+    const { client, journalBuilder } = dashboardClient();
+    client.rpc.mockImplementation(async () => { throw new Error("Marketplace unavailable"); });
+    stubs.createClient.mockResolvedValue(client);
+
+    const output = await DashboardPage({ searchParams: Promise.resolve({ section }) });
+
+    expect(dashboardProps(output).teaLabEnabled).toBe(true);
+    expect(client.rpc).not.toHaveBeenCalled();
+    expect(journalBuilder.eq).toHaveBeenCalledWith("owner_user_id", "owner-1");
+  });
+
   it("surfaces participant history failures instead of rendering an empty account", async () => {
     vi.stubEnv("TEA_LAB_ENABLED", "false");
     const error = { code: "PGRST500", message: "private database detail" };

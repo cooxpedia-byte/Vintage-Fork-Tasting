@@ -1,9 +1,9 @@
 const UPCOMING_EVENT_STATUSES = new Set(["scheduled", "live"]);
 const INACTIVE_PARTICIPANT_STATUSES = new Set(["left", "removed"]);
-const CUSTOMER_DASHBOARD_SECTIONS = new Set(["home", "journal", "passport", "saved", "merchant"]);
+const CUSTOMER_DASHBOARD_SECTIONS = new Set(["home", "journal", "passport", "saved"]);
 const DEFAULT_EVENT_TIME_ZONE = "America/Edmonton";
 
-export type CustomerDashboardSection = "home" | "journal" | "passport" | "saved" | "merchant";
+export type CustomerDashboardSection = "home" | "journal" | "passport" | "saved";
 
 function supportedEventTimeZone(timeZone: string | null | undefined): string {
   if (!timeZone) return DEFAULT_EVENT_TIME_ZONE;
@@ -57,7 +57,6 @@ export function summarizeCustomerResponses<T extends CustomerResponseSummary>(re
 
 export function parseCustomerDashboardSection(value: string | string[] | undefined): CustomerDashboardSection {
   const section = Array.isArray(value) ? value[0] : value;
-  if (section === "tea-cellar") return "passport";
-  if (section === "tea-merchant") return "merchant";
+  if (section === "tea-cellar" || section === "tea-merchant" || section === "merchant") return "passport";
   return section && CUSTOMER_DASHBOARD_SECTIONS.has(section) ? section as CustomerDashboardSection : "home";
 }

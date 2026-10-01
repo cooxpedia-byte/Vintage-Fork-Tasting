@@ -4,12 +4,11 @@ import { requireUser } from "@/lib/auth";
 import { parseCustomerDashboardSection, shouldShowJournalEvent } from "@/lib/customer-dashboard";
 import { getServerFeatureFlags } from "@/lib/feature-flags";
 import { logger } from "@/lib/logger";
-import { mapLoyaltySummary, mapMerchantCards, mapMerchantListings } from "@/lib/loyalty";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { buildArchivedJournalSessions, buildJournalSessions, type LiveJournalEventRow, type SoloJournalSessionRow } from "@/lib/tea-lab/journal";
 import { buildTeaLibrary, type PersonalTeaRecordRow } from "@/lib/tea-lab/library";
-import { buildPassportSeals } from "@/lib/tea-lab/passport";
+import { buildCellarRecords } from "@/lib/tea-lab/cellar";
 import { TEA_LAB_PHOTO_BUCKET } from "@/lib/tea-lab/photos";
 import {
   mapServerDraftToOfflineDraft,
@@ -48,17 +47,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const user = await requireUser();
   const supabase = await createClient();
   const featureFlags = getServerFeatureFlags();
-  const [profileResult, participantsResult, loyaltyResult, merchantCardsResult, merchantMarketResult] = await Promise.all([
+  const [profileResult, participantsResult] = await Promise.all([
     supabase.from("profiles").select("display_name").eq("id", user.id).single(),
     supabase.from("participants").select(`
       id,event_id,status,
       event:events!inner(id,title,starts_at,timezone,location_mode,status,invite_code),
       responses:tea_responses(id,rating,first_impression,personal_notes,descriptors,intensity,saved,completed_at,stamp_released_at,
         flight:event_flight_items(id,reveal_title,position,brewing_instructions,steep_seconds,temperature_c,leaf_grams,water_ml,tea:teas(id,name,producer,origin,tea_type,default_steep_seconds)))
-    `).eq("user_id", user.id).order("created_at", { ascending: false }),
-    supabase.rpc("get_my_loyalty_summary"),
-    supabase.rpc("get_my_merchant_cards"),
-    supabase.rpc("get_merchant_market")
+    `).eq("user_id", user.id).order("created_at", { ascending: false })
   ]);
   if (profileResult.error) {
     logger.warn("customer_dashboard_profile_load_failed", {
@@ -73,9 +69,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     });
     throw new Error("Unable to load your dashboard.");
   }
-  if (loyaltyResult.error) logger.warn("customer_dashboard_loyalty_load_failed", { surface: "customer_dashboard", code: loyaltyResult.error.code });
-  if (merchantCardsResult.error) logger.warn("customer_dashboard_merchant_cards_load_failed", { surface: "customer_dashboard", code: merchantCardsResult.error.code });
-  if (merchantMarketResult.error) logger.warn("customer_dashboard_merchant_market_load_failed", { surface: "customer_dashboard", code: merchantMarketResult.error.code });
 
   const profile = profileResult.data;
   const participants = participantsResult.data;
@@ -217,10 +210,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const journalSessions = teaLabReady ? buildJournalSessions(completed, soloRows) : [];
   const archivedJournalSessions = teaLabReady ? buildArchivedJournalSessions(soloRows) : [];
   const libraryItems = teaLabReady ? buildTeaLibrary(completed, personalRows, soloRows) : [];
-  const passportSeals = teaLabReady ? buildPassportSeals(completed, soloRows) : [];
-  const loyaltySummary = mapLoyaltySummary(loyaltyResult.data?.[0]);
-  const merchantCards = mapMerchantCards(merchantCardsResult.data);
-  const merchantListings = mapMerchantListings(merchantMarketResult.data);
+  const cellarRecords = teaLabReady ? buildCellarRecords(completed, soloRows) : [];
 
-  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} ownerUserId={user.id} events={completed} initialTab={parseCustomerDashboardSection(section)} teaLabEnabled={teaLabReady} journalSessions={journalSessions} archivedJournalSessions={archivedJournalSessions} libraryItems={libraryItems} passportSeals={passportSeals} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} loyaltySummary={loyaltySummary} merchantCards={merchantCards} merchantListings={merchantListings} /></>;
+  return <><SiteHeader /><CustomerDashboard name={profile?.display_name || user.email?.split("@")[0] || "tea friend"} ownerUserId={user.id} events={completed} initialTab={parseCustomerDashboardSection(section)} teaLabEnabled={teaLabReady} journalSessions={journalSessions} archivedJournalSessions={archivedJournalSessions} libraryItems={libraryItems} cellarRecords={cellarRecords} teaOptions={teaOptions} descriptorOptions={descriptorOptions} serverDrafts={serverDrafts} /></>;
 }

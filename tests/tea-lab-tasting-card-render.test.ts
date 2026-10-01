@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { DetachableTastingSeal, isSecretSealDoubleTap, PhotoSlider, TastingCardPresentation, tastingCardInfusionDataSet, tastingCardStyleLengthClass, tastingCardTeaTheme, tastingCardTitleLengthClass } from "@/components/tea-lab/TastingCardDialog";
+import { PhotoSlider, TastingCardPresentation, TastingRecordDetails, tastingCardInfusionDataSet, tastingCardStyleLengthClass, tastingCardTeaTheme, tastingCardTitleLengthClass } from "@/components/tea-lab/TastingCardDialog";
 import type { JournalCard } from "@/lib/tea-lab/journal";
 
 const card: JournalCard = {
@@ -19,6 +19,39 @@ const card: JournalCard = {
 };
 
 describe("Tea Lab tasting-card photo slider", () => {
+  it("renders personal notes, brewing notes and photos as readable record details", () => {
+    const html = renderToStaticMarkup(createElement(TastingRecordDetails, {
+      card: {
+        ...card,
+        personalNotes: "Third infusion opened.\nTry a shorter steep next time.",
+        brewing: { ...card.brewing!, preparationNotes: "Warm the gaiwan first.", instructions: "Use freshly heated water." },
+        photos: [
+          { id: "photo-1", url: "https://signed.example/leaf.jpg", altText: "Wet leaf", createdAt: "2026-08-03T10:00:00.000Z" },
+          { id: "photo-2", url: "https://signed.example/cup.jpg", altText: "Tea in the cup", createdAt: "2026-08-03T10:01:00.000Z" }
+        ]
+      }
+    }));
+
+    expect(html).toContain("First impression");
+    expect(html).toContain("Silky");
+    expect(html).toContain("Third infusion opened.\nTry a shorter steep next time.");
+    expect(html).toContain("white-space:pre-wrap");
+    expect(html).toContain("Warm the gaiwan first.");
+    expect(html).toContain("Use freshly heated water.");
+    expect(html).toContain('alt="Wet leaf"');
+    expect(html).toContain('aria-label="Next photo"');
+    expect(html).not.toContain("tasting-card-flip-target");
+  });
+
+  it("shows a clear empty state when a record has no notes or photos", () => {
+    const html = renderToStaticMarkup(createElement(TastingRecordDetails, {
+      card: { ...card, firstImpression: null, personalNotes: null, brewing: null, photos: [] }
+    }));
+
+    expect(html).toContain("No personal notes recorded for this tasting.");
+    expect(html).not.toContain("tasting-card-gallery");
+  });
+
   it("renders one active image with previous and next controls for a gallery", () => {
     const html = renderToStaticMarkup(createElement(PhotoSlider, {
       teaName: "Moonlight White",
@@ -47,9 +80,8 @@ describe("Tea Lab tasting-card photo slider", () => {
     expect(front).toContain('/tea-cards/anji-white-tea-front-green.png');
     expect(front).toContain("Digital tasting card");
     expect(front).toContain("Documented Tasting");
-    expect(front).toContain('/tea-cards/detachable-seal-coin.png');
-    expect(front).toContain('data-seal-state="decoupled"');
-    expect(front).toContain("tasting-card-secret-seal-target");
+    expect(front).toContain("tasting-card-personal-record");
+    expect(front).toContain('aria-label="Tasting source"');
     expect(front).toContain("Flip for brewing details");
     expect(front).toContain("Lychee");
     expect(back).toContain("is-flipped");
@@ -62,39 +94,20 @@ describe("Tea Lab tasting-card photo slider", () => {
     expect(back).toContain("85 °C");
   });
 
-  it("couples and decouples the ornate seal independently of the card artwork", () => {
-    const coupled = renderToStaticMarkup(createElement(DetachableTastingSeal, { attached: true }));
-    const decoupled = renderToStaticMarkup(createElement(DetachableTastingSeal, { attached: false }));
-    const privateCard = renderToStaticMarkup(createElement(TastingCardPresentation, {
-      card: { ...card, sealClass: null }, contextLabel: "Personal session", earnedAt: "2026-08-03T12:00:00.000Z", flipped: false
-    }));
+  it("keeps personal card records independent of shields and market state", () => {
+    for (const sealClass of [card.sealClass, null]) {
+      const html = renderToStaticMarkup(createElement(TastingCardPresentation, {
+        card: { ...card, sealClass }, contextLabel: "Personal session", earnedAt: "2026-08-03T12:00:00.000Z", flipped: false
+      }));
 
-    expect(coupled).toContain('data-seal-state="coupled"');
-    expect(coupled).toContain("is-attached");
-    expect(decoupled).toContain('data-seal-state="decoupled"');
-    expect(decoupled).toContain("is-detached");
-    expect(privateCard).toContain('data-seal-state="decoupled"');
-    expect(privateCard).toContain("Private tasting");
-    expect(privateCard).not.toContain("tasting-card-secret-seal-target");
-  });
-
-  it("renders the seal from the controlled Tea Merchant shield state", () => {
-    const shielded = renderToStaticMarkup(createElement(TastingCardPresentation, {
-      card, contextLabel: "Personal session", earnedAt: "2026-08-03T12:00:00.000Z", flipped: false, shielded: true
-    }));
-    const deshielded = renderToStaticMarkup(createElement(TastingCardPresentation, {
-      card, contextLabel: "Personal session", earnedAt: "2026-08-03T12:00:00.000Z", flipped: false, shielded: false
-    }));
-
-    expect(shielded).toContain('data-seal-state="coupled"');
-    expect(deshielded).toContain('data-seal-state="decoupled"');
-  });
-
-  it("recognizes the hidden shield gesture only when two taps are close together", () => {
-    expect(isSecretSealDoubleTap(null, 1_000)).toBe(false);
-    expect(isSecretSealDoubleTap(1_000, 1_450)).toBe(true);
-    expect(isSecretSealDoubleTap(1_000, 1_451)).toBe(false);
-    expect(isSecretSealDoubleTap(1_000, 999)).toBe(false);
+      expect(html).toContain(sealClass ? "Documented Tasting" : "Private tasting");
+      expect(html).toContain("Anji White Tea");
+      expect(html).not.toContain("tasting-card-secret-seal-target");
+      expect(html).not.toContain("detachable-seal");
+      expect(html).not.toContain("data-seal-state");
+      expect(html).not.toContain("Shield card");
+      expect(html).not.toContain("Gold Leaves");
+    }
   });
 
   it("renders changed journal values over the supplied artwork instead of a fixed sample", () => {

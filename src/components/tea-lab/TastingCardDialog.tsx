@@ -142,12 +142,6 @@ export function tastingCardStyleLengthClass(styleLabel: string): string {
   return "";
 }
 
-export function isSecretSealDoubleTap(previousTapAt: number | null, currentTapAt: number, thresholdMs = 450): boolean {
-  if (previousTapAt === null) return false;
-  const elapsed = currentTapAt - previousTapAt;
-  return elapsed >= 0 && elapsed <= thresholdMs;
-}
-
 export function PhotoSlider({ photos, teaName }: { photos: JournalPhoto[]; teaName: string }) {
   const [index, setIndex] = useState(0);
   if (photos.length === 0) return null;
@@ -169,31 +163,35 @@ export function PhotoSlider({ photos, teaName }: { photos: JournalPhoto[]; teaNa
   </section>;
 }
 
-export function DetachableTastingSeal({ attached }: { attached: boolean }) {
-  return <span
-    className={`tasting-card-detachable-seal ${attached ? "is-attached" : "is-detached"}`}
-    data-seal-state={attached ? "coupled" : "decoupled"}
-    aria-hidden="true"
-  >
-    {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src="/tea-cards/detachable-seal-coin.png" alt="" draggable="false"/>
-  </span>;
+export function TastingRecordDetails({ card }: { card: JournalCard }) {
+  const notes = [
+    { label: "First impression", text: card.firstImpression },
+    { label: "Personal notes", text: card.personalNotes },
+    { label: "Preparation notes", text: card.brewing?.preparationNotes },
+    { label: "Brewing instructions", text: card.brewing?.instructions }
+  ].filter(note => note.text?.trim());
+
+  return <section className="tasting-record-details" aria-label="Your tasting notes and photos">
+    <h3>Your tasting notes</h3>
+    {notes.map(note => <div key={note.label}>
+      <h4>{note.label}</h4>
+      <p style={{ whiteSpace: "pre-wrap" }}>{note.text}</p>
+    </div>)}
+    {!notes.length && <p>No personal notes recorded for this tasting.</p>}
+    <PhotoSlider photos={card.photos ?? []} teaName={card.teaName} />
+  </section>;
 }
 
 export function TastingCardPresentation({
   card,
   contextLabel,
   earnedAt,
-  flipped,
-  shielded,
-  onShieldChange
+  flipped
 }: {
   card: JournalCard;
   contextLabel: string;
   earnedAt: string;
   flipped: boolean;
-  shielded?: boolean;
-  onShieldChange?: (shielded: boolean) => void;
 }) {
   const brewing = card.brewing;
   const infusionData = tastingCardInfusionDataSet(brewing?.stages ?? []);
@@ -207,27 +205,7 @@ export function TastingCardPresentation({
   const brewingStyleLabel = teaLabBrewingStyleLabel(brewing?.style) ?? missing;
   const styleLengthClass = tastingCardStyleLengthClass(brewingStyleLabel);
   const dateLabel = new Date(earnedAt).toLocaleDateString("en-CA", { dateStyle: "long" });
-  const shieldEarned = card.sealClass !== null;
-  const [internalShielded, setInternalShielded] = useState(false);
-  const lastSealTapAt = useRef<number | null>(null);
-  const sealCoupled = shieldEarned && (shielded ?? internalShielded);
-
-  function setShielded(nextShielded: boolean) {
-    if (onShieldChange) onShieldChange(nextShielded);
-    else setInternalShielded(nextShielded);
-  }
-
-  function handleSecretSealTap(tapAt: number) {
-    if (!shieldEarned) return;
-    if (isSecretSealDoubleTap(lastSealTapAt.current, tapAt)) {
-      setShielded(!sealCoupled);
-      lastSealTapAt.current = null;
-      return;
-    }
-    lastSealTapAt.current = tapAt;
-  }
-
-  return <div className={`tasting-card-flip tasting-card-theme-${theme}${flipped ? " is-flipped" : ""}${sealCoupled ? " is-seal-coupled" : " is-seal-decoupled"}`}>
+  return <div className={`tasting-card-flip tasting-card-personal-record tasting-card-theme-${theme}${flipped ? " is-flipped" : ""}`}>
     <article className="tasting-card-face tasting-card-artwork-face tasting-card-front" aria-hidden={flipped} aria-label={`${card.teaName} tasting profile`}>
       {/* The supplied artwork remains the visual base. Only its variable fields are covered by live values. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -237,17 +215,7 @@ export function TastingCardPresentation({
       <p className="tasting-card-live tasting-card-live-session tasting-card-live-plum"><time dateTime={earnedAt}>{dateLabel}</time><span aria-hidden="true"> · </span><span>{contextLabel}</span></p>
       <span className="tasting-card-live-seal-old-cover" aria-hidden="true"/>
       <span className="tasting-card-live-tea-medallion-cover" aria-hidden="true"/>
-      <DetachableTastingSeal attached={sealCoupled}/>
-      {shieldEarned && <span
-        className="tasting-card-secret-seal-target"
-        aria-hidden="true"
-        onPointerUp={event => {
-          event.stopPropagation();
-          handleSecretSealTap(event.timeStamp);
-        }}
-        onClick={event => event.stopPropagation()}
-      />}
-      <section className="tasting-card-live tasting-card-live-seal tasting-card-live-paper" aria-label="Tasting seal">
+      <section className="tasting-card-live tasting-card-live-seal tasting-card-live-paper" aria-label="Tasting source">
         <strong>{sealLabel}</strong><small>{sealDescription}</small>
       </section>
       <div className="tasting-card-live tasting-card-live-rating tasting-card-live-paper" aria-label={card.rating ? `${card.rating} out of 5 stars` : "Not rated"}>
@@ -298,8 +266,6 @@ export function TastingCardDialog({
   earnedAt,
   triggerClassName = "btn btn-secondary",
   triggerLabel,
-  shielded,
-  onShieldChange,
   children
 }: {
   card: JournalCard;
@@ -307,8 +273,6 @@ export function TastingCardDialog({
   earnedAt: string;
   triggerClassName?: string;
   triggerLabel: string;
-  shielded?: boolean;
-  onShieldChange?: (shielded: boolean) => void;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -318,13 +282,6 @@ export function TastingCardDialog({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
-  const [internalShielded, setInternalShielded] = useState(false);
-  const activeShielded = shielded ?? internalShielded;
-
-  function setShielded(nextShielded: boolean) {
-    if (onShieldChange) onShieldChange(nextShielded);
-    else setInternalShielded(nextShielded);
-  }
 
   useEffect(() => {
     if (!open) return;
@@ -376,11 +333,10 @@ export function TastingCardDialog({
     {open && <div ref={modalRef} className="tasting-card-modal" role="presentation">
       <section
         ref={dialogRef}
-        className="tasting-card-dialog"
+        className="tasting-card-dialog tasting-record-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        onClick={() => setFlipped(current => !current)}
       >
         <h2 className="sr-only" id={titleId}>{card.teaName} digital tasting card</h2>
         <button ref={closeRef} className="tasting-card-close" type="button" aria-label="Close tasting card" onClick={event => { event.stopPropagation(); setOpen(false); }}>×</button>
@@ -389,6 +345,7 @@ export function TastingCardDialog({
           role="button"
           tabIndex={0}
           aria-label={flipped ? "Show tasting profile" : "Show brewing details"}
+          onClick={() => setFlipped(current => !current)}
           onKeyDown={event => {
             if (event.key !== "Enter" && event.key !== " ") return;
             event.preventDefault();
@@ -400,19 +357,9 @@ export function TastingCardDialog({
             contextLabel={contextLabel}
             earnedAt={earnedAt}
             flipped={flipped}
-            shielded={activeShielded}
-            onShieldChange={setShielded}
           />
         </div>
-        {card.sealClass && <button
-          className="tasting-card-shield-control"
-          type="button"
-          aria-pressed={activeShielded}
-          onClick={event => {
-            event.stopPropagation();
-            setShielded(!activeShielded);
-          }}
-        >{activeShielded ? "Deshield card" : "Shield card"}</button>}
+        <TastingRecordDetails card={card} />
         <span className="sr-only" role="status" aria-live="polite">{flipped ? "Showing brewing details" : "Showing tasting profile"}</span>
       </section>
     </div>}

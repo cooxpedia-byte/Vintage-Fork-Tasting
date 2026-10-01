@@ -1,0 +1,47 @@
+{
+  "status": "passed",
+  "testCount": 16,
+  "tests": [
+    "fixture refuses built-in database without explicit synthetic opt-in",
+    "fixture refuses nonempty database without changing existing data",
+    "apply detaches only reviewed hooks and preserves all data/functions/unrelated triggers",
+    "repeated apply is an exact no-op",
+    "solo save/complete and live note insert/upsert preserve identities, attachments and economic state",
+    "explicit rollback restores attachments without rewriting records or economic state",
+    "repeated rollback is an exact no-op",
+    "apply rejects second-trigger definition drift atomically",
+    "rollback rejects definition drift atomically",
+    "apply rejects disabled trigger drift",
+    "rollback rejects disabled trigger drift",
+    "apply rejects partial state without changing surviving trigger",
+    "rollback rejects partial state without changing surviving trigger",
+    "apply rejects duplicate or renamed progression attachment",
+    "rollback rejects duplicate or renamed progression attachment",
+    "positive control proves both original hooks reach detectable economic side effects"
+  ],
+  "package": {
+    "name": "@electric-sql/pglite",
+    "version": "0.3.16"
+  },
+  "engine": {
+    "database": "template1",
+    "version_num": 170005,
+    "version": "17.5",
+    "build": "PostgreSQL 17.5 on aarch64-unknown-linux-gnu, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit"
+  },
+  "execution": "ephemeral in-memory WebAssembly PostgreSQL; no live connection or persistent database",
+  "productionSqlApplied": false,
+  "nativeServerTested": false,
+  "limits": [
+    "No native multi-session lock contention test.",
+    "Synthetic trigger fixture, not full application/checkout acceptance."
+  ],
+  "sourceSha256": {
+    "apply.sql": "c9626c5cbf27142107a2773babc25e96f7674f306c48b0f095b78ebed595c36a",
+    "rollback.sql": "6bf9d0f9125878fd09ee8fbeebacdf185301189955f2de43fd9ff39a53f26d28",
+    "fixture.sql": "fa26fe37c8e36a8caf57f4c7ca5a4bb32ed6adadfa198356b0bb60407cbec3af",
+    "record-writes.sql": "f1aa34e4fa65e3bf3cfff53963169b6e1736f289f654b8e1606a19c877f77ee5",
+    "test.mjs": "d54c3c8789a84a5ab2358ba18c35bd7448f3501477545cd223e7c7ba1a0fdd32"
+  },
+  "completedAt": "2026-10-01T01:39:52.755Z"
+}

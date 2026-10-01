@@ -46,8 +46,8 @@ describe("customer dashboard section URLs", () => {
     expect(parseCustomerDashboardSection("passport")).toBe("passport");
     expect(parseCustomerDashboardSection("tea-cellar")).toBe("passport");
     expect(parseCustomerDashboardSection("saved")).toBe("saved");
-    expect(parseCustomerDashboardSection("tea-merchant")).toBe("merchant");
-    expect(parseCustomerDashboardSection("merchant")).toBe("merchant");
+    expect(parseCustomerDashboardSection("tea-merchant")).toBe("passport");
+    expect(parseCustomerDashboardSection("merchant")).toBe("passport");
   });
 
   it("falls back to home for missing or invalid sections", () => {

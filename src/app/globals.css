@@ -4456,3 +4456,42 @@ body:has(.infusion-time-machine-page) {
     font-size: 1.05rem;
   }
 }
+
+/* Personal tasting records do not animate marketplace rarity effects. */
+.tasting-card-personal-record .tasting-card-artwork-face::after {
+  opacity: 0;
+  animation: none;
+}
+
+.tasting-record-dialog {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2rem;
+  overflow-y: auto;
+  padding: 3.5rem 2rem 2rem;
+  cursor: default;
+  perspective: none;
+}
+.tasting-record-dialog .tasting-card-flip-target {
+  flex: 0 0 auto;
+  width: min(88vw, calc((100dvh - 6rem) * .565), 440px);
+  max-height: none;
+  cursor: pointer;
+  perspective: 1800px;
+}
+.tasting-record-details {
+  width: min(100%, 34rem);
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
+  background: #faf6ed;
+  color: #3e2939;
+  overflow-wrap: anywhere;
+}
+.tasting-record-details h3 { margin: 0 0 1rem; }
+.tasting-record-details h4 { margin: 1.2rem 0 .4rem; }
+.tasting-record-details .tasting-card-gallery { padding: 1rem 0 0; }
+.tasting-record-details .tasting-card-gallery-footer { color: #554450; }
+@media (max-width: 760px) {
+  .tasting-record-dialog { flex-direction: column; align-items: center; justify-content: flex-start; gap: 1.5rem; padding: 3.5rem 1rem 1.5rem; }
+}

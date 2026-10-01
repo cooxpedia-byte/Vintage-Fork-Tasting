@@ -28,9 +28,6 @@ export function TeaMerchant({ seals, initialSummary, initialCards, initialListin
   const [listings, setListings] = useState(initialListings);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [flippedCards, setFlippedCards] = useState<Set<string>>(() => new Set());
-  const [shieldedCards, setShieldedCards] = useState<Set<string>>(
-    () => new Set()
-  );
   const [purchased, setPurchased] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -42,15 +39,6 @@ export function TeaMerchant({ seals, initialSummary, initialCards, initialListin
     setFlippedCards(current => {
       const next = new Set(current);
       if (!next.delete(id)) next.add(id);
-      return next;
-    });
-  }
-
-  function setCardShielded(id: string, shielded: boolean) {
-    setShieldedCards(current => {
-      const next = new Set(current);
-      if (shielded) next.add(id);
-      else next.delete(id);
       return next;
     });
   }
@@ -152,7 +140,6 @@ export function TeaMerchant({ seals, initialSummary, initialCards, initialListin
           const merchantCard = merchantCardsBySourceId.get(card.sourceId) ?? null;
           const selected = merchantCard !== null && selectedCardId === merchantCard.cardId;
           const flipped = flippedCards.has(seal.id);
-          const shielded = shieldedCards.has(seal.id);
           return <article className={`tea-merchant-tray-card${selected ? " selected" : ""}`} role="listitem" key={seal.id}>
             <button
               className="tea-merchant-card-preview"
@@ -165,8 +152,6 @@ export function TeaMerchant({ seals, initialSummary, initialCards, initialListin
                 contextLabel={seal.contextLabel}
                 earnedAt={seal.earnedAt}
                 flipped={flipped}
-                shielded={shielded}
-                onShieldChange={next => setCardShielded(seal.id, next)}
               />
             </button>
             <div className="tea-merchant-card-copy">
@@ -198,7 +183,7 @@ export function TeaMerchant({ seals, initialSummary, initialCards, initialListin
           </article>;
         })}
       </div>
-      <p className="tea-merchant-tray-hint">Slide the tray to browse. Tap a card to flip it. Double-tap its shield to de-shield or restore it. Select a ready card to list it in the market.</p>
+      <p className="tea-merchant-tray-hint">Slide the tray to browse. Tap a card to flip it. Select a ready card to list it in the market.</p>
     </> : <div className="empty-state tea-merchant-empty">
       <h2>No tasting cards yet.</h2>
       <p>Every completed tasting card that appears in Tea Cellar will also appear here.</p>

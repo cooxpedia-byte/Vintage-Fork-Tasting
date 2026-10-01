@@ -64,27 +64,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const { error: refreshError } = await admin.rpc("refresh_merchant_card_progress", {
-    p_owner_user_id: summary.owner_user_id
-  });
-  if (refreshError) {
-    logger.error("mobile_loyalty_load_failed", refreshError, { surface: "mobile_loyalty" });
-    return NextResponse.json({ error: "Your Gold Leaves could not be loaded." }, { status: 503 });
-  }
-
-  const { count, error: cardError } = await admin.from("merchant_card_progress")
-    .select("id", { count: "exact", head: true })
-    .eq("owner_user_id", summary.owner_user_id)
-    .eq("listing_eligible", true);
-  if (cardError) {
-    logger.warn("mobile_loyalty_card_count_failed", { surface: "mobile_loyalty", code: cardError.code });
-  }
-
   return NextResponse.json({
     balance: Number(summary.points_balance),
     label: summary.points_label,
     earningEnabled: summary.earning_enabled,
     redemptionEnabled: summary.redemption_enabled,
-    eligibleCardCount: count ?? 0
+    // Retained for older mobile clients; collectible cards are retired.
+    eligibleCardCount: 0
   }, { headers: { "Cache-Control": "private, no-store" } });
 }

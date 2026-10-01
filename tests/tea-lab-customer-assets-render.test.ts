@@ -11,37 +11,12 @@ import { CustomerDashboard } from "@/components/dashboard/CustomerDashboard";
 import { TeaLabCardEditor } from "@/components/tea-lab/TeaLabCardEditor";
 import { soloJournalSessionToDraft, type JournalSession } from "@/lib/tea-lab/journal";
 import type { TeaLibraryItem } from "@/lib/tea-lab/library";
-import type { PassportSeal } from "@/lib/tea-lab/passport";
-import type { MerchantCard } from "@/lib/loyalty";
+import type { CellarRecord } from "@/lib/tea-lab/cellar";
 
 const personalTea: TeaLibraryItem = {
   id: "personal:personal-1", kind: "personal", canonicalTeaId: null, personalTeaId: "personal-1", name: "Moonlight White",
   producer: null, origin: "Yunnan", teaType: "White", cultivar: null, harvest: "Spring 2026", productIdentifier: null,
   lotCode: "Lot 7", savedReferences: 0, documentedTastings: 2, archivedAt: null, updatedAt: "2026-08-03T12:00:00.000Z"
-};
-
-const seals: PassportSeal[] = [
-  { id: "documented_tasting:card-1", sealClass: "documented_tasting", label: "Documented Tasting", source: "solo", sourceId: "card-1", teaName: "Moonlight White", origin: "Yunnan", earnedAt: "2026-08-03T12:00:00.000Z", contextLabel: "Personal session", archived: false },
-  { id: "live_event_verified:response-1", sealClass: "live_event_verified", label: "Live Event Verified", source: "live", sourceId: "response-1", teaName: "Golden Yunnan", origin: "Yunnan", earnedAt: "2026-08-02T12:00:00.000Z", contextLabel: "In person", archived: false }
-];
-
-const merchantCard: MerchantCard = {
-  cardId: "card-1",
-  teaName: "Moonlight White",
-  teaCategory: "White",
-  origin: "Yunnan",
-  producer: "",
-  cardTier: "polychrome",
-  tastingCount: 2,
-  listingEligible: true,
-  pricingSource: "flat_rate",
-  pricePerKiloCents: null,
-  leafPrice: 1,
-  listingId: null,
-  listingStatus: null,
-  studyCount: 0,
-  leavesEarned: 0,
-  preview: {}
 };
 
 const soloSession: JournalSession = {
@@ -60,7 +35,20 @@ const soloSession: JournalSession = {
   }]
 };
 
-function render(section: "journal" | "passport" | "saved" | "merchant", extras: Partial<Parameters<typeof CustomerDashboard>[0]>) {
+const records: CellarRecord[] = [
+  {
+    id: "solo:card-1", source: "solo", teaName: "Moonlight White", origin: "Yunnan",
+    recordedAt: "2026-08-03T12:00:00.000Z", contextLabel: "Personal session", archived: false,
+    card: soloSession.cards[0]
+  },
+  {
+    id: "live:response-1", source: "live", teaName: "Golden Yunnan", origin: "Yunnan",
+    recordedAt: "2026-08-02T12:00:00.000Z", contextLabel: "In person", archived: false,
+    card: { ...soloSession.cards[0], id: "live:response-1", source: "live", sourceId: "response-1", teaName: "Golden Yunnan", sealClass: null }
+  }
+];
+
+function render(section: "journal" | "passport" | "saved", extras: Partial<Parameters<typeof CustomerDashboard>[0]>) {
   return renderToStaticMarkup(createElement(CustomerDashboard, {
     name: "Alex", ownerUserId: "owner-1", events: [], initialTab: section, teaLabEnabled: true, ...extras
   }));
@@ -77,52 +65,38 @@ describe("Tea Lab customer assets", () => {
     expect(html).toContain("Archive from Library");
   });
 
-  it("renders visibly distinct source-qualified Passport seals", () => {
-    const html = render("passport", { passportSeals: seals });
+  it("renders personal and hosted cards without a market or released-stamp requirement", () => {
+    const html = render("passport", { cellarRecords: records });
 
     expect(html).toContain("Tea Cellar");
-    expect(html).toContain("Tea Merchant");
-    expect(html).toContain("Open Tea Merchant");
+    expect(html).not.toContain("Tea Merchant");
+    expect(html).not.toContain("Gold Leaves");
+    expect(html).not.toContain("ready to list");
     expect(html).not.toContain(">Passport<");
     expect(html).toContain("Your Tea Cellar");
-    expect(html).toContain("Live Event Verified");
-    expect(html).toContain("Documented Tasting");
+    expect(html).toContain("Hosted tasting");
+    expect(html).toContain("Personal tasting");
     expect(html).toContain("live_event_verified");
     expect(html).toContain("documented_tasting");
     expect(html).toContain("Tap to view card");
     expect(html).toContain("Open tasting card for Moonlight White");
+    expect(html).toContain("Open tasting card for Golden Yunnan");
   });
 
-  it("opens Tea Merchant as a Tea Cellar subview", () => {
-    const html = render("merchant", { passportSeals: seals, merchantCards: [merchantCard] });
-    expect(html).toContain("Connected to your Vintage Fork account");
-    expect(html).toContain("Tea Merchant");
-    expect(html).toContain("Return to Tea Cellar");
-    expect(html).toContain("Your Tea Cellar card tray");
-    expect(html).toContain("tea-merchant-tray");
-    expect(html).toContain("tasting-card-artwork-image");
-    expect(html).toContain("Moonlight White");
-    expect(html).toContain("Golden Yunnan");
-    expect(html).toContain("Show brewing details for Moonlight White");
-    expect(html).toContain("Select for market");
-    expect(html).toContain("Ready to list");
-    expect(html).toContain("Tap a card to flip it");
-    expect(html).toContain("Double-tap its shield");
-    expect(html).not.toContain("Open tasting card for Moonlight White");
-    expect(html).not.toContain("Deshield card");
-    expect(html).not.toContain("My Stall");
-    expect(html).toContain("Study Copy Market");
-    expect(html).not.toContain("Run market day");
-    expect(html).not.toContain("Starter card");
+  it("keeps personal cards visible when their source tasting is archived", () => {
+    const html = render("passport", { cellarRecords: [{ ...records[0], archived: true }] });
+
+    expect(html).toContain("Source tasting archived");
+    expect(html).toContain("Open tasting card for Moonlight White");
   });
 
-  it("keeps Tea Merchant empty until a real Tea Cellar card exists", () => {
-    const html = render("merchant", { passportSeals: [] });
+  it("keeps Tea Cellar empty until a personal tasting record exists", () => {
+    const html = render("passport", { cellarRecords: [] });
 
     expect(html).toContain("No tasting cards yet.");
-    expect(html).toContain("Every completed tasting card that appears in Tea Cellar will also appear here.");
+    expect(html).toContain("add a personal record here");
     expect(html).not.toContain("Cream Oolong");
-    expect(html).not.toContain("Run market day");
+    expect(html).not.toContain("Tea Merchant");
   });
 
   it("offers editing, archive, and guarded permanent deletion only for owned solo sessions", () => {
