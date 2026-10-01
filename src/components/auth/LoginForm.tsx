@@ -86,7 +86,7 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
         >
           {busyMethod === "vintage-fork" ? "Connecting…" : staff ? "Continue with Vintage Fork" : "Use Vintage Fork password"}
         </button>
-        <p className="help">Use Apple, Google, or the same Vintage Fork password you use for Tea Lab, Tea Merchant and your mobile account.</p>
+        <p className="help">Use Apple, Google, or the same Vintage Fork password you use for Tea Lab, Tea Cellar and your mobile account.</p>
       </section>
     </main>
   );

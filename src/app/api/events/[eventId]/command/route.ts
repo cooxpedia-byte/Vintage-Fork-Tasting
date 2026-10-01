@@ -14,6 +14,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ eve
   try {
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid host command." }, { status: 400 });
+    if (["open_trivia", "close_trivia"].includes(parsed.data.command)) {
+      return NextResponse.json({ error: "Trivia has retired. Continue the tasting instead.", code: "feature_retired" }, {
+        status: 410, headers: { "Cache-Control": "no-store" }
+      });
+    }
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
@@ -41,9 +46,7 @@ function friendly(message: string) {
   if (message.includes("illegal_phase")) return "The room is already past that step.";
   if (message.includes("last_tea")) return "This is the last tea. Start the recap next.";
   if (message.includes("not_last_tea")) return "There is another tea in the flight.";
-  if (message.includes("trivia_open")) return "Close the trivia question before continuing.";
-  if (message.includes("trivia_incomplete")) return "Finish every trivia question for this tea before continuing.";
-  if (message.includes("trivia_complete")) return "All trivia questions for this tea are already complete.";
+  if (message.includes("feature_retired")) return "Trivia has retired. Continue the tasting instead.";
   if (message.includes("tasting_not_open")) return "Reveal and open this tea before continuing.";
   if (message.includes("reveal_in_progress")) return "The reveal is still in progress. The next control will unlock when the ceremony finishes.";
   return message.replaceAll("_", " ");

@@ -6,7 +6,7 @@
 - Eleven ordered Supabase migrations covering schema, RLS, Realtime, host lease, state transitions, privacy boundaries, reveal timing and database integrity.
 - Admin event and tea-library workflows, live host console, guest session and customer dashboard.
 - Deployment, QA, recovery, retention and operating documentation.
-- Original prototypes retained under `public/reference/` for parity review.
+- Original prototypes retained under `docs/legacy-reference/` for parity review.
 - Dependency versions pinned in `package.json` rather than broad application-runtime ranges.
 
 ## Validation performed in this environment

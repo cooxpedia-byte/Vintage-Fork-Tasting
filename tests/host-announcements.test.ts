@@ -4,7 +4,7 @@ import { getHostPhaseAnnouncement, getHostPrimaryAnnouncement } from "../src/lib
 describe("host console announcements", () => {
   it("announces phase changes with the current tea", () => {
     expect(getHostPhaseAnnouncement("brewing", "Dong Ding")).toBe("The room is now brewing Dong Ding.");
-    expect(getHostPhaseAnnouncement("trivia", "Ruby 18")).toBe("The room is now in trivia for Ruby 18.");
+    expect(getHostPhaseAnnouncement("trivia", "Ruby 18")).toBe("Resume tasting Ruby 18 to continue.");
     expect(getHostPhaseAnnouncement("ended", null)).toBe("The tasting has ended.");
   });
 

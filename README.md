@@ -8,7 +8,7 @@ Production-oriented launch codebase for `tasting.vintagefork.ca`, consolidated f
 - Admin Dashboard → `/admin`
 - Live Host Console → `/admin/events/[event-id]/live`
 
-The original standalone files are preserved under `public/reference/` for visual and behavioural parity checks. They are **not** served as the production application and their demo `localStorage` state is not authoritative.
+The original standalone files are preserved under `docs/legacy-reference/` for visual and behavioural parity checks. They are archived outside public assets, so the old marketplace and trivia prototypes are not served by the application. Their demo `localStorage` state is not authoritative.
 
 ## Architecture
 
@@ -178,7 +178,7 @@ npm start
 
 | Production component | Source reference |
 |---|---|
-| `src/components/guest/GuestExperience.tsx` | `public/reference/guest-live-tasting.html` |
-| `src/components/dashboard/CustomerDashboard.tsx` | `public/reference/customer-dashboard.html` |
-| `src/app/admin/*`, `src/components/admin/*` | `public/reference/admin-dashboard.html` |
-| `src/components/host/HostConsole.tsx` | `public/reference/live-host-console.html` |
+| `src/components/guest/GuestExperience.tsx` | `docs/legacy-reference/guest-live-tasting.html` |
+| `src/components/dashboard/CustomerDashboard.tsx` | `docs/legacy-reference/customer-dashboard.html` |
+| `src/app/admin/*`, `src/components/admin/*` | `docs/legacy-reference/admin-dashboard.html` |
+| `src/components/host/HostConsole.tsx` | `docs/legacy-reference/live-host-console.html` |

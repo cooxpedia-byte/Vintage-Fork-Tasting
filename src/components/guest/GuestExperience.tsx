@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { Brand } from "@/components/Brand";
 import { withNextPath } from "@/lib/auth-redirect";
-import { correctedNow, estimateClockOffset, TRIVIA_GRACE_MS } from "@/lib/live-timing";
+import { correctedNow, estimateClockOffset } from "@/lib/live-timing";
 import { shouldHoldGuestTransition } from "@/lib/guest-notes";
 import { clearGuestDeviceData } from "@/lib/guest-privacy";
 import { GuestError } from "@/components/guest/GuestError";
@@ -37,8 +37,6 @@ export type StatePayload = {
   participantTrivia?: { answered: number; correct: number; total: number } | null;
 };
 
-type PendingTriviaAnswer = { eventId:string; participantId:string; flightItemId:string; questionId:string; selectedIndex:number; deadlineAt:string; deadlineToken:string; answeredAt:string; idempotencyKey:string };
-
 type Draft = { firstImpression: string; descriptors: string[]; intensity: "subtle" | "clear" | "dominant" | null; rating: number; personalNotes: string; saved: boolean; completed: boolean };
 type DraftUpdate = Draft | ((draft: Draft) => Draft);
 type PendingNoteSave = { flightItemId: string; personalNotes: string };
@@ -68,14 +66,12 @@ export function GuestExperience({ preview, initialParticipant, account, joinRequ
   const [presenceCount, setPresenceCount] = useState(1);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [triviaChoice, setTriviaChoice] = useState<number | null>(null);
   const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [roundTripMs, setRoundTripMs] = useState(0);
   const soundRef = useRef(false);
   const sequenceRef = useRef(-1);
   const currentItemRef = useRef<string | null>(null);
   const clockOffsetRef = useRef(0);
-  const pendingDeliveryRef = useRef<(pending:PendingTriviaAnswer)=>Promise<boolean>>(async()=>false);
   const stateRef = useRef<StatePayload | null>(null);
   const pendingStateRef = useRef<StatePayload | null>(null);
   const draftRef = useRef<Draft>(blankDraft);
@@ -141,8 +137,6 @@ export function GuestExperience({ preview, initialParticipant, account, joinRequ
     stateRef.current = next;
     activeFlightIdRef.current = next.currentItem?.id ?? null;
     setState(next);
-    if (next.trivia?.selectedIndex !== null && next.trivia?.selectedIndex !== undefined) setTriviaChoice(next.trivia.selectedIndex);
-    else if (next.event.phase !== "trivia") setTriviaChoice(null);
     if (!next.currentItem) return;
 
     const changedTea = currentItemRef.current !== next.currentItem.id;
@@ -235,7 +229,7 @@ export function GuestExperience({ preview, initialParticipant, account, joinRequ
   }, [refresh]);
   useEffect(() => listenForConnectionRetry(() => { void refresh(); }), [refresh]);
   useEffect(() => () => {
-    for (const operation of ["state", "notes", "trivia", "join", "response"]) {
+    for (const operation of ["state", "notes", "join", "response"]) {
       reportConnectionHealthy(guestConnectionSource(preview.id, operation));
     }
   }, [preview.id]);
@@ -269,11 +263,6 @@ export function GuestExperience({ preview, initialParticipant, account, joinRequ
         if (payload.serverTime) {
           const offset=estimateClockOffset(payload.serverTime,requestStartedAt,responseReceivedAt,payload.serverReceivedTime);
           clockOffsetRef.current=offset;setClockOffsetMs(offset);setRoundTripMs(responseReceivedAt-requestStartedAt);
-        }
-        const pending=loadPendingTrivia();
-        if(pending){
-          if(correctedNow(Date.now(),clockOffsetRef.current)>new Date(pending.deadlineAt).getTime()+TRIVIA_GRACE_MS)clearPendingTrivia();
-          else void pendingDeliveryRef.current(pending);
         }
         if (typeof payload.sequenceNumber==="number"&&payload.sequenceNumber>sequenceRef.current) await refresh();
       } catch { reportConnectionIssue(heartbeatSource); }
@@ -309,33 +298,6 @@ export function GuestExperience({ preview, initialParticipant, account, joinRequ
     window.addEventListener("online", retryNotes);
     return () => window.removeEventListener("online", retryNotes);
   }, [queuePersonalNotes]);
-
-  useEffect(() => {
-    const closesAt = state?.event.trivia_closes_at;
-    if (!closesAt || state?.event.phase !== "trivia") return;
-    const delay = Math.max(0, new Date(closesAt).getTime() - correctedNow(Date.now(),clockOffsetRef.current)) + 75;
-    const timer = window.setTimeout(() => refresh(), delay);
-    return () => window.clearTimeout(timer);
-  }, [state?.event.trivia_closes_at, state?.event.phase, refresh]);
-
-  useEffect(()=>{
-    pendingDeliveryRef.current=async(pending:PendingTriviaAnswer)=>{
-      try {
-        const response=await fetch(`/api/events/${preview.id}/trivia`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(pending)});
-        const result=await response.json().catch(()=>({}));
-        if(!response.ok){
-          if(response.status>=500)reportConnectionIssue(guestConnectionSource(preview.id,"trivia"));
-          else reportConnectionHealthy(guestConnectionSource(preview.id,"trivia"));
-          if(response.status===401||response.status===403)clearPendingTrivia();
-          else setError("Your answer is saved on this device and will send when you reconnect.");
-          return false;
-        }
-        reportConnectionHealthy(guestConnectionSource(preview.id,"trivia"));
-        clearPendingTrivia();setTriviaChoice(result.selectedIndex??pending.selectedIndex);setError("");return true;
-      }catch{reportConnectionIssue(guestConnectionSource(preview.id,"trivia"));setError("Your answer is saved on this device and will send when you reconnect.");return false}
-    };
-    return()=>{pendingDeliveryRef.current=async()=>false};
-  },[preview.id]);
 
   function chooseSound(enabled: boolean) {
     soundRef.current = enabled;
@@ -392,27 +354,6 @@ export function GuestExperience({ preview, initialParticipant, account, joinRequ
     }
   }
 
-  async function answerTrivia(index: number) {
-    if (triviaChoice !== null || !state?.trivia || !state.currentItem || !state.trivia.deadlineAt || !state.trivia.deadlineToken) return;
-    const pending:PendingTriviaAnswer={eventId:preview.id,participantId:state.participant.id,flightItemId:state.trivia.flightItemId,questionId:state.trivia.id,selectedIndex:index,deadlineAt:state.trivia.deadlineAt,deadlineToken:state.trivia.deadlineToken,answeredAt:new Date(correctedNow(Date.now(),clockOffsetRef.current)).toISOString(),idempotencyKey:crypto.randomUUID()};
-    savePendingTrivia(pending);
-    setTriviaChoice(index);
-    const delivered=await pendingDeliveryRef.current(pending);
-    if (delivered&&soundRef.current) playInterfaceSound("confirm");
-  }
-
-  const stateParticipantId=state?.participant.id;
-  const stateTriviaId=state?.trivia?.id;
-  useEffect(()=>{
-    if (!joined||!stateParticipantId) return;
-    const pending=loadPendingTrivia();
-    if (!pending||pending.eventId!==preview.id||pending.participantId!==stateParticipantId) return;
-    if (correctedNow(Date.now(),clockOffsetRef.current)>new Date(pending.deadlineAt).getTime()+TRIVIA_GRACE_MS) { clearPendingTrivia(); return; }
-    if (stateTriviaId&&stateTriviaId!==pending.questionId) { clearPendingTrivia(); return; }
-    window.setTimeout(()=>setTriviaChoice(pending.selectedIndex),0);
-    void pendingDeliveryRef.current(pending);
-  },[joined,preview.id,state?.event.sequence_number,stateParticipantId,stateTriviaId]);
-
   if (!joined) return <Registration preview={preview} account={account} name={name} setName={setName} error={error} busy={busy} join={join} />;
   const phaseAnnouncement = soundChosen && state ? getGuestPhaseAnnouncement({
     phase: state.event.phase,
@@ -420,7 +361,7 @@ export function GuestExperience({ preview, initialParticipant, account, joinRequ
     position: state.currentPosition,
     flightCount: state.flightCount,
     betweenTeas: state.betweenTeas,
-    triviaClosed: Boolean(state.trivia?.closed),
+    triviaClosed: false,
     participantRemoved: state.participant.status === "removed"
   }) : "";
   const videoRoom = soundChosen && state && state.event.location_mode === "remote" && !["recap", "ended"].includes(state.event.phase) && state.event.status !== "completed"
@@ -448,10 +389,15 @@ export function GuestExperience({ preview, initialParticipant, account, joinRequ
   if (phase === "welcome") return withPhaseAnnouncement(<Ceremony eyebrow={`with your Vintage Fork host`} title="Welcome to the table." subtitle={state.event.title} />);
   if (phase === "reveal" && state.currentItem) return withPhaseAnnouncement(<ScheduledReveal state={state} clockOffsetMs={clockOffsetMs} roundTripMs={roundTripMs} />);
   if (phase === "brewing" && state.currentItem) return withPhaseAnnouncement(<GuestFrame {...frameProps}><Brewing item={state.currentItem} endsAt={state.event.timer_ends_at} clockOffsetMs={clockOffsetMs} /></GuestFrame>);
-  if (phase === "trivia" && state.currentItem && state.trivia) return withPhaseAnnouncement(<GuestFrame {...frameProps}><Trivia trivia={state.trivia} choice={triviaChoice} answer={answerTrivia} error={error} saved={draft.saved} toggleSaved={async () => { const next = !draft.saved; if (await submitResponse(false, { saved: next })) setDraft(d => ({ ...d, saved: next })); }} /></GuestFrame>);
   if (["recap","ended"].includes(phase) || state.event.status === "completed") return withPhaseAnnouncement(<GuestRecap state={state} />);
   if (state.betweenTeas) return withPhaseAnnouncement(<BetweenTeas state={state} />);
-  if (phase === "tasting" && state.currentItem) return withPhaseAnnouncement(<GuestFrame {...frameProps}>{draft.completed || step === 5 ? <TeaComplete item={state.currentItem} stampReleased={Boolean(state.responses.find(response => response.event_flight_item_id === state.currentItem?.id)?.stamp_released_at)} saved={draft.saved} onToggle={async () => { const next = !draft.saved; if (await submitResponse(false, { saved: next })) setDraft(d => ({ ...d, saved: next })); }} /> : <TastingSteps step={step} setStep={setStep} draft={draft} setDraft={setDraft} busy={busy} error={error} submit={async () => { if (await submitResponse(true)) setStep(5); }} />}</GuestFrame>);
+  if ((phase === "tasting" || phase === "trivia") && state.currentItem) return withPhaseAnnouncement(<GuestFrame {...frameProps}>
+    <GuestTastingContent
+      phase={phase} item={state.currentItem} draft={draft} setDraft={setDraft} step={step} setStep={setStep} busy={busy} error={error}
+      submit={async () => { if (await submitResponse(true)) setStep(5); }}
+      toggleSaved={async () => { const next = !draft.saved; if (await submitResponse(false, { saved: next })) setDraft(d => ({ ...d, saved: next })); }}
+    />
+  </GuestFrame>);
   return withPhaseAnnouncement(<LoadingRoom />);
 }
 
@@ -498,9 +444,27 @@ function GuestFrame({ state, draft, setDraft, sound, toggleSound, notesSyncStatu
   return <main className="guest-shell" id="main-content"><header className="guest-header"><Brand compact /><strong>{state.currentItem?.reveal_title}</strong><span className="spacer" /><span className="chip">Tea {state.currentPosition} of {state.flightCount}</span><button className="btn btn-quiet" aria-pressed={sound} aria-label={`Button sound and haptic feedback ${sound ? "on" : "off"}`} onClick={toggleSound}>{sound ? "Feedback on" : "Feedback off"}</button></header><div className="guest-pane"><details className="card" style={{ marginBottom: 16 }}><summary>Your notes</summary><textarea className="textarea" aria-label="Personal notes" maxLength={3000} value={draft.personalNotes} onFocus={() => { focused.current = true; reportActivity(); }} onBlur={() => { focused.current = false; reportActivity(); onNotesBlur(); }} onCompositionStart={() => { composing.current = true; reportActivity(); }} onCompositionEnd={() => { composing.current = false; reportActivity(); }} onChange={e => setDraft(d => ({ ...d, personalNotes: e.target.value }))} placeholder="Anything you want to remember…" /><p className="help" role="status" aria-live="polite">{syncCopy}</p></details>{transitionNotice && <div className="notice guest-transition-notice" role="status" aria-live="polite"><strong>{transitionNotice}</strong><button className="btn btn-secondary" onClick={onShowTransition}>View now</button></div>}{children}</div></main>;
 }
 function Brewing({ item, endsAt, clockOffsetMs }: { item: CurrentItem; endsAt:string|null; clockOffsetMs:number }) { const [now,setNow]=useState<number|null>(null); useEffect(()=>{const tick=()=>setNow(correctedNow(Date.now(),clockOffsetMs));tick();const t=window.setInterval(tick,250);return()=>window.clearInterval(t)},[clockOffsetMs]); const remaining=endsAt&&now!==null?Math.max(0,new Date(endsAt).getTime()-now):item.steep_seconds*1000; return <><p className="eyebrow">Brewing</p><h1 className="page-title">Brew it like this</h1><p>{item.temperature_c ? `${item.temperature_c}°C` : "Hot water"} · {item.leaf_grams ? `${item.leaf_grams}g` : ""} {item.water_ml ? `per ${item.water_ml}ml` : ""}</p><BrewingTimer remainingMs={remaining} /><section className="card"><p>{item.brewing_instructions}</p></section></>; }
+export function GuestTastingContent({ phase, item, draft, setDraft, step, setStep, busy, error, submit, toggleSaved }: {
+  phase: "tasting" | "trivia"; item: CurrentItem; draft: Draft; setDraft: (update: DraftUpdate) => void;
+  step: number; setStep: (step: number) => void; busy: boolean; error: string; submit: () => void; toggleSaved: () => void;
+}) {
+  return <>
+    {phase === "trivia" && <div className="notice" role="status">You can continue your tasting notes while your host resumes the room.</div>}
+    {draft.completed || step === 5
+      ? <TeaComplete item={item} saved={draft.saved} onToggle={toggleSaved} />
+      : <TastingSteps step={step} setStep={setStep} draft={draft} setDraft={setDraft} busy={busy} error={error} submit={submit} />}
+  </>;
+}
 function TastingSteps({ step, setStep, draft, setDraft, busy, error, submit }: { step:number; setStep:(x:number)=>void; draft:Draft; setDraft:(x:Draft|((d:Draft)=>Draft))=>void; busy:boolean; error:string; submit:()=>void }) { return <><GuestError message={error} />{step===1&&<><p className="eyebrow">Step 1 of 4</p><h1 className="page-title">What did you notice first?</h1><p className="muted">Optional. No wrong answers.</p><textarea className="textarea" aria-label="First impression" value={draft.firstImpression} onChange={e=>setDraft(d=>({...d,firstImpression:e.target.value}))}/><div className="guest-actions"><button className="btn btn-primary btn-attention" onClick={()=>setStep(2)}>Continue</button><button className="btn btn-quiet" onClick={()=>setStep(2)}>Skip</button></div></>}{step===2&&<><p className="eyebrow">Step 2 of 4</p><h1 className="page-title">What do you notice?</h1><FlavorDescriptorPicker options={LIVE_DESCRIPTOR_OPTIONS} selectedIds={draft.descriptors} onToggle={label=>setDraft(d=>({ ...d, descriptors:d.descriptors.includes(label)?d.descriptors.filter(x=>x!==label):d.descriptors.length<5?[...d.descriptors,label]:d.descriptors }))}/><div className="guest-actions"><button className="btn btn-primary btn-attention" onClick={()=>setStep(3)}>Continue</button></div></>}{step===3&&<><p className="eyebrow">Step 3 of 4</p><h1 className="page-title">How strong was this tea overall?</h1><div className="grid grid-3">{(["subtle","clear","dominant"] as const).map(x=><button className={`btn ${draft.intensity===x?"btn-gold":"btn-secondary"}`} key={x} onClick={()=>setDraft(d=>({...d,intensity:x}))}>{x}</button>)}</div><div className="guest-actions"><button className="btn btn-primary btn-attention" onClick={()=>setStep(4)}>Continue</button></div></>}{step===4&&<><p className="eyebrow">Step 4 of 4</p><h1 className="page-title">Rate this tea overall</h1><div className="rating" role="radiogroup">{[1,2,3,4,5].map(n=><button className={draft.rating>=n?"active":""} role="radio" aria-checked={draft.rating===n} aria-label={`${n} stars`} key={n} onClick={()=>setDraft(d=>({...d,rating:n}))}>★</button>)}</div><div className="guest-actions"><button className="btn btn-primary btn-attention" disabled={busy||draft.rating<1} onClick={submit}>{busy?"Saving…":"Submit My Notes"}</button></div></>}</>; }
-function TeaComplete({ item, stampReleased, saved, onToggle }: { item:CurrentItem; stampReleased:boolean; saved:boolean; onToggle:()=>void }) { return <div style={{ textAlign:"center" }}><div style={{ width:168,height:168,border:"2px solid var(--vf-gold)",borderRadius:"50%",display:"grid",placeItems:"center",margin:"1rem auto" }}><div><strong>{item.reveal_title.toUpperCase()}</strong><br /><span style={{ fontSize:32 }}>{stampReleased?"✦":"✓"}</span></div></div><h1 className="page-title">{stampReleased?`Stamped. Tea ${item.position}.`:`Tea ${item.position} submitted.`}</h1>{!stampReleased&&<p className="page-lede">Your stamp is released when your host moves to the next tea or ends the tasting.</p>}<section className="card" style={{ marginTop:20 }}><h2>Save This Tea</h2><p>Save it to include it in your customer dashboard.</p><button className={`btn ${saved?"btn-secondary":"btn-primary btn-attention"}`} onClick={onToggle}>{saved?"Remove from Saved":"Save This Tea"}</button></section><div className="guest-actions"><p className="muted">Your host will introduce the next step.</p></div></div>; }
-function Trivia({ trivia, choice, answer, error, saved, toggleSaved }: { trivia:NonNullable<StatePayload["trivia"]>; choice:number|null; answer:(i:number)=>void; error:string; saved:boolean; toggleSaved:()=>void }) { return <><p className="eyebrow">Trivia · Question {trivia.questionNumber} of {trivia.questionTotal}</p><h1 className="page-title">{trivia.question}</h1><GuestError message={error} /><div className="stack">{trivia.options.map((x,i)=><button className={`btn ${choice===i?"btn-primary":"btn-secondary"}`} disabled={choice!==null||trivia.closed} key={x} onClick={()=>answer(i)}>{x}</button>)}</div>{choice!==null&&!trivia.closed&&<div className="notice" style={{ marginTop:16 }}>Answer locked in. Waiting for the host…</div>}{trivia.closed&&<section className={`notice ${choice===trivia.correctIndex?"success":""}`} style={{ marginTop:16 }}><strong>{choice===trivia.correctIndex?"That’s it.":`The answer was ${trivia.options[trivia.correctIndex ?? 0]}.`}</strong><br />{trivia.explanation}</section>}{trivia.closed&&<section className="card" style={{ marginTop:16 }}><h2>Your Passport</h2><p>Your tasting is complete. The stamp is released when your host moves to the next tea or ends the tasting.</p><button className={`btn ${saved?"btn-secondary":"btn-primary btn-attention"}`} onClick={toggleSaved}>{saved?"Remove from Saved":"Save This Tea"}</button></section>}</>; }
+function TeaComplete({ item, saved, onToggle }: { item: CurrentItem; saved: boolean; onToggle: () => void }) {
+  return <div style={{ textAlign: "center" }}>
+    <p className="eyebrow">{item.reveal_title}</p>
+    <h1 className="page-title">Tea {item.position} submitted.</h1>
+    <p className="page-lede">Your tasting notes are saved.</p>
+    <section className="card" style={{ marginTop: 20 }}><h2>Save This Tea</h2><p>Save it to include it in your customer dashboard.</p><button className={`btn ${saved ? "btn-secondary" : "btn-primary btn-attention"}`} onClick={onToggle}>{saved ? "Remove from Saved" : "Save This Tea"}</button></section>
+    <div className="guest-actions"><p className="muted">Your host will introduce the next step.</p></div>
+  </div>;
+}
 type SaveTeaRequest = (eventId: string, flightItemId: string, saved: boolean) => Promise<{ saved: boolean }>;
 
 export function GuestRecap({ state, saveTeaRequest = persistGuestSavedTea }: { state: StatePayload; saveTeaRequest?: SaveTeaRequest }) {
@@ -518,7 +482,6 @@ export function GuestRecap({ state, saveTeaRequest = persistGuestSavedTea }: { s
 
   const own = state.responses;
   const savedCount = Object.values(savedByTea).filter(Boolean).length;
-  const participantTrivia = state.participantTrivia ?? { answered: 0, correct: 0, total: 0 };
 
   async function toggleSavedTea(teaId: string) {
     const nextSaved = !savedByTea[teaId];
@@ -539,7 +502,7 @@ export function GuestRecap({ state, saveTeaRequest = persistGuestSavedTea }: { s
     }
   }
 
-  return <main className="guest-shell" id="main-content"><div className="guest-pane"><div style={{ textAlign: "center" }}><Brand /><h1 className="page-title">Your evening, {state.participant.displayName}</h1><p className="muted">{state.event.title}</p></div><div className="grid grid-3" style={{ marginTop: 20 }}><div className="card"><strong className="display" style={{ fontSize: 34 }}>{state.analytics?.average_rating ?? "—"}</strong><p>room average</p></div><div className="card"><strong className="display" style={{ fontSize: 34 }}>{savedCount}</strong><p>you saved</p></div><div className="card"><strong className="display" style={{ fontSize: 34 }} aria-label={participantTrivia.total ? `${participantTrivia.correct} correct trivia answers` : "No trivia questions"}>{participantTrivia.total ? participantTrivia.correct : "—"}</strong><p>{participantTrivia.total ? `correct · answered ${participantTrivia.answered} of ${participantTrivia.total}` : "no trivia questions"}</p></div></div><div className="section-label"><span>Your teas</span></div><div className="stack">{(state.allItems ?? []).map(item => { const response = own.find(candidate => candidate.event_flight_item_id === item.id); const tasted = Boolean(response?.completed_at); const ratingLabel = !tasted ? "Not tasted" : response?.rating ? `${response.rating} out of 5 stars` : "Rating not recorded"; const isSaved = Boolean(savedByTea[item.id]); const isSaving = savingTeaId === item.id; return <article className="card" key={item.id}><div className="card-header"><div><h2 className="card-title">{item.reveal_title}</h2><p className="card-meta">{item.tea?.origin}</p></div><span aria-label={ratingLabel}>{tasted && response?.rating ? `${"★".repeat(response.rating)}${"☆".repeat(5 - response.rating)}` : ratingLabel}</span></div><p>{tasted ? response?.descriptors?.join(" · ") || "No descriptors recorded" : "This tea wasn’t tasted."}</p>{isSaved && <span className="chip chip-success">Saved to remember</span>}<div className="card-footer"><button className={`btn ${isSaved ? "btn-secondary" : "btn-primary btn-attention"}`} type="button" disabled={isSaving || Boolean(savingTeaId && !isSaving)} aria-pressed={isSaved} onClick={() => toggleSavedTea(item.id)}>{isSaving ? "Saving…" : isSaved ? "Remove from saved teas" : "Save this tea"}</button></div>{saveMessage?.teaId === item.id && (saveMessage.error ? <GuestError message={saveMessage.text} /> : <div className="notice success" role="status" aria-atomic="true">{saveMessage.text}</div>)}</article>; })}</div><div className="section-label"><span>Keep your recap</span></div><RecapPrivacyControls state={state} onDeleted={() => setDeleted(true)} /><div className="guest-actions"><ClaimButton eventId={state.event.id} linked={state.participant.linkedToAccount} /></div></div></main>;
+  return <main className="guest-shell" id="main-content"><div className="guest-pane"><div style={{ textAlign: "center" }}><Brand /><h1 className="page-title">Your evening, {state.participant.displayName}</h1><p className="muted">{state.event.title}</p></div><div className="grid grid-2" style={{ marginTop: 20 }}><div className="card"><strong className="display" style={{ fontSize: 34 }}>{state.analytics?.average_rating ?? "—"}</strong><p>room average</p></div><div className="card"><strong className="display" style={{ fontSize: 34 }}>{savedCount}</strong><p>you saved</p></div></div><div className="section-label"><span>Your teas</span></div><div className="stack">{(state.allItems ?? []).map(item => { const response = own.find(candidate => candidate.event_flight_item_id === item.id); const tasted = Boolean(response?.completed_at); const ratingLabel = !tasted ? "Not tasted" : response?.rating ? `${response.rating} out of 5 stars` : "Rating not recorded"; const isSaved = Boolean(savedByTea[item.id]); const isSaving = savingTeaId === item.id; return <article className="card" key={item.id}><div className="card-header"><div><h2 className="card-title">{item.reveal_title}</h2><p className="card-meta">{item.tea?.origin}</p></div><span aria-label={ratingLabel}>{tasted && response?.rating ? `${"★".repeat(response.rating)}${"☆".repeat(5 - response.rating)}` : ratingLabel}</span></div><p>{tasted ? response?.descriptors?.join(" · ") || "No descriptors recorded" : "This tea wasn’t tasted."}</p>{isSaved && <span className="chip chip-success">Saved to remember</span>}<div className="card-footer"><button className={`btn ${isSaved ? "btn-secondary" : "btn-primary btn-attention"}`} type="button" disabled={isSaving || Boolean(savingTeaId && !isSaving)} aria-pressed={isSaved} onClick={() => toggleSavedTea(item.id)}>{isSaving ? "Saving…" : isSaved ? "Remove from saved teas" : "Save this tea"}</button></div>{saveMessage?.teaId === item.id && (saveMessage.error ? <GuestError message={saveMessage.text} /> : <div className="notice success" role="status" aria-atomic="true">{saveMessage.text}</div>)}</article>; })}</div><div className="section-label"><span>Keep your recap</span></div><RecapPrivacyControls state={state} onDeleted={() => setDeleted(true)} /><div className="guest-actions"><ClaimButton eventId={state.event.id} linked={state.participant.linkedToAccount} /></div></div></main>;
 }
 
 async function persistGuestSavedTea(eventId: string, flightItemId: string, saved: boolean) {
@@ -650,6 +613,3 @@ function Terminal({ title, copy }: { title:string; copy:string }) { return <main
 function draftKey(eventId:string,participantId:string,flightId:string){return `vf:draft:${eventId}:${participantId}:${flightId}`;}
 function loadDraft(eventId:string,participantId:string,flightId:string):Draft{try{const raw=localStorage.getItem(draftKey(eventId,participantId,flightId));return raw?{...blankDraft,...JSON.parse(raw)}:blankDraft}catch{return blankDraft}}
 function saveLocalDraft(eventId:string,participantId:string,flightId:string,draft:Draft){try{localStorage.setItem(draftKey(eventId,participantId,flightId),JSON.stringify(draft))}catch{}}
-function loadPendingTrivia():PendingTriviaAnswer|null{try{const raw=sessionStorage.getItem("pending_trivia_answer");return raw?JSON.parse(raw) as PendingTriviaAnswer:null}catch{return null}}
-function savePendingTrivia(pending:PendingTriviaAnswer){try{sessionStorage.setItem("pending_trivia_answer",JSON.stringify(pending))}catch{}}
-function clearPendingTrivia(){try{sessionStorage.removeItem("pending_trivia_answer")}catch{}}

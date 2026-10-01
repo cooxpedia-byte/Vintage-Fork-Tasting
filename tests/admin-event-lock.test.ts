@@ -33,6 +33,20 @@ function staffClient(rpcError: string) {
 }
 
 describe("locked event edit regression", () => {
+  it("ignores legacy trivia payload while preserving the tasting flight", async () => {
+    const { client, rpc } = staffClient("event_flight_history_preserved");
+    stubs.createRequestClient.mockResolvedValue({ client, user: { id: "host-1" } });
+    const response = await POST(new Request("https://example.test/api/admin/events", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ event: { title: "Tasting" }, flight: [{ tea_id: "tea-1", steep_seconds: 30, trivia: [{ question: "Legacy question" }] }] })
+    }));
+    expect(rpc).toHaveBeenCalledWith("save_event_bundle", {
+      p_event: { title: "Tasting" }, p_flight: [{ tea_id: "tea-1", steep_seconds: 30 }]
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "This flight has saved history. Keep its teas and order; you can still update the tasting details and brewing instructions." });
+  });
+
   it("preserves the database lock rejection for live and completed events", async () => {
     const { client, rpc } = staffClient("event_locked");
     stubs.createRequestClient.mockResolvedValue({

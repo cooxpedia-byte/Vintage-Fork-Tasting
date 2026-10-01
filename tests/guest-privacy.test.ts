@@ -46,7 +46,9 @@ describe("guest state privacy boundary", () => {
     expect(html).toContain("Your evening, Alex");
     expect(html).toContain("Golden Dawn");
     expect(html).toContain("Cloud Mist");
-    expect(html).toContain("correct · answered 2 of 4");
+    expect(html).not.toContain("correct · answered");
+    expect(html).not.toContain("correct trivia answers");
+    expect(html).not.toContain("no trivia questions");
     expect(html).toContain("Remove from saved teas");
     expect(html).toContain("Save this tea");
     expect(html).toContain("Not tasted");

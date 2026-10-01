@@ -1,0 +1,16 @@
+{
+  "source": "Item 1 archived canonical database only; not live proof",
+  "cron_job_archive_entries": 0,
+  "cron_jobs": [],
+  "copy_section_found": false,
+  "game_matched_job_count": 0,
+  "liveReadOnlyConfirmation": {
+    "at": "2026-10-01T01:57:41.446Z",
+    "readOnly": true,
+    "cronJobTableExists": false,
+    "pgCronInstalled": false,
+    "changesMade": false,
+    "source": "Root agent read-only management query; private receipt retained outside repository"
+  },
+  "limitation": "External/Edge/scheduled HTTP callers were not enumerated; denied game-specific RPCs still refuse regardless of caller."
+}

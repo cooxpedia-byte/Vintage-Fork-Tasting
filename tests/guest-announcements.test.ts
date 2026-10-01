@@ -21,14 +21,14 @@ describe("guest phase announcements", () => {
     expect(getGuestPhaseAnnouncement({ ...tasting, phase: "reveal" })).toBe("Now revealing tea 2 of 4, Golden Dawn.");
     expect(getGuestPhaseAnnouncement(tasting)).toBe("Tasting is open for tea 2 of 4, Golden Dawn.");
     expect(getGuestPhaseAnnouncement({ ...tasting, phase: "brewing" })).toBe("Brewing has started for tea 2 of 4, Golden Dawn.");
-    expect(getGuestPhaseAnnouncement({ ...tasting, phase: "trivia" })).toBe("Trivia is open for tea 2 of 4, Golden Dawn.");
+    expect(getGuestPhaseAnnouncement({ ...tasting, phase: "trivia" })).toBe("Your tasting notes are available for tea 2 of 4, Golden Dawn.");
     expect(getGuestPhaseAnnouncement({ ...tasting, phase: "recap" })).toBe("Your tasting recap is ready.");
     expect(getGuestPhaseAnnouncement({ ...tasting, phase: "ended" })).toBe("The tasting has ended. Your recap is ready.");
   });
 
   it("announces state changes that do not change the database phase", () => {
     expect(getGuestPhaseAnnouncement({ ...tasting, betweenTeas: true })).toBe("This tea is complete. Waiting for the host to reveal the next tea.");
-    expect(getGuestPhaseAnnouncement({ ...tasting, phase: "trivia", triviaClosed: true })).toBe("Trivia has closed for tea 2 of 4, Golden Dawn. The answer is now available.");
+    expect(getGuestPhaseAnnouncement({ ...tasting, phase: "trivia", triviaClosed: true })).toBe("Your tasting notes are available for tea 2 of 4, Golden Dawn.");
   });
 
   it("prioritizes removal over the room phase", () => {

@@ -16,7 +16,6 @@ export function getGuestPhaseAnnouncement({
   position,
   flightCount,
   betweenTeas,
-  triviaClosed,
   participantRemoved
 }: GuestPhaseAnnouncementInput): string {
   if (participantRemoved) return "You’ve been removed from this tasting.";
@@ -31,7 +30,7 @@ export function getGuestPhaseAnnouncement({
     case "reveal": return `Now revealing ${teaContext}.`;
     case "brewing": return `Brewing has started for ${teaContext}.`;
     case "tasting": return `Tasting is open for ${teaContext}.`;
-    case "trivia": return triviaClosed ? `Trivia has closed for ${teaContext}. The answer is now available.` : `Trivia is open for ${teaContext}.`;
+    case "trivia": return `Your tasting notes are available for ${teaContext}.`;
     case "recap": return "Your tasting recap is ready.";
     case "ended": return "The tasting has ended. Your recap is ready.";
   }

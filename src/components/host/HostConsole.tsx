@@ -11,13 +11,11 @@ import { requestHostCommand } from "@/lib/host-command";
 import { getHostRecoveryView, isHostConsoleCurrent, type HostConnectionStatus, type HostSyncStatus } from "@/lib/host-recovery";
 import { isActiveRoomParticipant } from "@/lib/host-participants";
 import { getHostPhaseAnnouncement, getHostPrimaryAnnouncement } from "@/lib/host-announcements";
-import { getTriviaProgress } from "@/lib/event-trivia";
 import { guestEventPath } from "@/lib/live-events-routes";
 import type { EventCommand, SessionPhase, UserRole } from "@/types/domain";
 
-type Trivia = {id:string;position:number;question:string;options:string[];correct_index:number;explanation:string|null;answer_window_seconds:number};
-type Flight = { id:string; position:number; reveal_title:string; reveal_description:string; brewing_instructions:string; steep_seconds:number; temperature_c:number|null; leaf_grams:number|null; water_ml:number|null; tea:{name:string;origin:string|null;producer:string|null}|null; trivia:Trivia[]|Trivia|null };
-type EventState = { id:string; title:string; status:string; phase:SessionPhase; sequence_number:number; current_flight_item_id:string|null; current_trivia_question_id:string|null; tasting_opened_flight_item_id:string|null; reveal_at:string|null; timer_ends_at:string|null; trivia_closes_at:string|null; invite_code:string|null; starts_at:string; location_mode:string; capacity:number; host_user_id:string; backup_host_user_id:string|null };
+type Flight = { id:string; position:number; reveal_title:string; reveal_description:string; brewing_instructions:string; steep_seconds:number; temperature_c:number|null; leaf_grams:number|null; water_ml:number|null; tea:{name:string;origin:string|null;producer:string|null}|null };
+type EventState = { id:string; title:string; status:string; phase:SessionPhase; sequence_number:number; current_flight_item_id:string|null; tasting_opened_flight_item_id:string|null; reveal_at:string|null; timer_ends_at:string|null; invite_code:string|null; starts_at:string; location_mode:string; capacity:number; host_user_id:string; backup_host_user_id:string|null };
 type Participant = { id:string;display_name:string;status:string;last_seen_at:string|null;joined_at:string|null };
 type Lease = { holder_user_id:string;lease_token:string;expires_at:string;heartbeat_at:string };
 type ConsoleError = { message:string; detail:string };
@@ -51,13 +49,11 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
   const canTakeControl = consoleCurrent && controllable && !holder && now !== null && (!lease || leaseExpired || (leaseUnhealthy && (userRole === "admin" || event.backup_host_user_id === userId)));
   const forceTakeover = Boolean(lease && !leaseExpired);
   const active = participants.filter(participant => isActiveRoomParticipant(participant, now));
-  const currentTriviaProgress = getTriviaProgress(triviaList(current), event.current_trivia_question_id);
-  const currentTrivia = currentTriviaProgress.currentIndex >= 0 ? currentTriviaProgress.ordered[currentTriviaProgress.currentIndex] : null;
 
   const refresh = useCallback(async () => {
     const supabase = createClient();
     const [eventResult, participantResult, leaseResult] = await Promise.all([
-      supabase.from("events").select("id,title,status,phase,sequence_number,current_flight_item_id,current_trivia_question_id,tasting_opened_flight_item_id,reveal_at,timer_ends_at,trivia_closes_at,invite_code,starts_at,location_mode,capacity,host_user_id,backup_host_user_id").eq("id", initialEvent.id).single(),
+      supabase.from("events").select("id,title,status,phase,sequence_number,current_flight_item_id,tasting_opened_flight_item_id,reveal_at,timer_ends_at,invite_code,starts_at,location_mode,capacity,host_user_id,backup_host_user_id").eq("id", initialEvent.id).single(),
       supabase.from("participants").select("id,display_name,status,last_seen_at,joined_at").eq("event_id", initialEvent.id).order("joined_at"),
       supabase.from("host_control_leases").select("holder_user_id,lease_token,expires_at,heartbeat_at").eq("event_id", initialEvent.id).maybeSingle()
     ]);
@@ -278,9 +274,8 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
     }
   }
 
-  const triviaClosed = Boolean(event.trivia_closes_at && now !== null && new Date(event.trivia_closes_at).getTime() <= now);
   const revealEligible = !event.reveal_at || Boolean(now !== null && now >= new Date(event.reveal_at).getTime() + 1400);
-  const primary = getPrimary(event,current,triviaClosed,flight,revealEligible);
+  const primary = getHostPrimaryAction(event,current,flight,revealEligible);
   const remaining = event.timer_ends_at && now !== null ? Math.max(0,new Date(event.timer_ends_at).getTime()-now) : (current?.steep_seconds ?? 0) * 1000;
   const leaseMessage = holder ? "You’re running this tasting." : leaseError || "You are watching this tasting.";
   const phaseAnnouncement = getHostPhaseAnnouncement(event.phase, current?.reveal_title ?? null);
@@ -293,7 +288,7 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
     {consoleCurrent&&recoveryNotice&&<div className="notice success" role="status" aria-live="polite">You’re back. Nothing changed for your guests.</div>}
     {error&&<div className="notice error" role="alert">{error.message} {error.detail}</div>}
     <div className="live-main">{event.location_mode === "remote" && ["scheduled", "live"].includes(event.status) && event.phase !== "ended" && <AgoraVideoRoom eventId={event.id} displayName={userName} presentation="host" />}<div className="row" style={{marginBottom:16,overflowX:"auto",flexWrap:"nowrap"}}>{flight.map(item=><div key={item.id} className={`chip ${item.id===event.current_flight_item_id?"chip-live":""}`}>{item.position}. {item.reveal_title}</div>)}</div>
-      <div className="live-grid"><section className="card">{event.phase==="lobby"?<Lobby event={event} flight={flight} active={active.length}/>:event.phase==="ended"?<Ended event={event}/>:<CurrentPhase event={event} current={current} trivia={currentTrivia} triviaClosed={triviaClosed} remaining={remaining} participants={active} triviaNumber={currentTriviaProgress.currentNumber} triviaTotal={currentTriviaProgress.total}/>}</section>
+      <div className="live-grid"><section className="card">{event.phase==="lobby"?<Lobby event={event} flight={flight} active={active.length}/>:event.phase==="ended"?<Ended event={event}/>:<CurrentPhase event={event} current={current} remaining={remaining} participants={active}/>}</section>
       <aside className="card" style={{position:"sticky",top:80}}><div className="card-header"><h2 className="card-title">The room</h2><span className="chip chip-success">{active.length} / {event.capacity}</span></div><div className="stack" style={{gap:8}}>{participants.map(p=><div className="row" key={p.id} style={{borderBottom:"1px solid var(--vf-line)",paddingBottom:8}}><div><strong>{p.display_name}</strong><div className="help">{p.status} · {freshness(p.last_seen_at,currentTime)}</div></div><span className="spacer"/><span aria-hidden="true" style={{color:isActiveRoomParticipant(p,now)?"var(--vf-forest)":"var(--vf-gold)"}}>●</span></div>)}</div><div className="card-footer"><button className="btn btn-secondary" onClick={copyInvite}>Copy invite</button><Link className="btn btn-secondary" href={`/admin/events/${event.id}`} prefetch={false}>Event setup</Link></div></aside></div>
     </div>
     <footer className="command-rail"><span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{primaryAnnouncement}</span><div className="command-inner">{event.phase!=="ended"&&!consoleCurrent&&<button className="btn btn-secondary" disabled>Reconnecting — controls paused</button>}{event.phase!=="ended"&&consoleCurrent&&holder&&primary&&(primary.command==="reveal_tea"?<RevealControl label={primary.label} busy={busy} onCommit={()=>command(primary.command)}/>:<button className="btn btn-primary btn-attention" disabled={busy||primary.disabled} onClick={()=>command(primary.command)}>{busy?"Applying…":primary.label}</button>)}{event.phase!=="ended"&&consoleCurrent&&!holder&&<button className="btn btn-secondary" disabled>Watching — {lease?.holder_user_id?"another host has control":"no active control"}</button>}{event.phase!=="lobby"&&event.phase!=="ended"&&consoleCurrent&&holder&&<button className="btn btn-danger" disabled={busy} onClick={()=>{if(confirm("End this tasting? This tasting can’t be reopened. Your guests’ live screens will close. Their recap stays available."))command("end_session")}}>End tasting</button>}{event.phase==="ended"&&<Link className="btn btn-primary btn-attention" href={`/admin/events/${event.id}/results`} prefetch={false}>See results</Link>}</div></footer>
@@ -301,10 +296,54 @@ export function HostConsole({ initialEvent, flight, initialParticipants, userId,
 }
 
 function Lobby({event,flight,active}:{event:EventState;flight:Flight[];active:number}){return <><p className="eyebrow">Pre-session</p><h1 className="page-title">The room is ready.</h1><div className="grid grid-3" style={{marginTop:20}}><div className="card"><strong className="display" style={{fontSize:36}}>{flight.length}</strong><p>teas</p></div><div className="card"><strong className="display" style={{fontSize:36}}>{active}</strong><p>joined</p></div><div className="card"><strong className="display" style={{fontSize:36}}>{event.capacity}</strong><p>capacity</p></div></div>{event.location_mode === "remote" && <div className="notice success" style={{marginTop:16}}>Join the Vintage Fork video room above, check your camera and microphone, then open the tasting.</div>}</>}
-function CurrentPhase({event,current,trivia,triviaClosed,remaining,participants,triviaNumber,triviaTotal}:{event:EventState;current:Flight|null;trivia:Trivia|null;triviaClosed:boolean;remaining:number;participants:Participant[];triviaNumber:number;triviaTotal:number}){if(!current)return <div className="empty-state"><h2>No tea is selected.</h2></div>;const done=participants.filter(p=>p.status==="active").length;return <><p className="eyebrow">Tea {current.position}</p><h1 className="page-title">{current.reveal_title}</h1><p className="page-lede">{current.tea?.producer} · {current.tea?.origin}</p><div className="section-label"><span>Reveal text</span></div><p>{current.reveal_description}</p><div className="section-label"><span>Brewing</span></div><div className="grid grid-3"><div className="card"><strong>{current.temperature_c??"—"}°C</strong><p className="help">Water</p></div><div className="card"><strong>{current.leaf_grams??"—"}g</strong><p className="help">Leaf</p></div><div className="card"><strong>{current.water_ml??"—"}ml</strong><p className="help">Water volume</p></div></div><p style={{marginTop:12}}>{current.brewing_instructions}</p>{event.phase==="brewing"&&<div className="timer-ring" role="timer" aria-live="off" aria-label={`Brewing timer, ${formatClock(remaining)} remaining`}><div><div className="timer-readout">{formatClock(remaining)}</div><small>server timer</small></div></div>}{event.phase==="tasting"&&(event.tasting_opened_flight_item_id===event.current_flight_item_id?<div className="notice success">Tasting responses are open. {done} participants are active.</div>:<div className="notice">Ready for the next reveal. Guests are waiting between teas.</div>)}{event.phase==="trivia"&&trivia&&<section className="card" style={{marginTop:16}}><p className="eyebrow">Question {triviaNumber} of {triviaTotal}</p><h2 className="card-title">{trivia.question}</h2><div className="stack">{trivia.options.map((x,i)=><div className="row" key={x}><span>{String.fromCharCode(65+i)}.</span><span>{x}</span>{triviaClosed&&i===trivia.correct_index&&<span className="chip chip-success">Correct</span>}</div>)}</div></section>}</>}
+function CurrentPhase({ event, current, remaining, participants }: { event: EventState; current: Flight | null; remaining: number; participants: Participant[] }) {
+  if (!current) return <div className="empty-state"><h2>No tea is selected.</h2></div>;
+  const activeCount = participants.filter(participant => participant.status === "active").length;
+  return <>
+    <p className="eyebrow">Tea {current.position}</p>
+    <h1 className="page-title">{current.reveal_title}</h1>
+    <p className="page-lede">{current.tea?.producer} · {current.tea?.origin}</p>
+    <div className="section-label"><span>Reveal text</span></div><p>{current.reveal_description}</p>
+    <div className="section-label"><span>Brewing</span></div>
+    <div className="grid grid-3">
+      <div className="card"><strong>{current.temperature_c ?? "—"}°C</strong><p className="help">Water</p></div>
+      <div className="card"><strong>{current.leaf_grams ?? "—"}g</strong><p className="help">Leaf</p></div>
+      <div className="card"><strong>{current.water_ml ?? "—"}ml</strong><p className="help">Water volume</p></div>
+    </div>
+    <p style={{ marginTop: 12 }}>{current.brewing_instructions}</p>
+    {event.phase === "brewing" && <div className="timer-ring" role="timer" aria-live="off" aria-label={`Brewing timer, ${formatClock(remaining)} remaining`}><div><div className="timer-readout">{formatClock(remaining)}</div><small>server timer</small></div></div>}
+    {event.phase === "tasting" && (event.tasting_opened_flight_item_id === event.current_flight_item_id
+      ? <div className="notice success">Tasting responses are open. {activeCount} participants are active.</div>
+      : <div className="notice">Ready for the next reveal. Guests are waiting between teas.</div>)}
+    {event.phase === "trivia" && <div className="notice">Resume the tasting to continue with notes, the next tea or the recap.</div>}
+  </>;
+}
 function Ended({event}:{event:EventState}){return <div className="empty-state"><h1>This tasting has ended.</h1><p>Guest live screens are closed. Their recaps and customer histories remain available.</p><div className="row" style={{ justifyContent:"center" }}><Link className="btn btn-primary btn-attention" href={`/admin/events/${event.id}/results`} prefetch={false}>See results</Link></div></div>}
 function RevealControl({label,busy,onCommit}:{label:string;busy:boolean;onCommit:()=>void}){const[mode,setMode]=useState<"idle"|"arming"|"armed">("idle");const[commitReady,setCommitReady]=useState(false);const armTimer=useRef<number|null>(null);const readyTimer=useRef<number|null>(null);const holding=useRef(false);const armed=useRef(false);const clearArm=useCallback(()=>{if(armTimer.current!==null)window.clearTimeout(armTimer.current);armTimer.current=null},[]);useEffect(()=>()=>{clearArm();if(readyTimer.current!==null)window.clearTimeout(readyTimer.current)},[clearArm]);function startArm(){if(busy||armed.current)return;holding.current=true;armed.current=false;setMode("arming");clearArm();armTimer.current=window.setTimeout(()=>{if(!holding.current)return;armed.current=true;setMode("armed");setCommitReady(false);readyTimer.current=window.setTimeout(()=>setCommitReady(true),400)},600)}function releaseArm(){holding.current=false;if(!armed.current){clearArm();setMode("idle")}}function cancel(){holding.current=false;armed.current=false;clearArm();if(readyTimer.current!==null)window.clearTimeout(readyTimer.current);setCommitReady(false);setMode("idle")}if(mode==="armed")return <div className="row reveal-actions" aria-live="polite"><button className="btn btn-gold btn-attention" disabled={busy||!commitReady} onClick={onCommit}>{busy?"Scheduling…":commitReady?label:"Armed…"}</button><button className="btn btn-secondary" disabled={busy} onClick={cancel}>Cancel</button></div>;return <button className="btn btn-secondary" disabled={busy} onPointerDown={startArm} onPointerUp={releaseArm} onPointerCancel={releaseArm} onPointerLeave={releaseArm} onKeyDown={event=>{if(event.code==="Space"&&!event.repeat){event.preventDefault();startArm()}}} onKeyUp={event=>{if(event.code==="Space"){event.preventDefault();releaseArm()}}}>{mode==="arming"?"Keep holding…":"Hold 600ms to arm the reveal"}</button>}
-function getPrimary(event:EventState,current:Flight|null,triviaClosed:boolean,flight:Flight[],revealEligible:boolean):{label:string;command:EventCommand;disabled?:boolean}|null{switch(event.phase){case"lobby":return{label:"Open the tasting",command:"open_session"};case"welcome":return{label:`Reveal ${current?.reveal_title??"tea"} now`,command:"reveal_tea"};case"reveal":return revealEligible?{label:`Start timer · ${formatClock((current?.steep_seconds??0)*1000)}`,command:"start_timer"}:{label:"Reveal in progress",command:"start_timer",disabled:true};case"brewing":return{label:"Open the tasting",command:"open_tasting"};case"tasting":{const idx=flight.findIndex(x=>x.id===event.current_flight_item_id);if(event.tasting_opened_flight_item_id!==event.current_flight_item_id)return{label:`Reveal ${current?.reveal_title??"tea"} now`,command:"reveal_tea"};const progress=getTriviaProgress(triviaList(current),event.current_trivia_question_id);if(progress.hasNext)return{label:progress.total>1?`Open trivia ${progress.nextNumber} of ${progress.total}`:"Open trivia",command:"open_trivia"};if(idx<flight.length-1)return{label:`Next tea — ${flight[idx+1].reveal_title}`,command:"next_tea"};return{label:"Start the recap",command:"start_recap"}}case"trivia":return triviaClosed?{label:"Back to the tasting",command:"return_to_tasting"}:{label:"Close trivia",command:"close_trivia"};case"recap":return null;default:return null}}
-function triviaList(flight:Flight|null):Trivia[]{if(!flight?.trivia)return[];return Array.isArray(flight.trivia)?flight.trivia:[flight.trivia]}
+export function getHostPrimaryAction(
+  event: Pick<EventState, "phase" | "current_flight_item_id" | "tasting_opened_flight_item_id">,
+  current: Pick<Flight, "reveal_title" | "steep_seconds"> | null,
+  flight: Pick<Flight, "id" | "reveal_title">[],
+  revealEligible: boolean
+): { label: string; command: EventCommand; disabled?: boolean } | null {
+  switch (event.phase) {
+    case "lobby": return { label: "Open the tasting", command: "open_session" };
+    case "welcome": return { label: `Reveal ${current?.reveal_title ?? "tea"} now`, command: "reveal_tea" };
+    case "reveal": return revealEligible
+      ? { label: `Start timer · ${formatClock((current?.steep_seconds ?? 0) * 1000)}`, command: "start_timer" }
+      : { label: "Reveal in progress", command: "start_timer", disabled: true };
+    case "brewing": return { label: "Open the tasting", command: "open_tasting" };
+    case "tasting": {
+      if (event.tasting_opened_flight_item_id !== event.current_flight_item_id) {
+        return { label: `Reveal ${current?.reveal_title ?? "tea"} now`, command: "reveal_tea" };
+      }
+      const index = flight.findIndex(item => item.id === event.current_flight_item_id);
+      if (index < flight.length - 1) return { label: `Next tea — ${flight[index + 1].reveal_title}`, command: "next_tea" };
+      return { label: "Start the recap", command: "start_recap" };
+    }
+    case "trivia": return { label: "Resume the tasting", command: "return_to_tasting" };
+    default: return null;
+  }
+}
 function freshness(value:string|null,now:number){if(!value)return"not connected";const seconds=Math.floor((now-new Date(value).getTime())/1000);return seconds<10?"with us":seconds<45?`${seconds}s ago`:"quiet"}
 function formatClock(ms:number){const total=Math.max(0,Math.ceil(ms/1000));return`${Math.floor(total/60)}:${String(total%60).padStart(2,"0")}`}

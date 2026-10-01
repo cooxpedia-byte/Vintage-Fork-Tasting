@@ -1,0 +1,660 @@
+{
+  "status": "passed",
+  "testCount": 33,
+  "tests": [
+    "fixture refuses unapproved builtin database",
+    "apply requires item 2 personal-card hook removal",
+    "actual item 2 apply detaches both original hooks before item 3",
+    "apply rejects renamed live progression hook",
+    "rollback also rejects a reattached item 2 progression hook",
+    "apply preserves every fixture row, function OID/owner/ACL and all 35 protected definitions and unrelated triggers",
+    "repeated apply is exact no-op",
+    "all 21 retired RPCs refuse before wallet or price mutation",
+    "all 25 frozen tables reject privileged direct inserts",
+    "nine populated market/trivia/reward/discovery tables reject direct action updates",
+    "personal card completion and live note saving remain independent of prices and wallets",
+    "historical flight detail edit retains IDs/notes/questions/answers and ignores game payload",
+    "historical flight structural edit refuses atomically",
+    "new empty draft supports save/append/reorder/remove without new trivia or reward settings",
+    "event readiness retains all non-game requirements",
+    "scheduled session starts without trivia; both legacy trivia commands are denied",
+    "next tea, legacy trivia exit and recap work without game prerequisites; stamps still release without rewards",
+    "plain breakout room creation/closure remains usable without new game records",
+    "real participant erasure trigger and FK SET NULL/CASCADE paths remain functional",
+    "privacy exceptions cannot re-add participants or restore game content/state",
+    "catalogue tea FK null cleanup succeeds with resolver detached",
+    "unchanged generic checkout earn/redeem and retry idempotency remain operational",
+    "explicit rollback restores exact original functions/ACLs and seven hooks without data rewrite or item 2 reversal",
+    "repeated rollback is exact no-op",
+    "positive control: retired-table writes resume only after explicit rollback",
+    "function metadata drift refuses atomically",
+    "newer protected checkout function requires rereview before apply",
+    "disabled old attachment refuses atomically",
+    "unexpected duplicate attachment refuses atomically",
+    "partial function retirement refuses atomically",
+    "disabled freeze guard rejects repeated apply",
+    "disabled freeze guard rejects rollback atomically",
+    "rollback does not overwrite or depend on an unrelated protected-function hotfix"
+  ],
+  "engine": {
+    "version": "17.5",
+    "version_num": 170005,
+    "build": "PostgreSQL 17.5 on aarch64-unknown-linux-gnu, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit"
+  },
+  "package": {
+    "name": "@electric-sql/pglite",
+    "version": "0.3.16"
+  },
+  "productionSqlApplied": false,
+  "execution": "isolated in-memory PGlite PostgreSQL 17; synthetic rows and selected exact archived function bodies",
+  "sourceSha256": {
+    "apply.sql": "27dda97f7378ec28ae0c1310e4df641a68a42c2abbd70ec497f1da471ad547dc",
+    "rollback.sql": "57125e85e9ff97011a3edb60efb141ca73f5ece60cb0d6968b1a8f5389acfa29",
+    "fixture.sql": "1f7934ebe37e51a174568403f2437bd76b9432c904c02c98db6da6fbddf8f542",
+    "seed.sql": "45e2acae68116b6b749c0f04afac8748d12022ca099d4e14a1aeb42f59d21275",
+    "test.mjs": "dc8547df56a79072c67323ec7f2915b2f4817618a0ef137c281ceb5ea8b32d6f",
+    "manifest.json": "f2a81cb16f03c9155e09e823eab6403f25d5e08913d774e2ec4a8aeff9fbd115"
+  },
+  "item2ApplySha256": "c9626c5cbf27142107a2773babc25e96f7674f306c48b0f095b78ebed595c36a",
+  "protectedDefinitionMetadata": {
+    "public.post_gold_leaves_entry(uuid,text,bigint,text,text,text,text,jsonb,boolean)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "uuid",
+      "source": "a007bba1cf42e08324b5f49e9d028fea",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_wallet_id uuid, p_entry_type text, p_leaves_delta bigint, p_source text, p_source_reference text, p_idempotency_key text, p_description text DEFAULT ''::text, p_metadata jsonb DEFAULT '{}'::jsonb, p_allow_negative_balance boolean DEFAULT false",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.ensure_current_customer()": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "uuid",
+      "source": "66d2a5b937bb44a92eb4404fe801e1ab",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.get_my_loyalty_summary()": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 1000,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "TABLE(customer_id uuid, account_id uuid, account_status text, points_balance bigint, points_label text, earning_enabled boolean, redemption_enabled boolean)",
+      "source": "d0ca1de8417bf2fabd27641096bc1740",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.get_mobile_loyalty_summary(uuid)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 1000,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "TABLE(owner_user_id uuid, wallet_id uuid, points_balance bigint, points_label text, earning_enabled boolean, redemption_enabled boolean)",
+      "source": "698fd13b292d0d8a09e6a05086f222d3",
+      "strict": false,
+      "language": "sql",
+      "parallel": "u",
+      "arguments": "p_mobile_auth_user_id uuid",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true
+    },
+    "public.get_wordpress_loyalty_summary(bigint)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 1000,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "TABLE(owner_user_id uuid, wallet_id uuid, points_balance bigint, points_label text, earning_enabled boolean, redemption_enabled boolean)",
+      "source": "8254dce768ba0e4f8a3f20c392cc2d6c",
+      "strict": false,
+      "language": "sql",
+      "parallel": "u",
+      "arguments": "p_wordpress_user_id bigint",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true
+    },
+    "public.register_mobile_customer(uuid,uuid,text)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "uuid",
+      "source": "20e86ea3c83bb2b3fe1c41ef2a95e01a",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_mobile_auth_user_id uuid, p_owner_user_id uuid, p_email text DEFAULT NULL::text",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.register_wordpress_customer(bigint,uuid,text)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "uuid",
+      "source": "44393ba3d5d5e6ed218db5cd6fc32acb",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_wordpress_user_id bigint, p_owner_user_id uuid DEFAULT NULL::uuid, p_email text DEFAULT NULL::text",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.apply_woocommerce_loyalty_refund(text,text,bigint,text,boolean)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 1000,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "TABLE(earned_points_reversed bigint, redeemed_points_released bigint, current_balance bigint)",
+      "source": "dd1db0dfed9c9bcc9656a87c87397526",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_order_reference text, p_refund_reference text, p_cumulative_refunded_eligible_cents bigint, p_idempotency_key text, p_cancelled boolean DEFAULT false",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.award_woocommerce_order_gold_leaves(bigint,text,bigint,text,jsonb)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 1000,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "TABLE(entry_id uuid, points_awarded bigint, current_balance bigint)",
+      "source": "8d1401d08e3a042f3aaff1f8a19f14a2",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_wordpress_user_id bigint, p_order_reference text, p_eligible_spend_cents bigint, p_idempotency_key text, p_metadata jsonb DEFAULT '{}'::jsonb",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.reserve_woocommerce_gold_leaves(bigint,text,bigint,bigint,text)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 1000,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "TABLE(entry_id uuid, points_redeemed bigint, remaining_balance bigint)",
+      "source": "9dee98a7ff3f19d2942b5a8b8def0f12",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_wordpress_user_id bigint, p_order_reference text, p_eligible_spend_cents bigint, p_requested_points bigint, p_idempotency_key text",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.complete_tasting_session(uuid,uuid,integer)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "result": "public.tasting_sessions",
+      "source": "00ab8563ae08798cce9b9baae7afcd85",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_session_id uuid, p_operation_id uuid, p_expected_revision integer",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.save_solo_tasting_session(uuid,uuid,uuid,integer,jsonb,jsonb,jsonb,jsonb,uuid[])": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public, extensions, pg_temp"
+      ],
+      "result": "public.tasting_sessions",
+      "source": "69b7955118003d128b405fd6364f178a",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_session_id uuid, p_card_id uuid, p_operation_id uuid, p_expected_revision integer, p_tea jsonb, p_card jsonb, p_brewing jsonb, p_private_notes jsonb, p_descriptor_ids uuid[]",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.save_solo_tasting_session_v2(uuid,uuid,uuid,integer,jsonb,jsonb,jsonb,jsonb,uuid[])": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "result": "public.tasting_sessions",
+      "source": "8b3564c0067c977786664abffb950c0a",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_session_id uuid, p_card_id uuid, p_operation_id uuid, p_expected_revision integer, p_tea jsonb, p_card jsonb, p_brewing jsonb, p_private_notes jsonb, p_descriptor_ids uuid[]",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.delete_tasting_session(uuid,uuid)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "result": "boolean",
+      "source": "10bc7720a5f8179540f82129bfbaa716",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_session_id uuid, p_operation_id uuid",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.set_personal_tea_record_archived(uuid,uuid,boolean)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "result": "public.personal_tea_records",
+      "source": "a9276b4de3461e275bb6fe4a3baae973",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_personal_tea_id uuid, p_operation_id uuid, p_archived boolean",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.set_tasting_session_archived(uuid,uuid,integer,boolean)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "result": "public.tasting_sessions",
+      "source": "d00160e63341b27a9a7094a45543d951",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_session_id uuid, p_operation_id uuid, p_expected_revision integer, p_archived boolean",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.scrub_deleted_participant_live_content()": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public"
+      ],
+      "result": "trigger",
+      "source": "a72e9d556d20ae6537b09a3ef949a4dd",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.release_late_tasting_stamp_after_host_progress()": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "result": "trigger",
+      "source": "ba0fbec2f4cc88d601ed0acf8a04c5b6",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": false
+    },
+    "public.release_tasting_stamps_on_host_progress()": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "result": "trigger",
+      "source": "60b083885ab3076ff20253934091864d",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": false
+    },
+    "public.can_manage_event(uuid,uuid)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public"
+      ],
+      "result": "boolean",
+      "source": "2532ce584ebfc8b9d2b011774a096efd",
+      "strict": false,
+      "language": "sql",
+      "parallel": "u",
+      "arguments": "p_event_id uuid, uid uuid",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true
+    },
+    "public.is_staff(uuid)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public"
+      ],
+      "result": "boolean",
+      "source": "b5a5b10c7a8f6b1118227826158515fa",
+      "strict": false,
+      "language": "sql",
+      "parallel": "u",
+      "arguments": "uid uuid",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true
+    },
+    "public.touch_updated_at()": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": null,
+      "result": "trigger",
+      "source": "7eb7a124693fea28124edfd2e7860d87",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": false
+    },
+    "public.resolve_merchant_catalog_tea()": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "trigger",
+      "source": "bf9a34a88495006838673e822ee4bc0d",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": false
+    },
+    "public.guard_active_breakout_transition()": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public"
+      ],
+      "result": "trigger",
+      "source": "31e5e527303a2987e6d27662f52cfe5e",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.validate_tea_response_scope()": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=public"
+      ],
+      "result": "trigger",
+      "source": "fd9e5a65069216365b69beb544d88208",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": false
+    },
+    "public.gold_leaves_activate_store_v1(uuid,uuid)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "jsonb",
+      "source": "ee307ae64c2f19405919babbde07b1ed",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_store_profile_id uuid, p_owner_user_id uuid",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.gold_leaves_connect_store_v1(uuid,uuid)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "uuid",
+      "source": "ef5faf85045c14a750120e969c5cabd4",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_store_profile_id uuid, p_owner_user_id uuid",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.gold_leaves_identity_v1(text)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "jsonb",
+      "source": "a179b6c43d83d1a8464c7a9cd618bfc9",
+      "strict": false,
+      "language": "sql",
+      "parallel": "u",
+      "arguments": "p_email text",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true
+    },
+    "public.gold_leaves_migration_audit_v1()": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "jsonb",
+      "source": "6b09c6073450c5ebfbfdec3df2b83f31",
+      "strict": false,
+      "language": "sql",
+      "parallel": "u",
+      "arguments": "",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true
+    },
+    "public.gold_leaves_migration_batch_v1(integer)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "jsonb",
+      "source": "d8a785a5a264068ba595544c1efee60c",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_limit integer DEFAULT 25",
+      "leakproof": false,
+      "volatility": "s",
+      "security_definer": true
+    },
+    "public.gold_leaves_migration_result_v1(uuid,uuid,text,text)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "boolean",
+      "source": "91a560a0044c1255759ae380610ac3d2",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_owner_user_id uuid, p_store_profile_id uuid, p_status text, p_error text",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.gold_leaves_refund_store_v1(uuid,bigint)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "jsonb",
+      "source": "47a61e6fca581510b12134e7f7241e69",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_order_id uuid, p_cumulative_eligible_cents bigint",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.gold_leaves_release_store_v1(uuid)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "bigint",
+      "source": "228002a75a922b0bdbbdbf661e65e84a",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_attempt_id uuid",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.gold_leaves_reserve_store_v1(uuid,uuid,bigint,bigint)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "jsonb",
+      "source": "fd792abaf37a3ff0675309ed44daba9c",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_store_profile_id uuid, p_attempt_id uuid, p_eligible_cents bigint, p_leaves bigint",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    },
+    "public.gold_leaves_settle_store_v1(uuid,uuid)": {
+      "cost": 100,
+      "kind": "f",
+      "rows": 0,
+      "config": [
+        "search_path=\"\""
+      ],
+      "result": "bigint",
+      "source": "cb849bf7937832c09d543cf32a73c010",
+      "strict": false,
+      "language": "plpgsql",
+      "parallel": "u",
+      "arguments": "p_attempt_id uuid, p_order_id uuid",
+      "leakproof": false,
+      "volatility": "v",
+      "security_definer": true
+    }
+  },
+  "limits": [
+    "No native multi-session concurrency/lock test.",
+    "Selected schema fixture, not full restored-database rehearsal.",
+    "Store bridge reserve/settle/release/connect signatures are hash-preserved; end-to-end store acceptance belongs to item 4."
+  ],
+  "completedAt": "2026-10-01T02:03:41.814Z"
+}

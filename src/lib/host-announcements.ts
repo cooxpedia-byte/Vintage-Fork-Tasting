@@ -8,7 +8,7 @@ export function getHostPhaseAnnouncement(phase: SessionPhase, teaTitle: string |
     case "reveal": return `The room is now revealing ${tea}.`;
     case "brewing": return `The room is now brewing ${tea}.`;
     case "tasting": return `The room is now tasting ${tea}.`;
-    case "trivia": return `The room is now in trivia for ${tea}.`;
+    case "trivia": return `Resume tasting ${tea} to continue.`;
     case "recap": return "The room is now in the recap.";
     case "ended": return "The tasting has ended.";
   }

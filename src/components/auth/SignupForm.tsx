@@ -60,7 +60,7 @@ export function SignupForm() {
         <Brand />
         <p className="eyebrow">Customer dashboard</p>
         <h1 className="page-title">Start your tea cellar</h1>
-        <p className="page-lede">Keep your tasting history, Passport stamps and saved teas together.</p>
+        <p className="page-lede">Keep your tasting notes, personal Tea Cellar cards and saved teas together.</p>
         {message && (
           <div className={message === SIGNUP_SUCCESS_MESSAGE ? "notice success" : "form-error"} role="status">
             {message}
