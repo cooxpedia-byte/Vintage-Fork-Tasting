@@ -61,7 +61,7 @@ export function LoginForm({ staff = false }: { staff?: boolean }) {
         <Brand href="/" />
         <p className="eyebrow">{staff ? "Tasting administration" : "Customer dashboard"}</p>
         <h1 className="page-title">{staff ? "Staff sign in" : "Welcome back"}</h1>
-        <p className="page-lede">{staff ? "Use your assigned Vintage Fork staff account." : "Your tasting notes, Passport and saved teas are waiting."}</p>
+        <p className="page-lede">{staff ? "Use your assigned Vintage Fork staff account." : "Your tasting notes, Tea Cellar and saved teas are waiting."}</p>
         {callbackError && <div className="form-error" role="status">{callbackError}</div>}
         {!staff && <div className="stack" style={{ marginTop: 20 }}>
           <div className="field">
