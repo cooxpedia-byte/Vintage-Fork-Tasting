@@ -1,0 +1,80 @@
+{
+  "status": "passed",
+  "completedAt": "2026-10-01T04:03:58.613Z",
+  "testCount": 13,
+  "tests": [
+    "apply preserves every historical row/ledger entry and function identity/ACL while adding zero-default bigint debt",
+    "repeat apply is idempotent",
+    "database constraints reject negative spendable balance, negative debt, overlapping funds/debt and null debt",
+    "migration audit reports economic net, spendable and refund-debt totals without false historical-balance drift",
+    "spent-earn refund records debt90 with spendable0 and signed journal net; retry is exact and ordinary spending rejects",
+    "partial credits, purchase earning and reservation releases repay debt before creating spendable Leaves",
+    "partial/full refunds combine earned reversals and redemption credits without losing debt; retries and stale/excess refunds are safe",
+    "existing WordPress refund and cancellation paths preserve debt economics while reporting nonnegative spendable balance",
+    "bigint overflow and conflicting retry refuse atomically; authorized legacy negative flag becomes representable debt",
+    "all12 existing checkout bridge case groups remain compatible with explicit net/spendable/debt assertions",
+    "rollback without debt restores original schema/writer and exact historical data",
+    "preexisting negative wallet makes apply refuse atomically without rewriting history",
+    "explicit rollback with debt restores signed legacy balance without forgiving debt or altering the journal"
+  ],
+  "engine": {
+    "version": "17.5",
+    "version_num": 170005,
+    "build": "PostgreSQL 17.5 on aarch64-unknown-linux-gnu, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit"
+  },
+  "sourceSha256": {
+    "atomicApply": "d89e13691da49d29322c108ffe63faba7bfb0370eb076ba376951150ece38946",
+    "apply": "a157c5e1396859d6404a071a71ec036cc197fa8999f3c484515b57af0e67e972",
+    "rollback": "97f7dfccdb60d8fdca90cbfc365beced02f063f635838ed454320f8f98ce5f15",
+    "test": "d735683747eeaaf2f20fd0933d9187aede36d0031532ccfc0f261cd6f8e153d1",
+    "checkoutCases": "344b5aaa836024f5a6561d8f38fc5aaaf7f8daf27dbeccdbc1d3806d716c0427",
+    "loader": "98bbe87afdbb5946fcb07875e1d0dcaf15f53c703c59a2ef49cba118e5b8e628",
+    "bridge": "b7488c43ebf67a805696ba415ffe76ad5401bc53bd46a633f330c0124b94567e"
+  },
+  "archiveSha256": "c9ffc2014f5150d9a31193ebf7034d9f916d1f0cd4e36659048bdd9036383524",
+  "observations": {
+    "debtAudit": {
+      "net": "14883",
+      "spendable": "14973",
+      "debt": "90"
+    },
+    "checkout": {
+      "stage": "nonnegative-balance-guard",
+      "cases": [
+        "restored grants allow only trusted service execution; anonymous and customer-role RPC calls are denied",
+        "existing-account connection and retries preserve wallet identity; conflicting account links reject atomically",
+        "verified new-account activation creates one empty wallet; unverified canonical identity is rejected",
+        "checkout reservation debits once, survives exact retry, and rejects changed owner or amounts",
+        "unverified payment cannot earn; verified purchase earns whole eligible dollars exactly once and cannot be cancelled",
+        "partial and full verified merchandise refunds proportionally restore redemption and reverse earning once; stale/excess refunds reject",
+        "verified cancellation returns reserved Leaves once; released attempt cannot later settle or reserve again",
+        "purchase without redemption earns once; overspend and redemption beyond eligible merchandise reject",
+        "cash refund without merchandise allocation and changed payment verification cannot award new Leaves",
+        "bridge authentication denies untrusted callers and account history/quotes stay wallet-scoped",
+        "refund reversal creates separate debt with spendable zero and unchanged economic net; new overspending rejects and valid release repays debt",
+        "all synthetic account/order/ledger activity rolls back; historical row digests and financial totals remain exact"
+      ],
+      "syntheticOnly": {
+        "wallets": 3,
+        "balance": "1525",
+        "entries": 15,
+        "delta": "1525"
+      },
+      "historicalPreserved": true,
+      "networkCalls": 0,
+      "injectedTransportRequests": 86,
+      "canonicalRpcCalls": 41,
+      "serviceRoleRpcExecutions": 39,
+      "serviceRoleRestReads": 33
+    }
+  },
+  "networkCalls": 0,
+  "productionMutations": 0,
+  "historicalRowsPreserved": true,
+  "limits": [
+    "Single-session isolated PostgreSQL17.5 WASM; no native concurrency claim.",
+    "Original archived data and released retirement definitions; parent verifies current production source separately.",
+    "Bridge payment verification and network responses injected; no real payment/provider calls.",
+    "Rollback intentionally restores historical signed-balance representation when debt exists."
+  ]
+}
