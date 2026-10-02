@@ -70,10 +70,13 @@ describe("recovered staff admin access", () => {
     const data = { connected: true, recentOrders: [] };
     state.commerce.mockResolvedValue(client);
     state.overview.mockResolvedValue(data);
-    const view = await AdminPage();
-    expect(state.overview).toHaveBeenCalledWith(client);
+    const view = await AdminPage({ searchParams: Promise.resolve({ salesPeriod: "last_week" }) });
+    expect(state.overview).toHaveBeenCalledWith(client, {
+      salesPeriod: "last_week",
+      salesRange: expect.objectContaining({ start: expect.any(String), end: expect.any(String) }),
+    });
     expect(view.type).toBe(CommerceAdminOverview);
-    expect(view.props).toEqual({ commerce: data });
+    expect(view.props).toEqual({ commerce: data, salesPeriod: "last_week" });
   });
   it.each([
     ["orders", () => OrdersPage({ searchParams: Promise.resolve({}) })],
