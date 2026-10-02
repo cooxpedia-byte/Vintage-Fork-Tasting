@@ -1,13 +1,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SalesPeriodRange } from "./sales-periods";
 
-export type ProductSalesVariation = { key: string; label: string; sku: string | null; units: number };
-export type ProductSalesProduct = { id: string; name: string; units: number; variations: ProductSalesVariation[] };
+export type ProductSalesVariation = {
+  key: string; label: string; sku: string | null;
+  nativeUnits: number; historicalUnits: number | null; units: number | null;
+};
+export type ProductSalesProduct = {
+  id: string; name: string; historyMapped: boolean; nativeUnits: number;
+  historicalUnits: number | null; units: number | null; variations: ProductSalesVariation[];
+};
 export type ProductSalesReport = {
   connected: boolean;
   products: ProductSalesProduct[];
   message: string | null;
   more: boolean;
+  historyIncluded: boolean;
 };
 
 type ProductRow = { id: string; name: string };
@@ -21,6 +28,10 @@ type ItemRow = {
   sku_snapshot: string | null; variant_snapshot: string | null;
   quantity: number; fulfillment_status: string; commerce_orders: OrderRow | OrderRow[] | null;
 };
+type HistoricalUnitRow = {
+  productId: string; variantId: string | null; sourceVariationId: string | null;
+  variantLabel: string | null; units: number;
+};
 
 const PRODUCT_LIMIT = 50;
 const PAGE_SIZE = 500;
@@ -28,7 +39,7 @@ const SETTLED_STATUSES = ["paid", "processing", "fulfilled", "partially_refunded
 const EXCLUDED_ITEM_STATUSES = new Set(["cancelled", "returned"]);
 
 function unavailable(): ProductSalesReport {
-  return { connected: false, products: [], more: false,
+  return { connected: false, products: [], more: false, historyIncluded: false,
     message: "Product sales could not be loaded. Please refresh and try again." };
 }
 
@@ -77,13 +88,50 @@ function variationKey(item: ItemRow, variantsById: Map<string, VariantRow>, vari
   return label ? `label:${label}` : "unspecified";
 }
 
+function historicalRows(value: unknown, selected: Set<string>, variantsById: Map<string, VariantRow>): {
+  rows: HistoricalUnitRow[]; mapped: Set<string>;
+} {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw Error("Invalid historical report.");
+  const report = value as Record<string, unknown>;
+  if (report.kind !== "historical-product-units" || report.snapshot !== "saved-import-v1"
+    || report.historicalEstimate !== true || report.paymentVerified !== false
+    || report.refundAdjusted !== false || report.completeGraph !== false
+    || !Number.isSafeInteger(report.eligibleOrderCount) || Number(report.eligibleOrderCount) < 0
+    || !Number.isSafeInteger(report.matchingItemCount) || Number(report.matchingItemCount) < 0
+    || !Array.isArray(report.rows) || report.rows.length > 10000
+    || !Array.isArray(report.mappedProductIds) || !Array.isArray(report.unmappedProductIds)) throw Error("Invalid historical report.");
+  const mapped = new Set<string>();
+  const covered = new Set<string>();
+  for (const [list, isMapped] of [[report.mappedProductIds, true], [report.unmappedProductIds, false]] as const) {
+    for (const id of list) {
+      if (typeof id !== "string" || !selected.has(id) || covered.has(id)) throw Error("Invalid historical coverage.");
+      covered.add(id);
+      if (isMapped) mapped.add(id);
+    }
+  }
+  if (covered.size !== selected.size) throw Error("Incomplete historical coverage.");
+  const rows = report.rows.map((raw: unknown) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw Error("Invalid historical row.");
+    const row = raw as Record<string, unknown>;
+    if (typeof row.productId !== "string" || !mapped.has(row.productId)
+      || (row.variantId !== null && (typeof row.variantId !== "string"
+        || variantsById.get(row.variantId)?.product_id !== row.productId))
+      || (row.sourceVariationId !== null && (typeof row.sourceVariationId !== "string"
+        || !/^[0-9]{1,20}$/.test(row.sourceVariationId)))
+      || (row.variantLabel !== null && typeof row.variantLabel !== "string")
+      || !Number.isSafeInteger(row.units) || Number(row.units) < 1) throw Error("Invalid historical row.");
+    return row as HistoricalUnitRow;
+  });
+  return { rows, mapped };
+}
+
 /** A name search can find any current catalog product, including draft and archived entries. */
 export async function loadProductSales(client: SupabaseClient, options: {
   query: string; range: SalesPeriodRange;
 }): Promise<ProductSalesReport> {
   try {
     const query = normalizedSearch(options.query);
-    if (!query) return { connected: true, products: [], more: false, message: null };
+    if (!query) return { connected: true, products: [], more: false, historyIncluded: false, message: null };
     const start = Date.parse(options.range.start), end = Date.parse(options.range.end);
     if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) throw Error("Invalid product sales period.");
 
@@ -95,7 +143,7 @@ export async function loadProductSales(client: SupabaseClient, options: {
     const more = catalog.data.length > PRODUCT_LIMIT;
     const products = (catalog.data as ProductRow[]).slice(0, PRODUCT_LIMIT);
     if (products.some(product => !product.id || typeof product.name !== "string")) throw Error("Invalid product catalog.");
-    if (products.length === 0) return { connected: true, products: [], more: false, message: null };
+    if (products.length === 0) return { connected: true, products: [], more: false, historyIncluded: false, message: null };
 
     const productIds = products.map(product => product.id);
     const productIdSet = new Set(productIds);
@@ -124,7 +172,7 @@ export async function loadProductSales(client: SupabaseClient, options: {
     const buckets = new Map<string, Map<string, ProductSalesVariation>>();
     for (const product of products) buckets.set(product.id, new Map());
     for (const variant of variantsById.values()) buckets.get(variant.product_id)!.set(variant.id,
-      { key: variant.id, label: variant.label, sku: variant.sku, units: 0 });
+      { key: variant.id, label: variant.label, sku: variant.sku, nativeUnits: 0, historicalUnits: 0, units: 0 });
 
     // Each pass is disjoint: placed_at is authoritative, created_at is only a fallback.
     for (const clock of ["placed_at", "created_at"] as const) {
@@ -154,9 +202,12 @@ export async function loadProductSales(client: SupabaseClient, options: {
             key,
             label: known?.label ?? item.variant_snapshot?.trim() ?? "Unspecified variation",
             sku: known?.sku ?? item.sku_snapshot?.trim() ?? null,
+            nativeUnits: 0,
+            historicalUnits: 0,
             units: 0,
           };
-          existing.units = addUnits(existing.units, item.quantity);
+          existing.nativeUnits = addUnits(existing.nativeUnits, item.quantity);
+          existing.units = existing.nativeUnits;
           bucket.set(key, existing);
         }
         if (rows.length < PAGE_SIZE) break;
@@ -166,14 +217,47 @@ export async function loadProductSales(client: SupabaseClient, options: {
       }
     }
 
+    const historical = await client.rpc("vf_admin_historical_product_units_v1", {
+      p_start: options.range.start,
+      p_end: options.range.end,
+      p_product_ids: productIds,
+    }).abortSignal(AbortSignal.timeout(15000));
+    if (historical.error) throw Error("Previous-store estimate is unavailable.");
+    const history = historicalRows(historical.data, productIdSet, variantsById);
+    for (const row of history.rows) {
+      const key = row.variantId ?? (row.sourceVariationId ? `woo:${row.sourceVariationId}` : "woo:standard");
+      const bucket = buckets.get(row.productId)!;
+      const known = row.variantId ? variantsById.get(row.variantId) : undefined;
+      const existing = bucket.get(key) ?? {
+        key,
+        label: known?.label ?? row.variantLabel?.trim() ?? (row.sourceVariationId
+          ? `Previous-store variation #${row.sourceVariationId}` : "Standard"),
+        sku: known?.sku ?? null,
+        nativeUnits: 0,
+        historicalUnits: 0,
+        units: 0,
+      };
+      existing.historicalUnits = addUnits(existing.historicalUnits ?? 0, row.units);
+      existing.units = totalUnits(existing.nativeUnits, existing.historicalUnits);
+      bucket.set(key, existing);
+    }
+
     const result = products.map(product => {
       const bucket = buckets.get(product.id)!;
       const variations = [...bucket.values()].sort((a, b) => a.label.localeCompare(b.label) || (a.sku ?? "").localeCompare(b.sku ?? ""));
-      if (!variations.length) variations.push({ key: "unvaried", label: "Standard", sku: null, units: 0 });
-      const units = variations.reduce((total, variation) => totalUnits(total, variation.units), 0);
-      return { id: product.id, name: product.name, units, variations };
+      if (!variations.length) variations.push({ key: "unvaried", label: "Standard", sku: null, nativeUnits: 0, historicalUnits: 0, units: 0 });
+      const units = variations.reduce((total, variation) => totalUnits(total, variation.units ?? 0), 0);
+      const nativeUnits = variations.reduce((total, variation) => totalUnits(total, variation.nativeUnits), 0);
+      const historicalUnits = variations.reduce((total, variation) => totalUnits(total, variation.historicalUnits ?? 0), 0);
+      const historyMapped = history.mapped.has(product.id);
+      if (!historyMapped) for (const variation of variations) {
+        variation.historicalUnits = null;
+        variation.units = null;
+      }
+      return { id: product.id, name: product.name, historyMapped, nativeUnits,
+        historicalUnits: historyMapped ? historicalUnits : null, units: historyMapped ? units : null, variations };
     });
-    return { connected: true, products: result, more, message: null };
+    return { connected: true, products: result, more, historyIncluded: history.mapped.size > 0, message: null };
   } catch {
     return unavailable();
   }

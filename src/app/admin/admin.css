@@ -17,12 +17,15 @@
 .unified-admin .admin-product-sales-product { border: 1px solid var(--vf-line); border-radius: 10px; overflow: hidden; background: white; }
 .unified-admin .admin-product-sales-product-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: .9rem 1rem; background: rgba(201,162,39,.1); }
 .unified-admin .admin-product-sales-product-heading h3 { margin: 0; color: var(--vf-plum-aged); font-size: 1.1rem; }
-.unified-admin .admin-product-sales-product-heading strong { color: var(--vf-plum); font-variant-numeric: tabular-nums; }
+.unified-admin .admin-product-sales-totals { display: grid; gap: .2rem; text-align: right; }
+.unified-admin .admin-product-sales-totals strong { color: var(--vf-plum); font-variant-numeric: tabular-nums; }
+.unified-admin .admin-product-sales-totals small { color: var(--vf-fog); font-size: .75rem; }
 .unified-admin .admin-product-sales-table-wrap { overflow-x: auto; }
-.unified-admin .admin-product-sales-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; }
+.unified-admin .admin-product-sales-table-wrap table { width: 100%; min-width: 700px; border-collapse: collapse; text-align: left; }
 .unified-admin .admin-product-sales-table-wrap th,.unified-admin .admin-product-sales-table-wrap td { padding: .7rem 1rem; border-top: 1px solid var(--vf-line); }
 .unified-admin .admin-product-sales-table-wrap thead th { color: var(--vf-fog); font-size: .74rem; text-transform: uppercase; }
-.unified-admin .admin-product-sales-table-wrap tbody td:last-child { color: var(--vf-plum-aged); font-weight: 800; font-variant-numeric: tabular-nums; }
+.unified-admin .admin-product-sales-table-wrap :is(th,td):nth-child(n+3) { text-align: right; font-variant-numeric: tabular-nums; }
+.unified-admin .admin-product-sales-table-wrap tbody td:last-child { color: var(--vf-plum-aged); font-weight: 800; }
 .unified-admin .admin-product-sales-product > .admin-product-sales-note { margin: 1rem; }
 
 .unified-admin { min-height: 100vh; background: #f4efe5; }

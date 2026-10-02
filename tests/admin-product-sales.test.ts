@@ -49,7 +49,18 @@ function nestedField(row: Record<string, unknown>, column: string): unknown {
     value && typeof value === "object" ? (value as Record<string, unknown>)[part] : undefined, row);
 }
 
-function shopClient(data: { products?: Product[]; variants?: Variant[]; items?: Item[] },
+function emptyArchive(productIds = ["advent"], unmappedProductIds: string[] = []) {
+  return {
+    kind: "historical-product-units", snapshot: "saved-import-v1", operatingOwner: "original_woo",
+    historicalEstimate: true, paymentVerified: false, refundAdjusted: false, completeGraph: false,
+    sourceUpdatedAt: "2026-09-11T02:08:51.677Z",
+    mappedProductIds: productIds.filter(id => !unmappedProductIds.includes(id)), unmappedProductIds,
+    rows: [], eligibleOrderCount: 0, matchingItemCount: 0,
+  };
+}
+
+function shopClient(data: { products?: Product[]; variants?: Variant[]; items?: Item[];
+  archive?: unknown; archiveError?: boolean; unmappedProductIds?: string[] },
   fails?: (query: Query) => boolean) {
   const queries: Query[] = [];
   const tables: Record<string, Record<string, unknown>[]> = {
@@ -102,7 +113,17 @@ function shopClient(data: { products?: Product[]; variants?: Variant[]; items?: 
     };
     return builder;
   });
-  return { client: { from } as never, queries };
+  const rpc = vi.fn((name: string, args: Record<string, unknown>) => {
+    expect(name).toBe("vf_admin_historical_product_units_v1");
+    expect(args).toMatchObject({ p_start: range.start, p_end: range.end });
+    return { async abortSignal() {
+      return data.archiveError
+        ? { data: null, error: { message: "Archive unavailable" } }
+        : { data: data.archive === undefined
+          ? emptyArchive(args.p_product_ids as string[], data.unmappedProductIds) : data.archive, error: null };
+    } };
+  });
+  return { client: { from, rpc } as never, queries, rpc };
 }
 
 describe("product sales periods", () => {
@@ -154,7 +175,7 @@ describe("admin product sales aggregation", () => {
         expect.objectContaining({ key: "herbal", label: "Herbal tea", units: 1 }),
         expect.objectContaining({ key: "retired", label: "Retired blend", units: 2 }),
       ]) }),
-      expect.objectContaining({ id: "advent-card", units: 0, variations: [{ key: "unvaried", label: "Standard", sku: null, units: 0 }] }),
+      expect.objectContaining({ id: "advent-card", units: 0, variations: [expect.objectContaining({ key: "unvaried", label: "Standard", sku: null, units: 0 })] }),
     ]));
   });
 
@@ -168,6 +189,41 @@ describe("admin product sales aggregation", () => {
     expect(itemQueries.every(query => query.limit === 500 && query.orders.includes("id")
       && query.select.includes("commerce_orders!inner"))).toBe(true);
     expect(itemQueries.filter(query => query.filters.some(filter => filter.method === "gt" && filter.column === "id"))).toHaveLength(2);
+  });
+
+  it("merges mapped archive variations while preserving native and estimated columns", async () => {
+    const archive = {
+      ...emptyArchive(), eligibleOrderCount: 3, matchingItemCount: 3,
+      rows: [
+        { productId: "advent", variantId: "black", sourceVariationId: "8398", variantLabel: "Old black", units: 5 },
+        { productId: "advent", variantId: "herbal", sourceVariationId: "8399", variantLabel: "Old herbal", units: 2 },
+        { productId: "advent", variantId: null, sourceVariationId: "999", variantLabel: null, units: 4 },
+      ],
+    };
+    const { client, rpc } = shopClient({ items: [item("native", { quantity: 3 })], archive });
+    const result = await loadProductSales(client, { query: "Advent", range });
+    expect(rpc).toHaveBeenCalledExactlyOnceWith("vf_admin_historical_product_units_v1", {
+      p_start: range.start, p_end: range.end, p_product_ids: ["advent"],
+    });
+    expect(result).toMatchObject({ connected: true, historyIncluded: true, products: [{
+      id: "advent", nativeUnits: 3, historicalUnits: 11, units: 14,
+      variations: expect.arrayContaining([
+        expect.objectContaining({ key: "black", label: "Black tea", nativeUnits: 3, historicalUnits: 5, units: 8 }),
+        expect.objectContaining({ key: "herbal", nativeUnits: 0, historicalUnits: 2, units: 2 }),
+        expect.objectContaining({ key: "woo:999", nativeUnits: 0, historicalUnits: 4, units: 4 }),
+      ]),
+    }] });
+  });
+
+  it("marks an unmapped product's prior-store and combined counts unavailable", async () => {
+    const { client } = shopClient({ items: [item("native", { quantity: 3 })], unmappedProductIds: ["advent"] });
+    const result = await loadProductSales(client, { query: "Advent", range });
+    expect(result).toMatchObject({ connected: true, historyIncluded: false, products: [{
+      id: "advent", nativeUnits: 3, historicalUnits: null, units: null, historyMapped: false,
+      variations: expect.arrayContaining([expect.objectContaining({
+        key: "black", nativeUnits: 3, historicalUnits: null, units: null,
+      })]),
+    }] });
   });
 
   it("uses placed time when present and created time only as a fallback", async () => {
@@ -215,6 +271,30 @@ describe("admin product sales aggregation", () => {
     await expect(loadProductSales(client, { query: "Advent", range })).resolves.toMatchObject({
       connected: false, products: [], more: false, message: expect.stringMatching(/could not be loaded/i),
     });
+  });
+
+  it("hides native counts when the archive RPC is unavailable", async () => {
+    const { client } = shopClient({ items: [item("native", { quantity: 3 })], archiveError: true });
+    await expect(loadProductSales(client, { query: "Advent", range })).resolves.toMatchObject({
+      connected: false, products: [], historyIncluded: false,
+      message: expect.stringMatching(/could not be loaded/i),
+    });
+  });
+
+  it("fails closed on malformed archive metadata, mapping, or quantities", async () => {
+    const invalidArchives = [
+      { ...emptyArchive(), paymentVerified: true },
+      { ...emptyArchive(), rows: [{ productId: "another-product", variantId: null, sourceVariationId: "8398", variantLabel: null, units: 2 }] },
+      { ...emptyArchive(), rows: [{ productId: "advent", variantId: "other-product-variant", sourceVariationId: "8398", variantLabel: null, units: 2 }] },
+      { ...emptyArchive(), rows: [{ productId: "advent", variantId: null, sourceVariationId: "not-a-number", variantLabel: null, units: 2 }] },
+      { ...emptyArchive(), rows: [{ productId: "advent", variantId: null, sourceVariationId: "8398", variantLabel: null, units: -1 }] },
+    ];
+    for (const archive of invalidArchives) {
+      const { client } = shopClient({ items: [item("native")], archive });
+      await expect(loadProductSales(client, { query: "Advent", range })).resolves.toMatchObject({
+        connected: false, products: [], historyIncluded: false,
+      });
+    }
   });
 
   it("fails closed on malformed item quantities or order refund totals", async () => {
