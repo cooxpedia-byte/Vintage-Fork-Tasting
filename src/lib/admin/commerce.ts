@@ -119,6 +119,26 @@ export async function loadHistoricalSalesEstimate(client: SupabaseClient, window
   }
 }
 
+export function summarizeSalesPeriod(period: string, native: SalesResult, historical: SalesResult | null): Pick<CommerceOverview,
+  "netSalesCents" | "currency" | "orderCount" | "salesConnected" | "salesSource" | "salesMessage"> {
+  if (period !== "last_year") return {
+    netSalesCents: native.totalCents, currency: "cad", orderCount: native.orderCount,
+    salesConnected: native.connected, salesSource: "native", salesMessage: native.message,
+  };
+  const unavailable = (message: string | null) => ({
+    netSalesCents: 0, currency: "cad", orderCount: 0,
+    salesConnected: false, salesSource: "native" as const, salesMessage: message,
+  });
+  if (!native.connected) return unavailable(native.message);
+  if (native.orderCount > 0) return unavailable("Last year includes new-store orders that have not yet been reconciled with the previous-store archive.");
+  if (!historical?.connected) return unavailable(historical?.message ?? "The previous-store archive is unavailable.");
+  if (historical.orderCount === 0) return unavailable("The saved previous-store archive has no completed or processing orders for last year. An estimate is unavailable.");
+  return {
+    netSalesCents: historical.totalCents, currency: "cad", orderCount: historical.orderCount,
+    salesConnected: true, salesSource: "native-and-imported-estimate", salesMessage: null,
+  };
+}
+
 export function orderCursor(value?: string) {
   if (value === undefined || value === "") return null;
   if (typeof value !== "string" || !/^[1-9][0-9]{0,18}$/.test(value) || BigInt(value) > 9223372036854775807n) throw new Error("Invalid order reference.");
@@ -170,22 +190,10 @@ export async function loadCommerceOverview(client: SupabaseClient, options: { sa
     .filter(v=>v.inventory_quantity!==null && v.inventory_quantity <= (v.low_stock_threshold ?? 5))
     .map(v=>({id:v.id,productName:names.get(v.product_id)||"Product",variantLabel:v.label,sku:v.sku,quantity:v.inventory_quantity!,threshold:v.low_stock_threshold??5}))
     .sort((a,b)=>a.quantity-b.quantity).slice(0,8);
-  const lastYear = options.salesPeriod === "last_year";
-  const estimate = historicalSales && nativeSales.connected && historicalSales.connected && nativeSales.orderCount === 0;
-  const salesConnected = lastYear ? Boolean(estimate) : nativeSales.connected;
-  const salesMessage = lastYear
-    ? !nativeSales.connected
-      ? nativeSales.message
-      : nativeSales.orderCount > 0
-      ? "Last year includes new-store orders that have not yet been reconciled with the previous-store archive."
-      : historicalSales ? historicalSales.message : "The previous-store archive is unavailable."
-    : nativeSales.message;
   return {
     connected:!orders.error, ordersConnected:!orders.error&&!operations.error, inventoryConnected:!variants.error&&!products.error,
     customersConnected:!customers.error,subscriptionsConnected:!subscriptions.error,productsConnected:!products.error,
-    netSalesCents:estimate ? historicalSales!.totalCents : lastYear ? 0 : nativeSales.totalCents,
-    currency:"cad",orderCount:estimate ? historicalSales!.orderCount : lastYear ? 0 : nativeSales.orderCount,
-    salesConnected,salesSource:estimate ? "native-and-imported-estimate" : "native",salesMessage,
+    ...summarizeSalesPeriod(options.salesPeriod, nativeSales, historicalSales),
     fulfilmentCount:fulfilment.error||!Number.isSafeInteger(fulfilment.data?.total)||fulfilment.data.total<0?null:fulfilment.data.total,customerCount:customers.count??0,subscriptionCount:subscriptions.count??0,
     productCount:productRows.filter(p=>p.status==="active").length,draftProductCount:productRows.filter(p=>p.status==="draft").length,
     recentOrders:recentRows.map(r=>({...order(r),operation:operations.orders.get("native:"+r.id)})),inventoryAlerts,
