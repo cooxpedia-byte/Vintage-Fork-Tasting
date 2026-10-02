@@ -27,7 +27,10 @@ function order(sourceOrderId: string, overrides: Partial<HistoricalOrder> = {}):
     sourceHolds: [],
     textProjectionHeld: false,
     giftPaymentObservationCount: 0,
-    arithmetic: null,
+    arithmetic: {
+      computedTotal: overrides.total ?? "1.00", totalDifference: "0.00",
+      amountMatch: true, taxMatch: true, shippingMatch: true, discountMatch: true,
+    },
     ...overrides,
   };
 }
@@ -67,7 +70,8 @@ function historicalClient(responses: Record<number, RpcResponse>) {
 describe("previous-store sales estimate", () => {
   it("counts only completed or processing CAD shop orders inside the half-open year", async () => {
     const rows = [
-      order("1", { createdGmt: "2025-01-01 07:00:00", total: "10.25" }),
+      order("1", { createdGmt: "2025-01-01 07:00:00", total: "10.25",
+        cartTax: "0.50", shippingTax: "0.05", shipping: "1.00" }),
       order("2", { status: "wc-processing", total: "0.50" }),
       order("3", { createdGmt: "2025-01-01 06:59:59", total: "999.00" }),
       order("4", { createdGmt: "2026-01-01 07:00:00", total: "999.00" }),
@@ -85,6 +89,8 @@ describe("previous-store sales estimate", () => {
       orderCount: 2,
       currency: "cad",
       message: null,
+      components: { merchandiseCents: 920, taxCents: 55, shippingCents: 100,
+        recordedTotalCents: 1075, orderCount: 2, excludedOrderCount: 0 },
     });
   });
 
@@ -102,6 +108,8 @@ describe("previous-store sales estimate", () => {
       connected: true,
       totalCents: 1465,
       orderCount: 3,
+      components: { merchandiseCents: 1465, taxCents: 0, shippingCents: 0,
+        recordedTotalCents: 1465, orderCount: 3, excludedOrderCount: 0 },
     });
   });
 
@@ -136,6 +144,7 @@ describe("previous-store sales estimate", () => {
       connected: false,
       totalCents: 0,
       orderCount: 0,
+      components: null,
       message: expect.stringMatching(/unavailable/i),
     });
   });
@@ -155,7 +164,29 @@ describe("previous-store sales estimate", () => {
         connected: false,
         totalCents: 0,
         orderCount: 0,
+        components: null,
       });
     }
+  });
+
+  it("excludes archived orders whose arithmetic or component fields cannot support a breakdown", async () => {
+    const rows = [
+      order("1", { total: "10.00", cartTax: "0.50", shipping: "1.00" }),
+      order("2", { arithmetic: null }),
+      order("3", { arithmetic: { computedTotal: "1.00", totalDifference: "0.00",
+        amountMatch: false, taxMatch: true, shippingMatch: true, discountMatch: true } }),
+      order("4", { cartTax: null }),
+    ];
+    const { client } = historicalClient({
+      0: { data: page(rows.map((data, index) => ({ ordinal: index + 1, data }))), error: null },
+    });
+
+    await expect(loadHistoricalSalesEstimate(client, lastYear)).resolves.toMatchObject({
+      connected: true,
+      totalCents: 1000,
+      orderCount: 1,
+      components: { merchandiseCents: 850, taxCents: 50, shippingCents: 100,
+        recordedTotalCents: 1000, orderCount: 1, excludedOrderCount: 3 },
+    });
   });
 });

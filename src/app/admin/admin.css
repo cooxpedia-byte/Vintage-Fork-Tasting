@@ -90,6 +90,26 @@
 .unified-admin .admin-sales-source { color: var(--vf-forest); font-weight: 750; }
 .unified-admin .admin-sales-unavailable { color: #8a2727; }
 .unified-admin .admin-sales-orders-link { width: fit-content; color: var(--vf-plum); font-size: .72rem; font-weight: 800; }
+.unified-admin .admin-revenue-panel { margin-top: 1rem; }
+.unified-admin .admin-revenue-panel .admin-panel-heading { margin-bottom: .45rem; }
+.unified-admin .admin-revenue-intro { margin: 0 0 1.1rem; color: var(--vf-fog); font-size: .82rem; line-height: 1.5; }
+.unified-admin .admin-revenue-sources { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); gap: .85rem; }
+.unified-admin .admin-revenue-source { padding: 1rem; border: 1px solid var(--vf-line); border-radius: 10px; background: white; }
+.unified-admin .admin-revenue-source.is-estimate { border-color: rgba(201,162,39,.5); background: rgba(255,249,228,.42); }
+.unified-admin .admin-revenue-source h3 { margin: 0; color: var(--vf-plum-aged); font-size: 1rem; }
+.unified-admin .admin-revenue-source > p { margin: .35rem 0 0; color: var(--vf-fog); font-size: .74rem; line-height: 1.45; }
+.unified-admin .admin-revenue-rows { display: grid; gap: 0; margin: .8rem 0 0; }
+.unified-admin .admin-revenue-rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: .44rem 0; border-top: 1px solid var(--vf-line); }
+.unified-admin .admin-revenue-rows dt { color: var(--vf-walnut); font-size: .8rem; }
+.unified-admin .admin-revenue-rows dd { margin: 0; color: var(--vf-ink); font-size: .86rem; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.unified-admin .admin-revenue-rows > .admin-revenue-net { margin-top: .3rem; padding-top: .75rem; border-color: rgba(74,53,36,.25); }
+.unified-admin .admin-revenue-net dt,.unified-admin .admin-revenue-net dd { color: var(--vf-plum-aged); font-weight: 850; }
+.unified-admin .admin-revenue-combined { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-top: .9rem; padding: .9rem 1rem; border-radius: 9px; color: white; background: var(--vf-plum); }
+.unified-admin .admin-revenue-combined span { display: grid; gap: .12rem; font-size: .88rem; font-weight: 800; }
+.unified-admin .admin-revenue-combined small { color: rgba(255,255,255,.76); font-size: .68rem; font-weight: 500; }
+.unified-admin .admin-revenue-combined strong { font: 600 clamp(1.25rem,3vw,1.8rem)/1.1 Georgia,serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.unified-admin .admin-revenue-note { margin: .7rem 0 0; color: var(--vf-fog); font-size: .72rem; line-height: 1.5; }
+.unified-admin .admin-revenue-unavailable { margin: .8rem 0 0; color: #8a2727; font-size: .8rem; }
 .unified-admin .admin-overview-grid { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(280px,.72fr); gap: 1rem; margin-top: 1rem; }
 .unified-admin .admin-panel { padding: 1.25rem; border: 1px solid rgba(74,53,36,.14); border-radius: 12px; background: rgba(251,247,236,.92); box-shadow: 0 5px 18px rgba(55,35,23,.05); }
 .unified-admin .admin-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
@@ -237,6 +257,7 @@
   .unified-admin .admin-wallet-card { grid-template-columns: 1fr; }
 }
 @media (max-width: 540px) {
+  .unified-admin .admin-revenue-combined { align-items: flex-start; flex-direction: column; }
   .unified-admin .admin-sales-filter-toolbar { align-items: stretch; flex-direction: column; }
   .unified-admin .admin-sales-filter-toolbar > div { width: 100%; }
   .unified-admin .admin-topbar-title { display: none; }
