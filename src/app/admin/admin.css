@@ -1,6 +1,30 @@
 /* Staff styles recovered from the verified September 17 production source.
    Scoped to the staff shell to preserve customer pages and the Time Machine. */
 
+.unified-admin .admin-product-sales-page > .admin-panel { margin-bottom: 1rem; }
+.unified-admin .admin-product-sales-search { display: flex; align-items: end; gap: .8rem; flex-wrap: wrap; }
+.unified-admin .admin-product-sales-search label { display: grid; gap: .35rem; min-width: min(100%, 190px); color: var(--vf-walnut); font-size: .85rem; font-weight: 750; }
+.unified-admin .admin-product-sales-search label:first-child { flex: 1 1 280px; }
+.unified-admin .admin-product-sales-search input,.unified-admin .admin-product-sales-search select { width: 100%; min-height: 42px; padding: .55rem .7rem; border: 1px solid var(--vf-line); border-radius: 8px; color: var(--vf-walnut); background: white; font: inherit; font-weight: 400; }
+.unified-admin .admin-product-sales-search > a { align-self: center; color: var(--vf-plum); font-size: .85rem; font-weight: 750; }
+.unified-admin .admin-product-sales-definition,.unified-admin .admin-product-sales-note { color: var(--vf-fog); font-size: .86rem; line-height: 1.5; }
+.unified-admin .admin-product-sales-definition { margin: 1rem 0 0; }
+.unified-admin .admin-product-sales-message h2 { margin-top: 0; color: var(--vf-plum-aged); }
+.unified-admin .admin-product-sales-message p { margin-bottom: 0; }
+.unified-admin .admin-product-sales-results > .admin-panel-heading { align-items: center; flex-wrap: wrap; }
+.unified-admin .admin-product-sales-results > .admin-panel-heading > span { color: var(--vf-fog); font-size: .85rem; }
+.unified-admin .admin-product-sales-list { display: grid; gap: 1rem; }
+.unified-admin .admin-product-sales-product { border: 1px solid var(--vf-line); border-radius: 10px; overflow: hidden; background: white; }
+.unified-admin .admin-product-sales-product-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: .9rem 1rem; background: rgba(201,162,39,.1); }
+.unified-admin .admin-product-sales-product-heading h3 { margin: 0; color: var(--vf-plum-aged); font-size: 1.1rem; }
+.unified-admin .admin-product-sales-product-heading strong { color: var(--vf-plum); font-variant-numeric: tabular-nums; }
+.unified-admin .admin-product-sales-table-wrap { overflow-x: auto; }
+.unified-admin .admin-product-sales-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; }
+.unified-admin .admin-product-sales-table-wrap th,.unified-admin .admin-product-sales-table-wrap td { padding: .7rem 1rem; border-top: 1px solid var(--vf-line); }
+.unified-admin .admin-product-sales-table-wrap thead th { color: var(--vf-fog); font-size: .74rem; text-transform: uppercase; }
+.unified-admin .admin-product-sales-table-wrap tbody td:last-child { color: var(--vf-plum-aged); font-weight: 800; font-variant-numeric: tabular-nums; }
+.unified-admin .admin-product-sales-product > .admin-product-sales-note { margin: 1rem; }
+
 .unified-admin { min-height: 100vh; background: #f4efe5; }
 .unified-admin .admin-topbar { position: fixed; z-index: 300; inset: 0 0 auto 0; height: 68px; display: flex; align-items: center; gap: .85rem; padding: 0 1.1rem 0 4.8rem; color: var(--vf-ivory); background: linear-gradient(105deg,#2a0a22,var(--vf-plum)); border-bottom: 1px solid rgba(224,190,107,.38); box-shadow: 0 8px 24px rgba(34,7,27,.16); }
 .unified-admin .admin-topbar .brand { color: white; }

@@ -31,6 +31,7 @@ const groups: AdminNavGroup[] = [
       { href: "/admin", label: "Commerce overview", icon: "⌂", exact: true, adminOnly: true },
       { href: "/admin/orders", label: "Orders", icon: "▣", adminOnly: true },
       { href: productEditorUrl, label: "Products ↗", icon: "▦", adminOnly: true, external: true },
+      { href: "/admin/product-sales", label: "Product sales", icon: "▤", adminOnly: true },
       { href: "/admin/coupons", label: "Coupons", icon: "%", adminOnly: true },
       { href: "/admin/store", label: "Store tools", icon: "▦", adminOnly: true },
       { href: `${storefrontUrl}/admin/pos/`, label: "Point of sale ↗", icon: "▤", adminOnly: true, external: true },
