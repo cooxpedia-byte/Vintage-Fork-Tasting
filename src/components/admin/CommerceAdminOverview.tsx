@@ -123,6 +123,7 @@ export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: Com
           <div className="admin-action-list">
             <Link href="/admin/orders?status=fulfilment" prefetch={false}><span className="admin-action-icon">▣</span><span><strong>Review orders for fulfillment</strong><small>New purchases and imported open orders</small></span><b>Open →</b></Link>
             <Link href="/admin/orders?source=imported" prefetch={false}><span className="admin-action-icon">▣</span><span><strong>All imported orders</strong><small>Browse records and items saved during migration</small></span><b>Open →</b></Link>
+            <Link href="/admin/product-sales" prefetch={false}><span className="admin-action-icon">▤</span><span><strong>Product units sold</strong><small>Search sales by product, period and variation</small></span><b>Open →</b></Link>
             <a href={productEditorUrl} rel="noreferrer" target="_blank"><span className="admin-action-icon">▦</span><span><strong>Edit products and inventory</strong><small>{commerce.productCount} active · {commerce.draftProductCount} draft products</small></span><b>Open ↗</b></a>
             <Link href="/admin/gold-leaves" prefetch={false}><span className="admin-action-icon">◆</span><span><strong>Manage customer rewards</strong><small>Award Gold Leaves from the protected loyalty ledger</small></span><b>Open →</b></Link>
           </div>

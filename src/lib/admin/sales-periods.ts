@@ -89,3 +89,10 @@ export function salesPeriodRange(period: SalesPeriod, now = new Date()): SalesPe
     case "last_year": return { start: localMidnight({ year: today.year - 1, month: 1, day: 1 }), end: localMidnight(thisYear) };
   }
 }
+
+/** The previous complete Edmonton calendar day, including 23/25-hour DST days. */
+export function yesterdaySalesRange(now = new Date()): SalesPeriodRange {
+  if (!Number.isFinite(now.getTime())) throw new Error("Invalid current time.");
+  const today = calendarDate(now);
+  return { start: localMidnight(dateWithDayOffset(today, -1)), end: localMidnight(today) };
+}
