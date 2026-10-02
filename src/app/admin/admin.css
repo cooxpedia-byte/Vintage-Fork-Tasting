@@ -46,6 +46,23 @@
 .unified-admin .admin-kpi-card > strong { color: var(--vf-plum); font: 600 clamp(2rem,4vw,2.7rem)/1 Georgia,serif; font-variant-numeric: tabular-nums; }
 .unified-admin .admin-kpi-card small { display: flex; justify-content: space-between; gap: .5rem; color: var(--vf-fog); }
 .unified-admin .admin-kpi-card small b { color: var(--vf-plum); }
+.unified-admin .admin-sales-card { gap: .55rem; align-content: start; }
+.unified-admin .admin-sales-card > strong { margin: .1rem 0; }
+.unified-admin .admin-sales-filter { display: grid; gap: .3rem; margin-top: .35rem; }
+.unified-admin .admin-sales-filter-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: .7rem; margin-top: 0; margin-bottom: .7rem; }
+.unified-admin .admin-sales-filter-toolbar > div { width: min(100%,280px); }
+.unified-admin .admin-sales-filter label { color: var(--vf-walnut); font-size: .7rem; font-weight: 850; }
+.unified-admin .admin-sales-filter > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .4rem; }
+.unified-admin .admin-sales-filter select,.unified-admin .admin-sales-filter button { min-height: 36px; border: 1px solid rgba(74,53,36,.3); border-radius: 7px; font: inherit; font-size: .75rem; }
+.unified-admin .admin-sales-filter select { min-width: 0; padding: .3rem; color: var(--vf-ink); background: white; }
+.unified-admin .admin-sales-filter button { padding: .35rem .55rem; color: white; background: var(--vf-plum); cursor: pointer; }
+.unified-admin .admin-sales-filter button:hover { background: var(--vf-plum-aged); }
+.unified-admin .admin-sales-filter select:focus-visible,.unified-admin .admin-sales-filter button:focus-visible,.unified-admin .admin-sales-orders-link:focus-visible { outline: 3px solid var(--vf-gold); outline-offset: 2px; }
+.unified-admin .admin-sales-card p { margin: 0; font-size: .69rem; line-height: 1.35; }
+.unified-admin .admin-sales-definition { color: var(--vf-fog); }
+.unified-admin .admin-sales-source { color: var(--vf-forest); font-weight: 750; }
+.unified-admin .admin-sales-unavailable { color: #8a2727; }
+.unified-admin .admin-sales-orders-link { width: fit-content; color: var(--vf-plum); font-size: .72rem; font-weight: 800; }
 .unified-admin .admin-overview-grid { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(280px,.72fr); gap: 1rem; margin-top: 1rem; }
 .unified-admin .admin-panel { padding: 1.25rem; border: 1px solid rgba(74,53,36,.14); border-radius: 12px; background: rgba(251,247,236,.92); box-shadow: 0 5px 18px rgba(55,35,23,.05); }
 .unified-admin .admin-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
@@ -193,6 +210,8 @@
   .unified-admin .admin-wallet-card { grid-template-columns: 1fr; }
 }
 @media (max-width: 540px) {
+  .unified-admin .admin-sales-filter-toolbar { align-items: stretch; flex-direction: column; }
+  .unified-admin .admin-sales-filter-toolbar > div { width: 100%; }
   .unified-admin .admin-topbar-title { display: none; }
   .unified-admin .admin-kpi-grid,.unified-admin .admin-system-grid { grid-template-columns: 1fr; }
   .unified-admin .admin-kpi-card { min-height: 132px; }

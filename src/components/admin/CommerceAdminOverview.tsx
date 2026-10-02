@@ -4,6 +4,7 @@ import { OrderContact } from "@/components/admin/OrderContact";
 import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
 import { OrderStatusControl } from "@/components/admin/OrderStatusControl";
 import type { OrderOperation } from "@/lib/admin/order-operations";
+import { SALES_PERIODS, type SalesPeriod } from "@/lib/admin/sales-periods";
 import { productEditorUrl } from "@/lib/admin/store-tools";
 
 const storefront = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "https://www.vintagefork.ca";
@@ -37,9 +38,14 @@ function OrderRows({ orders, full = false, operations }: { orders: AdminOrder[];
   );
 }
 
-export function CommerceAdminOverview({ commerce }: { commerce: CommerceOverview }) {
+export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: CommerceOverview; salesPeriod: SalesPeriod }) {
+  const historicalEstimate = salesPeriod === "last_year";
+  const salesAvailable = commerce.salesConnected && (!historicalEstimate || commerce.salesSource === "native-and-imported-estimate");
+  const selectedPeriod = SALES_PERIODS.find(period => period.value === salesPeriod)?.label ?? "Month to date";
+  const salesDefinition = historicalEstimate
+    ? "Previous-store completed and processing order totals before refunds; payments and refunds are unverified."
+    : "Paid order totals less refunds, including tax and shipping.";
   const cards = [
-    { label: "Net sales", value: commerce.connected ? money(commerce.netSalesCents, commerce.currency) : "—", detail: `${commerce.orderCount} paid orders · last 30 days`, href: "/admin/orders" },
     { label: "Orders to fulfil", value: commerce.fulfilmentCount ?? "—", detail: "New purchases · open imported orders also available in the queue", href: "/admin/orders?status=fulfilment" },
     { label: "Commerce customers", value: commerce.customersConnected ? commerce.customerCount : "—", detail: "New-store customer records", href: "/admin/accounts" },
     { label: "Active subscriptions", value: commerce.subscriptionsConnected ? commerce.subscriptionCount : "—", detail: "Active, trialing or past due", href: "/admin/store" },
@@ -67,7 +73,27 @@ export function CommerceAdminOverview({ commerce }: { commerce: CommerceOverview
         </div>
       )}
 
+      <form action="/admin" method="get" className="admin-sales-filter admin-sales-filter-toolbar">
+        <label htmlFor="admin-sales-period">Net sales period</label>
+        <div>
+          <select id="admin-sales-period" name="salesPeriod" defaultValue={salesPeriod}>
+            {SALES_PERIODS.map(period => <option value={period.value} key={period.value}>{period.label}</option>)}
+          </select>
+          <button type="submit">Apply</button>
+        </div>
+      </form>
+
       <section className="admin-kpi-grid" aria-label="Commerce summary">
+        <article className="admin-kpi-card admin-sales-card">
+          <span>{historicalEstimate ? "Recorded order total estimate" : "Net sales"}</span>
+          <strong>{salesAvailable ? money(commerce.netSalesCents, commerce.currency) : "—"}</strong>
+          <small>{salesAvailable ? `${commerce.orderCount.toLocaleString("en-CA")} ${historicalEstimate ? "recorded" : "paid"} orders · ${selectedPeriod}` : selectedPeriod}</small>
+          <p className="admin-sales-definition">{salesDefinition}</p>
+          {salesAvailable && historicalEstimate && <p className="admin-sales-source">Includes previous-store orders.</p>}
+          {commerce.salesMessage && <p className={salesAvailable ? "admin-sales-source" : "admin-sales-unavailable"} role={salesAvailable ? undefined : "alert"}>{commerce.salesMessage}</p>}
+          {!salesAvailable && !commerce.salesMessage && <p className="admin-sales-unavailable" role="alert">Sales total is temporarily unavailable.</p>}
+          <Link href="/admin/orders" prefetch={false} className="admin-sales-orders-link">View all orders →</Link>
+        </article>
         {cards.map((card) => (
           <Link className="admin-kpi-card" href={card.href} key={card.label} prefetch={false}>
             <span>{card.label}</span><strong>{card.value}</strong><small>{card.detail}<b aria-hidden="true">→</b></small>
