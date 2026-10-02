@@ -6,7 +6,13 @@ type Sale = {
   status: string;
   total_cents: number;
   refunded_cents: number;
+  tax_cents: number | null;
+  shipping_cents: number | null;
   currency: string;
+  source: string;
+  migration_snapshot: Record<string, unknown>;
+  checkout_attempt_id: string | null;
+  stripe_invoice_id: string | null;
   placed_at: string | null;
   created_at: string;
 };
@@ -24,7 +30,13 @@ function sale(id: string, overrides: Partial<Sale> = {}): Sale {
     status: "paid",
     total_cents: 1000,
     refunded_cents: 0,
+    tax_cents: 0,
+    shipping_cents: 0,
     currency: "cad",
+    source: "web",
+    migration_snapshot: {},
+    checkout_attempt_id: "checkout-attempt",
+    stripe_invoice_id: null,
     placed_at: "2026-10-01T12:00:00.000Z",
     created_at: "2026-10-01T12:00:00.000Z",
     ...overrides,
@@ -76,6 +88,8 @@ describe("admin native sales aggregation", () => {
 
     await expect(loadNativeSales(client, window)).resolves.toMatchObject({
       connected: true, totalCents: 1_205_000, orderCount: 1205, currency: "cad",
+      components: { merchandiseCents: 1_205_000, taxCents: 0, shippingCents: 0,
+        refundsCents: 0, totalCents: 1_205_000, orderCount: 1205 },
     });
     expect(queries.length).toBeGreaterThan(3);
     expect(queries.filter((query) => query.filters.some(([op, column]) => op === "gt" && column === "id"))).toHaveLength(2);
@@ -103,11 +117,11 @@ describe("admin native sales aggregation", () => {
 
   it("counts settled statuses and subtracts partial or full refunds", async () => {
     const rows = [
-      sale("paid", { total_cents: 2000 }),
-      sale("processing", { status: "processing", total_cents: 3000, refunded_cents: 500 }),
-      sale("fulfilled", { status: "fulfilled", total_cents: 4000 }),
-      sale("partial", { status: "partially_refunded", total_cents: 5000, refunded_cents: 2000 }),
-      sale("refunded", { status: "refunded", total_cents: 6000, refunded_cents: 6000 }),
+      sale("paid", { total_cents: 2000, tax_cents: 100, shipping_cents: 200 }),
+      sale("processing", { status: "processing", total_cents: 3000, tax_cents: 150, shipping_cents: 300, refunded_cents: 500 }),
+      sale("fulfilled", { status: "fulfilled", total_cents: 4000, tax_cents: 200, shipping_cents: 400 }),
+      sale("partial", { status: "partially_refunded", total_cents: 5000, tax_cents: 250, shipping_cents: 500, refunded_cents: 2000 }),
+      sale("refunded", { status: "refunded", total_cents: 6000, tax_cents: 300, shipping_cents: 600, refunded_cents: 6000 }),
       sale("pending", { status: "pending", total_cents: 100_000 }),
       sale("failed", { status: "failed", total_cents: 100_000 }),
       sale("cancelled", { status: "cancelled", total_cents: 100_000 }),
@@ -115,6 +129,8 @@ describe("admin native sales aggregation", () => {
     const { client } = salesClient(rows);
     await expect(loadNativeSales(client, window)).resolves.toMatchObject({
       connected: true, totalCents: 11_500, orderCount: 5,
+      components: { merchandiseCents: 17_000, taxCents: 1000, shippingCents: 2000,
+        refundsCents: 8500, totalCents: 11_500, orderCount: 5 },
     });
   });
 
@@ -122,7 +138,8 @@ describe("admin native sales aggregation", () => {
     const rows = Array.from({ length: 501 }, (_, index) => sale(`order-${String(index).padStart(4, "0")}`));
     const { client } = salesClient(rows, (query) => query.filters.some(([op, column]) => op === "gt" && column === "id"));
     await expect(loadNativeSales(client, window)).resolves.toMatchObject({
-      connected: false, totalCents: 0, orderCount: 0, message: expect.stringMatching(/could not be loaded/i),
+      connected: false, totalCents: 0, orderCount: 0, components: null,
+      message: expect.stringMatching(/could not be loaded/i),
     });
   });
 
@@ -131,10 +148,37 @@ describe("admin native sales aggregation", () => {
       sale("usd", { currency: "usd" }),
       sale("excessive-refund", { total_cents: 1000, refunded_cents: 1001 }),
       sale("fractional-total", { total_cents: 10.5 }),
+      sale("negative-tax", { tax_cents: -1 }),
+      sale("excessive-tax", { tax_cents: 1001 }),
+      sale("excessive-shipping", { shipping_cents: 1001 }),
+      sale("missing-tax", { tax_cents: null }),
+      sale("missing-shipping", { shipping_cents: null }),
     ]) {
       const { client } = salesClient([sale("cad"), invalid]);
       await expect(loadNativeSales(client, window)).resolves.toMatchObject({
-        connected: false, totalCents: 0, orderCount: 0,
+        connected: false, totalCents: 0, orderCount: 0, components: null,
+      });
+    }
+  });
+
+  it("only marks native purchases as safe to combine when their source is verified", async () => {
+    const verified = salesClient([
+      sale("web"),
+      sale("renewal", { source: "subscription_renewal", checkout_attempt_id: null, stripe_invoice_id: "invoice-1" }),
+    ]);
+    await expect(loadNativeSales(verified.client, window)).resolves.toMatchObject({
+      connected: true, totalCents: 2000, newStoreProvenance: true,
+    });
+
+    for (const unverified of [
+      sale("imported", { source: "imported" }),
+      sale("snapshot", { migration_snapshot: { original_order_id: "7" } }),
+      sale("no-checkout", { checkout_attempt_id: null }),
+      sale("no-invoice", { source: "subscription_renewal", checkout_attempt_id: null }),
+    ]) {
+      const { client } = salesClient([unverified]);
+      await expect(loadNativeSales(client, window)).resolves.toMatchObject({
+        connected: true, totalCents: 1000, newStoreProvenance: false,
       });
     }
   });

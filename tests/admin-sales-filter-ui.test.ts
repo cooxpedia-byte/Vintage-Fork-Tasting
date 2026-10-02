@@ -15,6 +15,12 @@ const overview: CommerceOverview = {
   salesSource: "native",
   salesMessage: null,
   netSalesCents: 12345,
+  revenueBreakdown: {
+    native: { merchandiseCents: 10000, taxCents: 1000, shippingCents: 450,
+      refundsCents: 105, totalCents: 12345, orderCount: 2 },
+    historicalEstimate: null, combinedEstimateCents: null,
+    historicalRequested: false, message: null,
+  },
   currency: "cad",
   orderCount: 2,
   fulfilmentCount: 0,
@@ -26,7 +32,7 @@ const overview: CommerceOverview = {
   inventoryAlerts: [],
 };
 
-function html(commerce: CommerceOverview, salesPeriod: "month_to_date" | "last_year") {
+function html(commerce: CommerceOverview, salesPeriod: "month_to_date" | "last_month" | "last_year") {
   return renderToStaticMarkup(createElement(CommerceAdminOverview, { commerce, salesPeriod }));
 }
 
@@ -40,6 +46,11 @@ describe("admin net sales filter", () => {
     }
     expect(output).toContain('value="month_to_date" selected=""');
     expect(output).toContain("Paid order totals less refunds, including tax and shipping.");
+    expect(output).toContain("Revenue breakdown");
+    expect(output).toContain("Tax charged (GST/HST)</dt><dd>$10.00");
+    expect(output).toContain("Shipping charged</dt><dd>$4.50");
+    expect(output).toContain("Less refunds</dt><dd>-$1.05");
+    expect(output).toContain("Net revenue, including tax and shipping</dt><dd>$123.45");
   });
 
   it("labels previous-store totals as an estimate and shows the source warning", () => {
@@ -68,6 +79,28 @@ describe("admin net sales filter", () => {
   it("hides Last Year amount when the historical source is unavailable", () => {
     const output = html({ ...overview, salesSource: "native", salesMessage: "Historical records are unavailable." }, "last_year");
     expect(output).toContain("Historical records are unavailable.");
-    expect(output).not.toContain("$123.45");
+    expect(output).toMatch(/class="admin-kpi-card admin-sales-card"><span>Recorded order total estimate<\/span><strong>—<\/strong>/);
+  });
+
+  it("shows previous-store components separately and a clearly labeled combined estimate", () => {
+    const output = html({ ...overview,
+      revenueBreakdown: {
+        ...overview.revenueBreakdown,
+        historicalRequested: true,
+        historicalEstimate: { merchandiseCents: 8000, taxCents: 400, shippingCents: 600,
+          recordedTotalCents: 9000, orderCount: 3, excludedOrderCount: 2, snapshotAt: "2026-09-11T02:08:51.000Z" },
+        combinedEstimateCents: 21345,
+      },
+    }, "last_month");
+    expect(output).toContain("New-store sales only. The previous-store estimate is below.");
+    expect(output).toContain("Previous-store recorded estimate");
+    expect(output).toContain("Saved archive snapshot: Sep 11, 2026 UTC");
+    expect(output).toContain("Tax recorded (GST/HST)</dt><dd>$4.00");
+    expect(output).toContain("Shipping recorded</dt><dd>$6.00");
+    expect(output).toContain("Refunds</dt><dd>—");
+    expect(output).toContain("2 archived orders could not be included in this estimate.");
+    expect(output).toContain("Combined recorded estimate");
+    expect(output).toContain("$213.45");
+    expect(output).toContain("payments and refunds are unverified");
   });
 });

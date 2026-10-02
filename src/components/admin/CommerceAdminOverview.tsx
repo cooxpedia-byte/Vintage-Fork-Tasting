@@ -17,6 +17,10 @@ function orderDate(value: string) {
   return new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone:"America/Edmonton" }).format(new Date(value));
 }
 
+function archiveDate(value: string) {
+  return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(value));
+}
+
 function OrderRows({ orders, full = false, operations }: { orders: AdminOrder[]; full?: boolean; operations?:Map<string,OrderOperation> }) {
   if (!orders.length) return <div className="admin-commerce-empty"><strong>No orders to show yet</strong><span>New web and subscription orders will appear here.</span></div>;
   return (
@@ -42,6 +46,7 @@ export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: Com
   const historicalEstimate = salesPeriod === "last_year";
   const salesAvailable = commerce.salesConnected && (!historicalEstimate || commerce.salesSource === "native-and-imported-estimate");
   const selectedPeriod = SALES_PERIODS.find(period => period.value === salesPeriod)?.label ?? "Month to date";
+  const breakdown = commerce.revenueBreakdown;
   const salesDefinition = historicalEstimate
     ? "Previous-store completed and processing order totals before refunds; payments and refunds are unverified."
     : "Paid order totals less refunds, including tax and shipping.";
@@ -74,7 +79,7 @@ export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: Com
       )}
 
       <form action="/admin" method="get" className="admin-sales-filter admin-sales-filter-toolbar">
-        <label htmlFor="admin-sales-period">Net sales period</label>
+        <label htmlFor="admin-sales-period">Sales period</label>
         <div>
           <select id="admin-sales-period" name="salesPeriod" defaultValue={salesPeriod}>
             {SALES_PERIODS.map(period => <option value={period.value} key={period.value}>{period.label}</option>)}
@@ -90,6 +95,7 @@ export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: Com
           <small>{salesAvailable ? `${commerce.orderCount.toLocaleString("en-CA")} ${historicalEstimate ? "recorded" : "paid"} orders · ${selectedPeriod}` : selectedPeriod}</small>
           <p className="admin-sales-definition">{salesDefinition}</p>
           {salesAvailable && historicalEstimate && <p className="admin-sales-source">Includes previous-store orders.</p>}
+          {breakdown.historicalRequested && !historicalEstimate && <p className="admin-sales-source">New-store sales only. The previous-store estimate is below.</p>}
           {commerce.salesMessage && <p className={salesAvailable ? "admin-sales-source" : "admin-sales-unavailable"} role={salesAvailable ? undefined : "alert"}>{commerce.salesMessage}</p>}
           {!salesAvailable && !commerce.salesMessage && <p className="admin-sales-unavailable" role="alert">Sales total is temporarily unavailable.</p>}
           <Link href="/admin/orders" prefetch={false} className="admin-sales-orders-link">View all orders →</Link>
@@ -99,6 +105,56 @@ export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: Com
             <span>{card.label}</span><strong>{card.value}</strong><small>{card.detail}<b aria-hidden="true">→</b></small>
           </Link>
         ))}
+      </section>
+
+      <section className="admin-panel admin-revenue-panel" aria-labelledby="admin-revenue-heading">
+        <div className="admin-panel-heading">
+          <div><p className="eyebrow">{selectedPeriod}</p><h2 id="admin-revenue-heading">Revenue breakdown</h2></div>
+        </div>
+        <p className="admin-revenue-intro">See merchandise, tax, shipping and refunds separately, with the total for the selected sales period.</p>
+        <div className="admin-revenue-sources">
+          <article className="admin-revenue-source">
+            <h3>New-store sales</h3>
+            <p>{breakdown.native ? `${breakdown.native.orderCount.toLocaleString("en-CA")} settled orders` : "Breakdown unavailable"}</p>
+            {breakdown.native ? (
+              <dl className="admin-revenue-rows">
+                <div><dt>Merchandise after discounts</dt><dd>{money(breakdown.native.merchandiseCents, commerce.currency)}</dd></div>
+                <div><dt>Tax charged (GST/HST)</dt><dd>{money(breakdown.native.taxCents, commerce.currency)}</dd></div>
+                <div><dt>Shipping charged</dt><dd>{money(breakdown.native.shippingCents, commerce.currency)}</dd></div>
+                <div><dt>Less refunds</dt><dd>{money(breakdown.native.refundsCents ? -breakdown.native.refundsCents : 0, commerce.currency)}</dd></div>
+                <div className="admin-revenue-net"><dt>Net revenue, including tax and shipping</dt><dd>{money(breakdown.native.totalCents, commerce.currency)}</dd></div>
+              </dl>
+            ) : <p className="admin-revenue-unavailable" role="alert">New-store figures are temporarily unavailable.</p>}
+          </article>
+          {breakdown.historicalRequested && (
+            <article className="admin-revenue-source is-estimate">
+              <h3>Previous-store recorded estimate</h3>
+              <p>{breakdown.historicalEstimate ? `${breakdown.historicalEstimate.orderCount.toLocaleString("en-CA")} completed or processing orders` : "Estimate unavailable"}</p>
+              {breakdown.historicalEstimate ? (
+                <>
+                  <p>Saved archive snapshot: {archiveDate(breakdown.historicalEstimate.snapshotAt)} UTC</p>
+                  <dl className="admin-revenue-rows">
+                    <div><dt>Merchandise after discounts</dt><dd>{money(breakdown.historicalEstimate.merchandiseCents, commerce.currency)}</dd></div>
+                    <div><dt>Tax recorded (GST/HST)</dt><dd>{money(breakdown.historicalEstimate.taxCents, commerce.currency)}</dd></div>
+                    <div><dt>Shipping recorded</dt><dd>{money(breakdown.historicalEstimate.shippingCents, commerce.currency)}</dd></div>
+                    <div><dt>Refunds</dt><dd>—</dd></div>
+                    <div className="admin-revenue-net"><dt>Recorded order total estimate</dt><dd>{money(breakdown.historicalEstimate.recordedTotalCents, commerce.currency)}</dd></div>
+                  </dl>
+                  {breakdown.historicalEstimate.excludedOrderCount > 0 && <p className="admin-revenue-note">{breakdown.historicalEstimate.excludedOrderCount.toLocaleString("en-CA")} archived orders could not be included in this estimate.</p>}
+                </>
+              ) : <p className="admin-revenue-unavailable" role="alert">A previous-store estimate is unavailable for this period.</p>}
+            </article>
+          )}
+        </div>
+        {breakdown.historicalRequested && (
+          <div className="admin-revenue-combined">
+            <span>Combined recorded estimate<small>New-store net revenue + previous-store recorded order total</small></span>
+            <strong>{breakdown.combinedEstimateCents === null ? "—" : money(breakdown.combinedEstimateCents, commerce.currency)}</strong>
+          </div>
+        )}
+        <p className="admin-revenue-note">Tax and shipping show charges before refunds because refund records do not split those amounts.</p>
+        {breakdown.historicalRequested && <p className="admin-revenue-note">The saved previous-store archive may omit later activity. Its payments and refunds are unverified, so the combined figure is an estimate before any unknown previous-store refunds.</p>}
+        {breakdown.message && <p className="admin-revenue-unavailable" role="alert">{breakdown.message}</p>}
       </section>
 
       <div className="admin-commerce-workspace">

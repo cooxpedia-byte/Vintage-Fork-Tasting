@@ -25,6 +25,12 @@ function overview(summary: ReturnType<typeof summarizeSalesPeriod>): CommerceOve
     draftProductCount: 0,
     recentOrders: [],
     inventoryAlerts: [],
+    revenueBreakdown: {
+      native: { merchandiseCents: 0, taxCents: 0, shippingCents: 0,
+        refundsCents: 0, totalCents: 0, orderCount: 0 },
+      historicalEstimate: null, combinedEstimateCents: null,
+      historicalRequested: true, message: null,
+    },
     ...summary,
   };
 }
@@ -45,7 +51,7 @@ describe("Last Year sales coverage", () => {
     }));
     expect(html).toContain("Recorded order total estimate");
     expect(html).toContain("An estimate is unavailable.");
-    expect(html).not.toContain("$0.00");
+    expect(html).toMatch(/class="admin-kpi-card admin-sales-card"><span>Recorded order total estimate<\/span><strong>—<\/strong>/);
   });
 
   it("labels a nonempty previous-store archive as an estimate", () => {
