@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 
-const clockInUrl = process.env.NEXT_PUBLIC_CLOCK_IN_URL ?? "https://vintage-fork-clockin.sarahmac024.chatgpt.site/employer";
+const clockInUrl = process.env.NEXT_PUBLIC_CLOCK_IN_URL ?? "https://clockin.vintagefork.ca/employer";
 const receiptFlowUrl = process.env.NEXT_PUBLIC_RECEIPT_FLOW_URL ?? "https://receiptflow.worldofteapodcast.ca";
 const storefrontUrl = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "https://vintagefork.ca";
 const teaLabUrl = process.env.NEXT_PUBLIC_TEA_LAB_URL ?? "https://tasting.vintagefork.ca/dashboard";
