@@ -30,6 +30,7 @@ const groups: AdminNavGroup[] = [
     links: [
       { href: "/admin", label: "Commerce overview", icon: "⌂", exact: true, adminOnly: true },
       { href: "/admin/orders", label: "Orders", icon: "▣", adminOnly: true },
+      { href: "/admin/order-emails", label: "Order emails", icon: "✉", adminOnly: true },
       { href: productEditorUrl, label: "Products ↗", icon: "▦", adminOnly: true, external: true },
       { href: "/admin/product-sales", label: "Product sales", icon: "▤", adminOnly: true },
       { href: "/admin/coupons", label: "Coupons", icon: "%", adminOnly: true },

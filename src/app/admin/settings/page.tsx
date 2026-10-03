@@ -12,6 +12,7 @@ export default async function AdminSettingsPage() {
   await requireStaff(["admin"]);
   const workspaces = [
     { name: "Commerce & POS", detail: "Products, pricing, orders, subscriptions and in-person checkout.", href: `${storefrontUrl}/admin/products/`, icon: "▦", status: "Connected", external: true },
+    { name: "Order emails", detail: "Edit and turn individual automated order emails on or off.", href: "/admin/order-emails", icon: "✉", status: "Available", external: false },
     { name: "Tea Lab", detail: "Open the customer tasting workspace, personal tasting notes and Tea Cellar records.", href: teaLabUrl, icon: "◌", status: "Connected", external: true },
     { name: "Live Events", detail: "Open the customer-facing schedule and live tasting rooms.", href: liveEventsUrl, icon: "◉", status: "Connected", external: true },
     { name: "Tea Atlas", detail: "Explore the connected tea origins, styles and knowledge experience.", href: teaAtlasUrl, icon: "⌖", status: "Connected", external: true },
