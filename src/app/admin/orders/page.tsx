@@ -45,14 +45,10 @@ export default async function AdminOrdersPage({searchParams}:{searchParams:Promi
         return <Link key={value} className={(params.filter||"all")===value?"is-active":""} href={"/admin/orders"+(query.size?"?"+query:"")} prefetch={false}>{label}</Link>;
       })}
     </nav>}
-    {!params.items&&<form action="/admin/orders" className="admin-order-search">
-      <label htmlFor="order-number">Order number (new or migrated)</label><input id="order-number" name="number" inputMode="numeric" maxLength={40} defaultValue={typeof search==="string"?search:""}/>
+    {!params.items&&<form action="/admin/orders/search" className="admin-order-search" role="search">
+      <label htmlFor="order-query">Find an order</label><input id="order-query" name="q" type="search" maxLength={100} defaultValue={typeof search==="string"?search:""} placeholder="Name, order #, postal code, or city" autoComplete="off"/>
       <button className="btn btn-gold" type="submit">Search all orders</button>{search&&<Link href="/admin/orders" prefetch={false}>Clear search</Link>}
     </form>}
-    {!params.items&&<section className="admin-panel admin-order-search-entry" aria-labelledby="admin-order-search-entry-heading">
-      <div><p className="eyebrow">Find an order</p><h2 id="admin-order-search-entry-heading">No order number?</h2><p>Search both stores by customer name, delivery postal code, or delivery city.</p></div>
-      <Link className="btn btn-secondary" href="/admin/orders/search" prefetch={false}>Search customer and delivery details →</Link>
-    </section>}
     {page&&<section className="admin-panel admin-orders-panel" id="new-orders">
       <div className="admin-panel-heading"><div><p className="eyebrow">New store · all dates</p><h2>{fulfilment?"New purchases to fulfil":"New purchases"}</h2></div>{page.total!==null&&<span>{page.total} orders</span>}</div>
       {page.error?<div className="admin-commerce-notice" role="alert">{page.error}</div>:page.orders.length?<OrderRows orders={page.orders} full/>:<p>No new purchases match this view.</p>}

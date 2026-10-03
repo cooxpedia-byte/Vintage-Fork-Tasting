@@ -8,9 +8,7 @@ import { authorizedCommerceClient } from "@/lib/supabase/commerce-server";
 export const dynamic = "force-dynamic";
 
 type SearchParams = {
-  name?: string | string[];
-  postal?: string | string[];
-  city?: string | string[];
+  q?: string | string[];
   source?: string | string[];
   offset?: string | string[];
 };
@@ -49,20 +47,16 @@ export default async function AdminOrderSearchPage({ searchParams }: { searchPar
   if (!client) return <StoreConnectionNotice orders />;
 
   const params = await searchParams;
-  const name = param(params?.name);
-  const postal = param(params?.postal);
-  const city = param(params?.city);
+  const query = param(params?.q);
   const requestedSource = param(params?.source);
   const source = (requestedSource || "all") as SearchSource;
   const rawOffset = param(params?.offset);
   const offset = rawOffset ? Number(rawOffset) : 0;
-  const hasCriteria = Boolean(name || postal || city);
-  const report = hasCriteria ? await loadOrderSearch(client, { name, postal, city, source, offset }) : null;
+  const hasCriteria = Boolean(query);
+  const report = hasCriteria ? await loadOrderSearch(client, { query, source, offset }) : null;
 
   const pageQuery = new URLSearchParams();
-  if (name) pageQuery.set("name", name);
-  if (postal) pageQuery.set("postal", postal);
-  if (city) pageQuery.set("city", city);
+  if (query) pageQuery.set("q", query);
   if (source !== "all") pageQuery.set("source", source);
   const pageHref = (pageOffset: number) => {
     const query = new URLSearchParams(pageQuery);
@@ -72,20 +66,14 @@ export default async function AdminOrderSearchPage({ searchParams }: { searchPar
 
   return <main className="admin-page admin-order-search-page">
     <div className="admin-page-heading">
-      <div><p className="eyebrow">Commerce · orders</p><h1>Find an order</h1><p>Search by customer name, delivery postal code, or delivery city across new purchases and the previous-store archive.</p></div>
+      <div><p className="eyebrow">Commerce · orders</p><h1>Find an order</h1><p>Search both stores by customer name, order number, delivery postal code, or delivery city.</p></div>
       <Link className="btn btn-secondary" href="/admin/orders" prefetch={false}>All orders</Link>
     </div>
 
     <section className="admin-panel admin-order-search-panel" aria-label="Order search filters">
       <form action="/admin/orders/search" method="get" className="admin-order-detail-search" role="search">
-        <label htmlFor="admin-order-search-name">Customer name
-          <input id="admin-order-search-name" name="name" type="search" maxLength={100} defaultValue={name} placeholder="First, last, or full name" autoComplete="off" />
-        </label>
-        <label htmlFor="admin-order-search-postal">Delivery postal code
-          <input id="admin-order-search-postal" name="postal" type="search" maxLength={24} defaultValue={postal} placeholder="For example, T5J 0N3" autoComplete="off" />
-        </label>
-        <label htmlFor="admin-order-search-city">Delivery city
-          <input id="admin-order-search-city" name="city" type="search" maxLength={100} defaultValue={city} placeholder="For example, Edmonton" autoComplete="off" />
+        <label htmlFor="admin-order-search-query">Search orders
+          <input id="admin-order-search-query" name="q" type="search" maxLength={100} defaultValue={query} placeholder="Name, order #, postal code, or city" autoComplete="off" />
         </label>
         <label htmlFor="admin-order-search-source">Store
           <select id="admin-order-search-source" name="source" defaultValue={source}>
@@ -99,10 +87,10 @@ export default async function AdminOrderSearchPage({ searchParams }: { searchPar
           {hasCriteria && <Link href="/admin/orders/search" prefetch={false}>Clear filters</Link>}
         </div>
       </form>
-      <p className="admin-orders-note">You can use any one field or combine fields to narrow the results. City and postal code match delivery details only; pickup orders may not have either.</p>
+      <p className="admin-orders-note">Customer names appear first. City and postal code match delivery details only; pickup orders may not have either.</p>
     </section>
 
-    {!hasCriteria ? <section className="admin-panel admin-order-search-message"><h2>Search orders</h2><p>Enter a customer name, delivery postal code, or delivery city to begin.</p></section> :
+    {!hasCriteria ? <section className="admin-panel admin-order-search-message"><h2>Search orders</h2><p>Enter a name, order number, delivery postal code, or delivery city to begin.</p></section> :
       !report?.connected ? <section className="admin-panel admin-order-search-message" role="alert"><h2>Order search unavailable</h2><p>{report?.message ?? "The search could not be loaded. Please try again."}</p></section> :
       <section className="admin-panel admin-order-search-results" aria-labelledby="admin-order-search-results-heading">
         <div className="admin-panel-heading"><div><p className="eyebrow">Search results</p><h2 id="admin-order-search-results-heading">Matching orders</h2></div><span>{report.total.toLocaleString("en-CA")} {report.total === 1 ? "order" : "orders"}</span></div>
@@ -115,7 +103,7 @@ export default async function AdminOrderSearchPage({ searchParams }: { searchPar
           const amount = row.source === "native" ? nativeAmount(row.totalCents, row.currency) : sourceAmount(row.recordedTotal, row.currency);
           return <article className="admin-order-search-result" key={`${row.source}:${row.orderId}`}>
             <div className="admin-order-search-result-heading">
-              <div><span className={`admin-order-search-source is-${row.source}`}>{row.source === "native" ? "New store" : "Previous-store archive"}</span><h3><Link href={href} prefetch={false}>Order #{row.orderNumber || row.orderId}</Link></h3></div>
+              <div><span className={`admin-order-search-source is-${row.source}`}>{row.source === "native" ? "New store" : "Previous-store archive"}</span><h3><Link href={href} prefetch={false}>Order #{row.orderNumber || row.orderId}</Link></h3><small className="admin-order-search-match">Matched {row.matchedBy === "orderNumber" ? "order number" : row.matchedBy === "postal" ? "delivery postal code" : row.matchedBy === "city" ? "delivery city" : "customer name"}</small></div>
               <div className="admin-order-search-result-total"><small>{row.source === "native" ? "Order total" : "Recorded total"}</small><strong>{amount}</strong></div>
             </div>
             <dl className="admin-order-search-result-facts">
@@ -127,7 +115,7 @@ export default async function AdminOrderSearchPage({ searchParams }: { searchPar
             </dl>
             <Link className="admin-order-search-open" href={href} prefetch={false}>Open order →</Link>
           </article>;
-        })}</div> : <p className="admin-order-search-empty">No orders match these details. Try a shorter name or a broader delivery location.</p>}
+        })}</div> : <p className="admin-order-search-empty">No orders match this search. Try a shorter name, a full order number, or a broader delivery location.</p>}
         {report.total > 0 && <nav className="admin-order-search-pagination" aria-label="Order search pages">
           <span>{report.rows.length ? `Showing ${(offset + 1).toLocaleString("en-CA")}–${(offset + report.rows.length).toLocaleString("en-CA")} of ${report.total.toLocaleString("en-CA")}` : `No results on this page · ${report.total.toLocaleString("en-CA")} total`}</span>
           <div>{offset > 0 && <Link className="btn btn-secondary" href={pageHref(Math.max(0, offset - 50))} prefetch={false}>Previous 50</Link>}{report.nextOffset !== null && <Link className="btn btn-secondary" href={pageHref(report.nextOffset)} prefetch={false}>Next 50 →</Link>}</div>

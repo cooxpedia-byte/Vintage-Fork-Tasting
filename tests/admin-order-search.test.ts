@@ -14,7 +14,7 @@ function native(overrides: Record<string, unknown> = {}) {
     source: "native", orderId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     orderNumber: "1001", status: "paid", placedAt: "2026-10-01T10:00:00Z",
     customerName: "Ada Lovelace", deliveryCity: "Edmonton", postalCode: "T5J 0N3",
-    totalCents: 1250, recordedTotal: null, currency: "CAD", ...overrides,
+    matchedBy: "name", totalCents: 1250, recordedTotal: null, currency: "CAD", ...overrides,
   };
 }
 
@@ -23,7 +23,7 @@ function imported(overrides: Record<string, unknown> = {}) {
     source: "imported", orderId: "2002", orderNumber: "2002", status: "wc-completed",
     placedAt: "2025-10-01T10:00:00Z", customerName: "Grace Hopper",
     deliveryCity: "Calgary", postalCode: "T2P 1J9", totalCents: null,
-    recordedTotal: "22.50", currency: "CAD", ...overrides,
+    matchedBy: "city", recordedTotal: "22.50", currency: "CAD", ...overrides,
   };
 }
 
@@ -39,32 +39,25 @@ function clientResponse(data: unknown, error: unknown = null) {
 }
 
 describe("admin order search criteria", () => {
-  it("trims and combines name, delivery postal code, and city", () => {
-    expect(parseOrderSearchCriteria({ name: "  Ada   Lovelace  ", postal: "  T5J  0N3  ",
-      city: "  Fort   Saskatchewan ", source: "imported", offset: 50 })).toEqual({
-      name: "Ada Lovelace", postal: "T5J 0N3", city: "Fort Saskatchewan",
-      source: "imported", offset: 50,
+  it("normalizes the single query and preserves source and page offset", () => {
+    expect(parseOrderSearchCriteria({ query: "  Ada   Lovelace  ", source: "imported", offset: 50 })).toEqual({
+      query: "Ada Lovelace", source: "imported", offset: 50,
     });
   });
 
-  it.each([
-    [{ name: "Ada" }, { name: "Ada", postal: "", city: "", source: "all", offset: 0 }],
-    [{ postal: "T5J 0N3" }, { name: "", postal: "T5J 0N3", city: "", source: "all", offset: 0 }],
-    [{ city: "Edmonton" }, { name: "", postal: "", city: "Edmonton", source: "all", offset: 0 }],
-  ] as const)("accepts a single search field", (input, expected) => {
-    expect(parseOrderSearchCriteria(input)).toEqual(expected);
+  it.each(["Ada", "#1001", "T5J 0N3", "Edmonton"])("accepts %s as a unified query", query => {
+    expect(parseOrderSearchCriteria({ query })).toEqual({ query, source: "all", offset: 0 });
   });
 
   it.each([
-    [{ name: "   " }, "Enter a name"],
-    [{ name: "Ada\nLovelace" }, "Invalid search query"],
-    [{ postal: "T5J%" }, "Invalid delivery postal code"],
-    [{ city: "x".repeat(101) }, "Search query is too long"],
-    [{ name: "Ada", source: "other" }, "Invalid order source"],
-    [{ name: "Ada", offset: -50 }, "Invalid result page"],
-    [{ name: "Ada", offset: 49 }, "Invalid result page"],
-    [{ name: "Ada", offset: 10050 }, "Invalid result page"],
-    [{ name: "Ada", offset: 0.5 }, "Invalid result page"],
+    [{ query: "   " }, "Enter a name"],
+    [{ query: "Ada\nLovelace" }, "Invalid search query"],
+    [{ query: "x".repeat(101) }, "Search query is too long"],
+    [{ query: "Ada", source: "other" }, "Invalid order source"],
+    [{ query: "Ada", offset: -50 }, "Invalid result page"],
+    [{ query: "Ada", offset: 49 }, "Invalid result page"],
+    [{ query: "Ada", offset: 10050 }, "Invalid result page"],
+    [{ query: "Ada", offset: 0.5 }, "Invalid result page"],
   ])("rejects invalid search input before querying", (input, message) => {
     expect(() => parseOrderSearchCriteria(input as Parameters<typeof parseOrderSearchCriteria>[0]))
       .toThrow(message);
@@ -99,6 +92,8 @@ describe("admin order search response", () => {
     ["mixed native amount", page([native({ recordedTotal: "12.50" })])],
     ["mixed imported amount", page([imported({ totalCents: 1250 })])],
     ["changed imported reference", page([imported({ orderNumber: "2003" })])],
+    ["unrecognized match reason", page([native({ matchedBy: "email" })])],
+    ["missing match reason", page([native({ matchedBy: undefined })])],
     ["missing archive snapshot", page([imported()], { archiveSnapshotAt: null })],
   ])("fails closed on %s", (_case, response) => {
     expect(() => parseOrderSearchResponse(response, _case === "wrong source" ? "native" : "all", 0)).toThrow();
@@ -117,32 +112,31 @@ describe("admin order search response", () => {
 });
 
 describe("admin order search RPC", () => {
-  it("sends combined normalized criteria, source, and page size to the scoped RPC", async () => {
+  it("sends the normalized query, source, and page size to the scoped v2 RPC", async () => {
     const stub = clientResponse(page([imported()], { total: 51 }));
     const result = await loadOrderSearch(stub.client, {
-      name: "  Grace   Hopper ", postal: " T2P 1J9 ", city: " Calgary ",
-      source: "imported", offset: 50,
+      query: "  Grace   Hopper ", source: "imported", offset: 50,
     });
-    expect(stub.rpc).toHaveBeenCalledExactlyOnceWith("vf_admin_order_search_v1", {
-      p_name: "Grace Hopper", p_postal: "T2P 1J9", p_city: "Calgary",
+    expect(stub.rpc).toHaveBeenCalledExactlyOnceWith("vf_admin_order_search_v2", {
+      p_query: "Grace Hopper",
       p_source: "imported", p_offset: 50, p_limit: ORDER_SEARCH_PAGE_SIZE,
     });
     expect(stub.abortSignal).toHaveBeenCalledWith(expect.any(AbortSignal));
     expect(result.connected).toBe(true);
   });
 
-  it("sends null for unused search fields", async () => {
+  it("sends an order-number query without guessing another search field", async () => {
     const stub = clientResponse(page([native()]));
-    await loadOrderSearch(stub.client, { name: "Ada" });
-    expect(stub.rpc).toHaveBeenCalledWith("vf_admin_order_search_v1", {
-      p_name: "Ada", p_postal: null, p_city: null, p_source: "all", p_offset: 0,
+    await loadOrderSearch(stub.client, { query: "#1001" });
+    expect(stub.rpc).toHaveBeenCalledWith("vf_admin_order_search_v2", {
+      p_query: "#1001", p_source: "all", p_offset: 0,
       p_limit: ORDER_SEARCH_PAGE_SIZE,
     });
   });
 
   it("does not call the RPC for invalid criteria", async () => {
     const stub = clientResponse(page([]));
-    const result = await loadOrderSearch(stub.client, { name: "Ada", offset: 1 });
+    const result = await loadOrderSearch(stub.client, { query: "Ada", offset: 1 });
     expect(stub.rpc).not.toHaveBeenCalled();
     expect(result).toMatchObject({ connected: false, rows: [], message: "Invalid result page." });
   });
@@ -150,7 +144,7 @@ describe("admin order search RPC", () => {
   it("does not echo malformed response PII or upstream errors", async () => {
     const secret = "Sensitive Customer Name";
     const malformed = clientResponse(page([native({ customerName: `${secret}\n` })]));
-    const result = await loadOrderSearch(malformed.client, { name: "Ada" });
+    const result = await loadOrderSearch(malformed.client, { query: "Ada" });
     expect(result).toMatchObject({ connected: false, rows: [], total: 0,
       message: "Order search could not be loaded. Please try again." });
     expect(JSON.stringify(result)).not.toContain(secret);
@@ -161,14 +155,14 @@ describe("admin order search RPC", () => {
     ["PGRST000", "Order search could not be loaded. Please try again."],
   ])("handles RPC error %s", async (code, message) => {
     const stub = clientResponse(null, { code, message: "private provider detail" });
-    const result = await loadOrderSearch(stub.client, { city: "Edmonton" });
+    const result = await loadOrderSearch(stub.client, { query: "Edmonton" });
     expect(result).toMatchObject({ connected: false, rows: [], message });
     expect(JSON.stringify(result)).not.toContain("private provider detail");
   });
 
   it("handles an RPC that throws", async () => {
     const rpc = vi.fn().mockReturnValue({ abortSignal: vi.fn().mockRejectedValue(Error("private transport detail")) });
-    const result = await loadOrderSearch({ rpc } as unknown as SupabaseClient, { postal: "T5J 0N3" });
+    const result = await loadOrderSearch({ rpc } as unknown as SupabaseClient, { query: "T5J 0N3" });
     expect(result).toMatchObject({ connected: false, rows: [],
       message: "Order search could not be loaded. Please try again." });
     expect(JSON.stringify(result)).not.toContain("private transport detail");

@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const ORDER_SEARCH_PAGE_SIZE = 50;
 export type OrderSearchSource = "all" | "native" | "imported";
 export type OrderSearchCriteria = {
-  name?: string; postal?: string; city?: string; source?: OrderSearchSource; offset?: number;
+  query?: string; source?: OrderSearchSource; offset?: number;
 };
 export type OrderSearchRow = {
   source: "native" | "imported";
@@ -14,6 +14,7 @@ export type OrderSearchRow = {
   customerName: string | null;
   deliveryCity: string | null;
   postalCode: string | null;
+  matchedBy: "name" | "orderNumber" | "postal" | "city";
   totalCents: number | null;
   recordedTotal: string | null;
   currency: string | null;
@@ -68,20 +69,15 @@ function queryText(value: string | undefined, maximum: number): string {
 }
 
 export function parseOrderSearchCriteria(input: OrderSearchCriteria) {
-  const name = queryText(input.name, 100);
-  const postal = queryText(input.postal, 24);
-  const city = queryText(input.city, 100);
-  if (!name && !postal && !city) throw Error("Enter a name, delivery postal code, or delivery city.");
-  if (postal && (!/^[A-Za-z0-9 -]+$/.test(postal) || !/[A-Za-z0-9]/.test(postal))) {
-    throw Error("Invalid delivery postal code.");
-  }
+  const query = queryText(input.query, 100);
+  if (!query) throw Error("Enter a name, order number, delivery postal code, or delivery city.");
   const source = input.source ?? "all";
   if (!["all", "native", "imported"].includes(source)) throw Error("Invalid order source.");
   const offset = input.offset ?? 0;
   if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10000 || offset % ORDER_SEARCH_PAGE_SIZE !== 0) {
     throw Error("Invalid result page.");
   }
-  return { name, postal, city, source, offset };
+  return { query, source, offset };
 }
 
 export function parseOrderSearchResponse(value: unknown, source: OrderSearchSource, offset: number): OrderSearchResult {
@@ -118,12 +114,17 @@ export function parseOrderSearchResponse(value: unknown, source: OrderSearchSour
     if (kind === "native" && recordedTotal !== null || kind === "imported" && totalCents !== null) {
       throw Error("Mixed order amounts.");
     }
+    if (row.matchedBy !== "name" && row.matchedBy !== "orderNumber"
+      && row.matchedBy !== "postal" && row.matchedBy !== "city") {
+      throw Error("Invalid order search match.");
+    }
     return {
       source: kind, orderId, orderNumber: number,
       status: nullableText(row.status, 100), placedAt: date(row.placedAt),
       customerName: nullableText(row.customerName, 320),
       deliveryCity: nullableText(row.deliveryCity, 200),
       postalCode: nullableText(row.postalCode, 32),
+      matchedBy: row.matchedBy,
       totalCents, recordedTotal, currency,
     };
   });
@@ -142,10 +143,8 @@ export async function loadOrderSearch(client: SupabaseClient, input: OrderSearch
   try { criteria = parseOrderSearchCriteria(input); }
   catch (error) { return unavailable(error instanceof Error ? error.message : "Invalid search query."); }
   try {
-    const response = await client.rpc("vf_admin_order_search_v1", {
-      p_name: criteria.name || null,
-      p_postal: criteria.postal || null,
-      p_city: criteria.city || null,
+    const response = await client.rpc("vf_admin_order_search_v2", {
+      p_query: criteria.query,
       p_source: criteria.source,
       p_offset: criteria.offset,
       p_limit: ORDER_SEARCH_PAGE_SIZE,

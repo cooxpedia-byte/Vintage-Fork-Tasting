@@ -315,8 +315,9 @@
 .unified-admin .admin-order-search-entry .eyebrow{margin:0 0 .2rem}
 .unified-admin .admin-order-search-entry h2{margin:0;color:var(--vf-plum-aged);font-size:1.2rem}
 .unified-admin .admin-order-search-entry p:last-child{margin:.3rem 0 0;color:var(--vf-fog);font-size:.88rem}
+.unified-admin .admin-order-search>input[type="search"]{flex:1 1 22rem;max-width:38rem}
 .unified-admin .admin-order-search-panel{margin-bottom:1rem}
-.unified-admin .admin-order-detail-search{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.85rem}
+.unified-admin .admin-order-detail-search{display:grid;grid-template-columns:minmax(0,3fr) minmax(min(100%,190px),1fr);gap:.85rem}
 .unified-admin .admin-order-detail-search label{display:grid;align-content:start;gap:.35rem;color:var(--vf-walnut);font-size:.84rem;font-weight:750}
 .unified-admin .admin-order-detail-search input,.unified-admin .admin-order-detail-search select{width:100%;min-height:44px;padding:.6rem .7rem;border:1px solid var(--vf-line);border-radius:8px;background:white;color:var(--vf-walnut);font:inherit;font-weight:400}
 .unified-admin .admin-order-detail-search input:focus-visible,.unified-admin .admin-order-detail-search select:focus-visible{outline:3px solid var(--vf-gold);outline-offset:2px}
@@ -333,6 +334,7 @@
 .unified-admin .admin-order-search-result-heading{display:flex;align-items:start;justify-content:space-between;gap:1rem;flex-wrap:wrap}
 .unified-admin .admin-order-search-result-heading h3{margin:.45rem 0 0;color:var(--vf-plum-aged);font-size:1.12rem}
 .unified-admin .admin-order-search-result-heading h3 a{color:inherit;text-underline-offset:.2em}
+.unified-admin .admin-order-search-match{display:block;margin-top:.35rem;color:var(--vf-fog);font-size:.78rem}
 .unified-admin .admin-order-search-source{display:inline-block;padding:.25rem .55rem;border-radius:999px;background:#e8f0fa;color:#244a79;font-size:.72rem;font-weight:800}
 .unified-admin .admin-order-search-source.is-imported{background:#fff1cb;color:#73510a}
 .unified-admin .admin-order-search-result-total{display:grid;gap:.2rem;text-align:right}
@@ -345,7 +347,7 @@
 .unified-admin .admin-order-search-pagination{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-top:1rem}
 .unified-admin .admin-order-search-pagination>span{color:var(--vf-fog);font-size:.86rem}
 .unified-admin .admin-order-search-pagination>div{display:flex;gap:.6rem;flex-wrap:wrap}
-@media(max-width:540px){.unified-admin .admin-order-search-entry>.btn{width:100%}.unified-admin .admin-order-search-result-total{text-align:left}.unified-admin .admin-order-search-pagination>div{width:100%}.unified-admin .admin-order-search-pagination .btn{flex:1;text-align:center}}
+@media(max-width:540px){.unified-admin .admin-order-detail-search{grid-template-columns:1fr}.unified-admin .admin-order-search-result-total{text-align:left}.unified-admin .admin-order-search-pagination>div{width:100%}.unified-admin .admin-order-search-pagination .btn{flex:1;text-align:center}}
 .unified-admin .admin-order-status.is-info{color:#244a79;background:#e8f0fa}
 .unified-admin .admin-order-status.is-warning{color:#73510a;background:#fff1cb}
 .unified-admin .admin-order-status.is-danger{color:#9b2635;background:#fbe9ec}
