@@ -67,6 +67,9 @@
 .unified-admin .admin-page-heading p { max-width: 64ch; margin-bottom: 0; color: var(--vf-fog); }
 .unified-admin .admin-page-heading .eyebrow { color: var(--vf-sage); }
 .unified-admin .admin-kpi-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1rem; }
+.unified-admin .admin-kpi-grid--overview { grid-template-columns: repeat(6,minmax(0,1fr)); }
+.unified-admin .admin-kpi-grid--overview > :nth-child(-n+2) { grid-column: span 3; }
+.unified-admin .admin-kpi-grid--overview > :nth-child(n+3) { grid-column: span 2; }
 .unified-admin .admin-kpi-card { min-height: 154px; display: grid; align-content: space-between; padding: 1.15rem; border: 1px solid rgba(74,53,36,.14); border-top: 3px solid var(--vf-gold); border-radius: 12px; color: inherit; background: rgba(251,247,236,.92); box-shadow: 0 5px 18px rgba(55,35,23,.06); text-decoration: none; transition: transform 160ms var(--settle),box-shadow 160ms var(--settle); }
 .unified-admin .admin-kpi-card:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(55,35,23,.1); }
 .unified-admin .admin-kpi-card > span { color: var(--vf-walnut); font-size: .74rem; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
@@ -86,6 +89,9 @@
 .unified-admin .admin-sales-filter button:hover { background: var(--vf-plum-aged); }
 .unified-admin .admin-sales-filter select:focus-visible,.unified-admin .admin-sales-filter button:focus-visible,.unified-admin .admin-sales-orders-link:focus-visible { outline: 3px solid var(--vf-gold); outline-offset: 2px; }
 .unified-admin .admin-sales-card p { margin: 0; font-size: .69rem; line-height: 1.35; }
+.unified-admin .admin-aov-card { gap: .55rem; align-content: start; }
+.unified-admin .admin-aov-card > strong { margin: .1rem 0; }
+.unified-admin .admin-aov-card p { margin: 0; color: var(--vf-fog); font-size: .69rem; line-height: 1.35; }
 .unified-admin .admin-sales-definition { color: var(--vf-fog); }
 .unified-admin .admin-sales-source { color: var(--vf-forest); font-weight: 750; }
 .unified-admin .admin-sales-unavailable { color: #8a2727; }
@@ -237,6 +243,7 @@
 
 @media (max-width: 1040px) {
   .unified-admin .admin-kpi-grid,.unified-admin .admin-system-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .unified-admin .admin-kpi-grid--overview > :nth-child(n) { grid-column: auto; }
   .unified-admin .admin-overview-grid { grid-template-columns: 1fr; }
   .unified-admin .admin-account-layout,.unified-admin .admin-loyalty-grid { grid-template-columns: 1fr; }
   .unified-admin .admin-ops-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
