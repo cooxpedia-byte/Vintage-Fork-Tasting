@@ -46,6 +46,10 @@ describe("admin net sales filter", () => {
     }
     expect(output).toContain('value="month_to_date" selected=""');
     expect(output).toContain("Paid order totals less refunds, including tax and shipping.");
+    expect(output).toContain("Average order value (AOV)");
+    expect(output).toContain("$61.73");
+    expect(output).toContain("Month to date · 2 paid orders");
+    expect(output).toContain("Net sales per paid order, including tax and shipping, after refunds.");
     expect(output).toContain("Revenue breakdown");
     expect(output).toContain("Tax charged (GST/HST)</dt><dd>$10.00");
     expect(output).toContain("Shipping charged</dt><dd>$4.50");
@@ -64,6 +68,9 @@ describe("admin net sales filter", () => {
     expect(output).toContain("Previous-store completed and processing order totals before refunds; payments and refunds are unverified.");
     expect(output).toContain("Historical figures are based on imported records.");
     expect(output).toContain("Includes previous-store orders.");
+    expect(output).toContain("Average recorded order value estimate");
+    expect(output).toContain("Last year · 2 recorded orders");
+    expect(output).toContain("Recorded total per completed or processing order, before unverified refunds.");
     expect(output).toContain('value="last_year" selected=""');
   });
 
@@ -80,6 +87,19 @@ describe("admin net sales filter", () => {
     const output = html({ ...overview, salesSource: "native", salesMessage: "Historical records are unavailable." }, "last_year");
     expect(output).toContain("Historical records are unavailable.");
     expect(output).toMatch(/class="admin-kpi-card admin-sales-card"><span>Recorded order total estimate<\/span><strong>—<\/strong>/);
+    expect(output).toMatch(/class="admin-kpi-card admin-aov-card"><span>Average recorded order value estimate<\/span><strong>—<\/strong>/);
+  });
+
+  it("shows no AOV when the selected period has no paid orders", () => {
+    const output = html({ ...overview, netSalesCents: 0, orderCount: 0 }, "month_to_date");
+    expect(output).toMatch(/class="admin-kpi-card admin-aov-card"><span>Average order value \(AOV\)<\/span><strong>—<\/strong>/);
+    expect(output).toContain("No paid orders in this period.");
+  });
+
+  it("shows no AOV when the sales connection fails", () => {
+    const output = html({ ...overview, salesConnected: false, salesMessage: "Sales unavailable." }, "month_to_date");
+    expect(output).toMatch(/class="admin-kpi-card admin-aov-card"><span>Average order value \(AOV\)<\/span><strong>—<\/strong>/);
+    expect(output).toContain("Month to date · Sales unavailable");
   });
 
   it("shows previous-store components separately and a clearly labeled combined estimate", () => {

@@ -50,6 +50,9 @@ export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: Com
   const salesDefinition = historicalEstimate
     ? "Previous-store completed and processing order totals before refunds; payments and refunds are unverified."
     : "Paid order totals less refunds, including tax and shipping.";
+  const averageOrderValue = salesAvailable && commerce.orderCount > 0
+    ? money(commerce.netSalesCents / commerce.orderCount, commerce.currency)
+    : "—";
   const cards = [
     { label: "Orders to fulfil", value: commerce.fulfilmentCount ?? "—", detail: "New purchases · open imported orders also available in the queue", href: "/admin/orders?status=fulfilment" },
     { label: "Commerce customers", value: commerce.customersConnected ? commerce.customerCount : "—", detail: "New-store customer records", href: "/admin/accounts" },
@@ -88,7 +91,7 @@ export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: Com
         </div>
       </form>
 
-      <section className="admin-kpi-grid" aria-label="Commerce summary">
+      <section className="admin-kpi-grid admin-kpi-grid--overview" aria-label="Commerce summary">
         <article className="admin-kpi-card admin-sales-card">
           <span>{historicalEstimate ? "Recorded order total estimate" : "Net sales"}</span>
           <strong>{salesAvailable ? money(commerce.netSalesCents, commerce.currency) : "—"}</strong>
@@ -99,6 +102,16 @@ export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: Com
           {commerce.salesMessage && <p className={salesAvailable ? "admin-sales-source" : "admin-sales-unavailable"} role={salesAvailable ? undefined : "alert"}>{commerce.salesMessage}</p>}
           {!salesAvailable && !commerce.salesMessage && <p className="admin-sales-unavailable" role="alert">Sales total is temporarily unavailable.</p>}
           <Link href="/admin/orders" prefetch={false} className="admin-sales-orders-link">View all orders →</Link>
+        </article>
+        <article className="admin-kpi-card admin-aov-card">
+          <span>{historicalEstimate ? "Average recorded order value estimate" : "Average order value (AOV)"}</span>
+          <strong>{averageOrderValue}</strong>
+          <small>{selectedPeriod} · {salesAvailable ? `${commerce.orderCount.toLocaleString("en-CA")} ${historicalEstimate ? "recorded" : "paid"} orders` : "Sales unavailable"}</small>
+          <p>{salesAvailable && commerce.orderCount === 0
+            ? `No ${historicalEstimate ? "recorded" : "paid"} orders in this period.`
+            : historicalEstimate
+              ? "Recorded total per completed or processing order, before unverified refunds."
+              : "Net sales per paid order, including tax and shipping, after refunds."}</p>
         </article>
         {cards.map((card) => (
           <Link className="admin-kpi-card" href={card.href} key={card.label} prefetch={false}>
