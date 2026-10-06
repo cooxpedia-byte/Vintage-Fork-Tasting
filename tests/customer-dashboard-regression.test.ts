@@ -5,9 +5,11 @@ import { CustomerDashboard } from "@/components/dashboard/CustomerDashboard";
 import { LiveEventsHub } from "@/components/live-events/LiveEventsHub";
 import { buildJournalSessions } from "@/lib/tea-lab/journal";
 
+const route = vi.hoisted(() => ({ search: "" }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
-  useSearchParams: () => new URLSearchParams()
+  useSearchParams: () => new URLSearchParams(route.search)
 }));
 
 type DashboardProps = Parameters<typeof CustomerDashboard>[0];
@@ -47,6 +49,8 @@ const event: DashboardProps["events"][number] = {
 };
 
 function render(initialTab: DashboardProps["initialTab"], overrides: Partial<DashboardProps> = {}) {
+  const section = overrides.initialTab ?? initialTab;
+  route.search = section === "home" ? "" : `section=${section}`;
   return renderToStaticMarkup(createElement(CustomerDashboard, {
     name: "Alex",
     events: [event],

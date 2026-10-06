@@ -2,9 +2,11 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+const route = vi.hoisted(() => ({ search: "" }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
-  useSearchParams: () => new URLSearchParams()
+  useSearchParams: () => new URLSearchParams(route.search)
 }));
 
 import { CustomerDashboard } from "@/components/dashboard/CustomerDashboard";
@@ -49,6 +51,7 @@ const records: CellarRecord[] = [
 ];
 
 function render(section: "journal" | "passport" | "saved", extras: Partial<Parameters<typeof CustomerDashboard>[0]>) {
+  route.search = `section=${extras.initialTab ?? section}`;
   return renderToStaticMarkup(createElement(CustomerDashboard, {
     name: "Alex", ownerUserId: "owner-1", events: [], initialTab: section, teaLabEnabled: true, ...extras
   }));

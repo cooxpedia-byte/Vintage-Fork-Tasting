@@ -44,11 +44,10 @@ type CustomerDashboardProps = {
   serverDrafts?: TeaLabSoloDraft[];
 };
 
-export function CustomerDashboard({ name, ownerUserId, events, initialTab, teaLabEnabled = false, journalSessions = [], archivedJournalSessions = [], libraryItems = [], cellarRecords = [], teaOptions = [], descriptorOptions = [], serverDrafts = [] }: CustomerDashboardProps) {
+export function CustomerDashboard({ name, ownerUserId, events, teaLabEnabled = false, journalSessions = [], archivedJournalSessions = [], libraryItems = [], cellarRecords = [], teaOptions = [], descriptorOptions = [], serverDrafts = [] }: CustomerDashboardProps) {
   const searchParams = useSearchParams();
   const [showArchivedJournal, setShowArchivedJournal] = useState(false);
-  const routeSection = searchParams.get("section");
-  const tab = routeSection === null ? initialTab : parseCustomerDashboardSection(routeSection);
+  const tab = parseCustomerDashboardSection(searchParams.get("section") ?? undefined);
   const navigationItems = DASHBOARD_NAV_ITEMS[teaLabEnabled ? "teaLab" : "standard"];
   const { completed, saved, average } = useMemo(() => teaLabEnabled && ownerUserId
     ? { completed: [], saved: [], average: 0 }
