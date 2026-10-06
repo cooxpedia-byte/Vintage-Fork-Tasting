@@ -47,9 +47,9 @@ const checks = [
     surface: "customer_dashboard",
     query: () => supabase.from("participants").select(`
       id,event_id,user_id,status,
-      event:events!inner(id,title,starts_at,timezone,location_mode,status,invite_code),
-      responses:tea_responses(id,rating,first_impression,personal_notes,descriptors,intensity,saved,completed_at,stamp_released_at,
-        flight:event_flight_items(id,reveal_title,position,brewing_instructions,steep_seconds,temperature_c,leaf_grams,water_ml,tea:teas(id,name,producer,origin,tea_type,default_steep_seconds)))
+      event:events!participants_event_id_fkey!inner(id,title,starts_at,timezone,location_mode,status,invite_code),
+      responses:tea_responses!tea_responses_participant_id_fkey(id,rating,first_impression,personal_notes,descriptors,intensity,saved,completed_at,stamp_released_at,
+        flight:event_flight_items!tea_responses_event_flight_item_id_fkey(id,reveal_title,position,brewing_instructions,steep_seconds,temperature_c,leaf_grams,water_ml,tea:teas!event_flight_items_tea_id_fkey(id,name,producer,origin,tea_type,default_steep_seconds)))
     `).limit(0)
   }
 ];
