@@ -28,9 +28,9 @@ function OrderRows({ orders, full = false, operations }: { orders: AdminOrder[];
       {orders.map((order) => {
         const operation=operations?.get("native:"+order.id)??order.operation;
         return (
-        <div className={`admin-order-row ${full ? "is-full" : ""}`} role="row" key={order.id}>
+        <div className={`admin-order-row ${full ? "is-full" : ""} ${order.source === "pos" ? "is-in-store" : ""}`} role="row" key={order.id}>
           <div role="cell"><Link className="admin-order-number-link" href={"/admin/orders/native/"+encodeURIComponent(order.id)} prefetch={false} aria-label={`Open order #${order.orderNumber}`}><strong>#{order.orderNumber}</strong></Link><small>{orderDate(order.placedAt)}</small></div>
-          <div role="cell"><span>{order.customerEmail}</span><small>{order.source.replaceAll("_", " ")}</small></div>
+          <div role="cell"><span>{order.customerEmail}</span><small>{order.source === "pos" ? "In store purchase" : order.source.replaceAll("_", " ")}</small></div>
           {full && <div role="cell"><small>Payment</small><span>{order.paymentStatus?.replaceAll("_", " ") || "Unknown"}</span></div>}
           <div role="cell"><OrderStatusBadge source="native" status={order.status} operation={operation}/></div>
           <strong role="cell">{money(order.totalCents, order.currency)}</strong>

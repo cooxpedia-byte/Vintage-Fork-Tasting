@@ -212,6 +212,8 @@
 .unified-admin .admin-order-row > div { min-width: 0; display: grid; gap: .12rem; }
 .unified-admin .admin-order-row > div span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .unified-admin .admin-order-row small { color: var(--vf-fog); font-size: .68rem; text-transform: capitalize; }
+.unified-admin .admin-order-row.is-in-store { background: #fff0df; }
+.unified-admin .admin-order-row.is-in-store small { color: #78451f; }
 .unified-admin .admin-order-row > strong:last-child { color: var(--vf-plum-aged); font-variant-numeric: tabular-nums; text-align: right; }
 .unified-admin .admin-order-status { justify-self: start; padding: .32rem .54rem; border-radius: 999px; color: var(--vf-walnut); background: rgba(136,132,87,.14); font-size: .65rem; font-weight: 900; letter-spacing: .04em; text-transform: capitalize; }
 .unified-admin .admin-order-status.is-paid,.unified-admin .admin-order-status.is-fulfilled { color: var(--vf-forest); background: rgba(113,127,83,.15); }
