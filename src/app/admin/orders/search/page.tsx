@@ -41,7 +41,7 @@ function statusLabel(value: string | null): string {
   return value.replace(/^wc-/, "").replaceAll(/[_-]+/g, " ");
 }
 
-export default async function AdminOrderSearchPage({ searchParams }: { searchParams?: Promise<SearchParams> } = {}) {
+export default async function AdminOrderSearchPage({ searchParams }: { searchParams?: Promise<SearchParams> }) {
   const staff = await requireStaff(["admin"]);
   const client = await authorizedCommerceClient(staff.user.id);
   if (!client) return <StoreConnectionNotice orders />;

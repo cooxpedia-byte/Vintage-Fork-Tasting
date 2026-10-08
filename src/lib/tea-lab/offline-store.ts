@@ -19,3 +19,7 @@ export function teaLabDraftStorageKey(ownerUserId: string, sessionId: string): s
 export function teaLabOperationStorageKey(ownerUserId: string, operationId: string): string {
   return `${ownerUserId}:${operationId}`;
 }
+
+export function compareTeaLabOperations(left: TeaLabOutboxOperation, right: TeaLabOutboxOperation): number {
+  return left.sequence - right.sequence || left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id);
+}

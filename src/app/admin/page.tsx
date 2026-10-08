@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage({ searchParams }: { searchParams?: Promise<{ salesPeriod?: string | string[] }> } = {}) {
+export default async function AdminPage({ searchParams }: { searchParams?: Promise<{ salesPeriod?: string | string[] }> }) {
   const staff = await requireStaff();
   if (staff.role === "host") redirect("/admin/events");
   const client = await authorizedCommerceClient(staff.user.id);

@@ -13,7 +13,7 @@ function displayUnits(units: number | null): string {
   return units === null ? "—" : units.toLocaleString("en-CA");
 }
 
-export default async function ProductSalesPage({ searchParams }: { searchParams?: Promise<SearchParams> } = {}) {
+export default async function ProductSalesPage({ searchParams }: { searchParams?: Promise<SearchParams> }) {
   const staff = await requireStaff(["admin"]);
   const client = await authorizedCommerceClient(staff.user.id);
   if (!client) return <StoreConnectionNotice />;
