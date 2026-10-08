@@ -4,9 +4,8 @@ export type TeaLabBrewingStyleGroup = "everyday" | "chinese" | "japanese" | "col
 export type TeaLabBrewDurationUnit = "seconds" | "minutes" | "hours";
 export type TeaLabDurationPart = TeaLabBrewDurationUnit;
 
-export const TEA_LAB_MAX_DURATION_HOURS = 99;
-export const TEA_LAB_MAX_DURATION_SECONDS =
-  TEA_LAB_MAX_DURATION_HOURS * 3600 + 59 * 60 + 59;
+export const TEA_LAB_MAX_DURATION_HOURS = 60;
+export const TEA_LAB_MAX_DURATION_SECONDS = TEA_LAB_MAX_DURATION_HOURS * 3600;
 
 export type TeaLabBrewingStyleDefinition = {
   id: TeaLabBrewingStyle;
@@ -336,7 +335,7 @@ export function adjustTeaLabDuration(
     : part === "minutes"
       ? TEA_LAB_MAX_DURATION_HOURS * 3600 + 59 * 60 + lowerColumns
       : TEA_LAB_MAX_DURATION_SECONDS;
-  return Math.min(upperBound, Math.max(lowerColumns, current + Math.trunc(steps) * multiplier));
+  return Math.min(TEA_LAB_MAX_DURATION_SECONDS, upperBound, Math.max(lowerColumns, current + Math.trunc(steps) * multiplier));
 }
 
 export function formatTeaLabDuration(seconds: number | null | undefined): string | null {

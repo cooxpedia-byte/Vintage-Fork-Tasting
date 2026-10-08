@@ -2,6 +2,7 @@
 
 import type { TeaLabOutboxOperation, TeaLabSoloDraft } from "@/lib/tea-lab/offline";
 import {
+  compareTeaLabOperations,
   teaLabDraftStorageKey,
   teaLabOperationStorageKey,
   type TeaLabOfflineStore
@@ -150,9 +151,7 @@ export class IndexedDbTeaLabOfflineStore implements TeaLabOfflineStore {
     const database = await this.database;
     const transaction = database.transaction(OPERATION_STORE, "readonly");
     const records = await requestResult(transaction.objectStore(OPERATION_STORE).index("owner").getAll(ownerUserId) as IDBRequest<StoredOperation[]>);
-    return records.map(record => removeStorageKey(record) as TeaLabOutboxOperation).sort((left, right) =>
-      left.createdAt.localeCompare(right.createdAt) || left.sequence - right.sequence || left.id.localeCompare(right.id)
-    );
+    return records.map(record => removeStorageKey(record) as TeaLabOutboxOperation).sort(compareTeaLabOperations);
   }
 
   async putOperation(operation: TeaLabOutboxOperation): Promise<void> {

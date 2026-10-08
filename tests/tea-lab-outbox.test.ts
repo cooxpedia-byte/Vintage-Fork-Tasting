@@ -8,10 +8,12 @@ import {
 } from "@/lib/tea-lab/offline";
 import {
   createTeaLabDraftAutosave,
+  hydrateTeaLabDraftFromServer,
   queueTeaLabArchive,
   queueTeaLabCompletion,
   queueTeaLabDeletion,
   queueTeaLabDraftSave,
+  persistTeaLabDraft,
   retryTeaLabBlockedDeviceDraft,
   retryTeaLabConflictWithDeviceDraft,
   retryTeaLabConflictWithDeviceDraftForCompletion,
@@ -156,6 +158,19 @@ describe("Tea Lab offline outbox", () => {
     expect(saved[0].tasting.personalNotes).toBe("Latest");
   });
 
+  it("lets an explicit flush retry the latest draft after device persistence fails", async () => {
+    const save = vi.fn().mockRejectedValueOnce(new Error("Device storage temporarily unavailable")).mockResolvedValueOnce(undefined);
+    const autosave = createTeaLabDraftAutosave(save);
+    const draft = tastingDraft();
+    autosave.schedule(draft);
+
+    await expect(autosave.flush()).rejects.toThrow("temporarily unavailable");
+    await expect(autosave.flush()).resolves.toBeUndefined();
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith(draft);
+  });
+
   it("creates stable session/card IDs and owner-qualified storage keys", () => {
     const draft = createSoloTeaDraft("owner-1", idFactory("session-1", "card-1"), () => "2026-08-03T12:00:00.000Z");
 
@@ -213,7 +228,48 @@ describe("Tea Lab offline outbox", () => {
     });
   });
 
-  it("serializes background synchronization with a newer autosave from the same owner", async () => {
+  it("serializes server hydration with a newly queued device edit", async () => {
+    const store = new MemoryTeaLabStore();
+    const stale = tastingDraft();
+    await store.putDraft(stale);
+    let pauseRead = true;
+    const getDraft = store.getDraft.bind(store);
+    let releaseRead: () => void = () => undefined;
+    const paused = new Promise<void>(resolve => { releaseRead = resolve; });
+    let markStarted: () => void = () => undefined;
+    const started = new Promise<void>(resolve => { markStarted = resolve; });
+    store.getDraft = async (ownerUserId, sessionId) => {
+      const draft = await getDraft(ownerUserId, sessionId);
+      if (pauseRead) {
+        pauseRead = false;
+        markStarted();
+        await paused;
+      }
+      return draft;
+    };
+    const server = { ...stale, serverRevision: 1, tasting: { ...stale.tasting, personalNotes: "Older server notes" } };
+    const hydration = hydrateTeaLabDraftFromServer(store, server);
+    await started;
+    const edit = queueTeaLabDraftSave(store, { ...stale, tasting: { ...stale.tasting, personalNotes: "Latest device notes" } }, idFactory("save-1"), clockFactory());
+    releaseRead();
+    await Promise.all([hydration, edit]);
+
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({ serverRevision: 1, tasting: { personalNotes: "Latest device notes" } });
+    await hydrateTeaLabDraftFromServer(store, { ...server, serverRevision: 2 });
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({ serverRevision: 1, tasting: { personalNotes: "Latest device notes" } });
+  });
+
+  it("checks the live unsaved-edit guard before committing a server hydration", async () => {
+    const store = new MemoryTeaLabStore();
+    const local = tastingDraft();
+    await store.putDraft(local);
+
+    await hydrateTeaLabDraftFromServer(store, { ...local, serverRevision: 1 }, () => true);
+
+    expect(await store.getDraft("owner-1", "session-1")).toEqual(local);
+  });
+
+  it("persists newer edits while a server save is delayed and preserves them through acknowledgment", async () => {
     const store = new MemoryTeaLabStore();
     const clock = clockFactory();
     const staleUiDraft = tastingDraft();
@@ -223,12 +279,18 @@ describe("Tea Lab offline outbox", () => {
     const transportPaused = new Promise<void>(resolve => { releaseTransport = resolve; });
     let markTransportStarted: () => void = () => undefined;
     const transportStarted = new Promise<void>(resolve => { markTransportStarted = resolve; });
+    const sent: Array<number | null> = [];
+    const sentNotes: Array<string | null> = [];
+    let revision = 0;
     const firstSync = syncTeaLabOutbox(store, "owner-1", async operation => {
       markTransportStarted();
+      sent.push(operation.expectedRevision);
+      if (operation.kind === "save") sentNotes.push(operation.payload.tasting.personalNotes);
       await transportPaused;
+      revision += 1;
       return {
         outcome: "success",
-        session: { id: operation.sessionId, status: "in_progress", revision: 1, completedAt: null, archivedAt: null }
+        session: { id: operation.sessionId, status: "in_progress", revision, completedAt: null, archivedAt: null }
       };
     }, clock);
     await transportStarted;
@@ -237,30 +299,86 @@ describe("Tea Lab offline outbox", () => {
       ...staleUiDraft,
       tasting: { ...staleUiDraft.tasting, personalNotes: "Typed while the prior save was syncing" }
     };
-    let autosaveFinished = false;
-    const autosave = queueTeaLabDraftSave(store, changedWhileSyncing, idFactory("save-2"), clock)
-      .then(result => { autosaveFinished = true; return result; });
-    await Promise.resolve();
-    expect(autosaveFinished).toBe(false);
+    await queueTeaLabDraftSave(store, changedWhileSyncing, idFactory("save-2"), clock);
+    const latestWhileSyncing = {
+      ...changedWhileSyncing,
+      tasting: { ...changedWhileSyncing.tasting, personalNotes: "Latest edit coalesced while the prior save was syncing" }
+    };
+    const coalesced = await queueTeaLabDraftSave(store, latestWhileSyncing, idFactory("save-3"), clock);
+    expect(coalesced.operation?.id).toBe("save-2");
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({
+      serverRevision: 0,
+      tasting: { personalNotes: "Latest edit coalesced while the prior save was syncing" }
+    });
 
     releaseTransport();
     await firstSync;
-    await autosave;
 
-    const sent: Array<number | null> = [];
-    await syncTeaLabOutbox(store, "owner-1", async operation => {
-      sent.push(operation.expectedRevision);
-      return {
-        outcome: "success",
-        session: { id: operation.sessionId, status: "in_progress", revision: 2, completedAt: null, archivedAt: null }
-      };
-    }, clock);
-
-    expect(sent).toEqual([1]);
+    expect(sent).toEqual([0, 1]);
+    expect(sentNotes).toEqual(["Private steep notes", "Latest edit coalesced while the prior save was syncing"]);
     expect(await store.getDraft("owner-1", "session-1")).toMatchObject({
       serverRevision: 2,
-      tasting: { personalNotes: "Typed while the prior save was syncing" }
+      tasting: { personalNotes: "Latest edit coalesced while the prior save was syncing" }
     });
+  });
+
+  it("serializes separate sync callers while device edits remain writable", async () => {
+    const store = new MemoryTeaLabStore();
+    const clock = clockFactory();
+    await queueTeaLabDraftSave(store, tastingDraft(), idFactory("save-1"), clock);
+    let releaseTransport: () => void = () => undefined;
+    const paused = new Promise<void>(resolve => { releaseTransport = resolve; });
+    let markStarted: () => void = () => undefined;
+    const started = new Promise<void>(resolve => { markStarted = resolve; });
+    let concurrent = 0;
+    let maximumConcurrent = 0;
+    const transport: TeaLabOperationTransport = async operation => {
+      concurrent += 1;
+      maximumConcurrent = Math.max(maximumConcurrent, concurrent);
+      markStarted();
+      await paused;
+      concurrent -= 1;
+      return { outcome: "success", session: { id: operation.sessionId, status: "in_progress", revision: operation.expectedRevision! + 1, completedAt: null, archivedAt: null } };
+    };
+    const first = syncTeaLabOutbox(store, "owner-1", transport, clock);
+    await started;
+    const second = syncTeaLabOutbox(store, "owner-1", transport, clock);
+    await queueTeaLabDraftSave(store, { ...tastingDraft(), tasting: { ...tastingDraft().tasting, personalNotes: "New while syncing" } }, idFactory("save-2"), clock);
+    releaseTransport();
+    await Promise.all([first, second]);
+
+    expect(maximumConcurrent).toBe(1);
+    expect(await store.listOperations("owner-1")).toEqual([]);
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({ serverRevision: 2, tasting: { personalNotes: "New while syncing" } });
+  });
+
+  it("does not restore a cancelled save after deletion replaces it during transport", async () => {
+    const store = new MemoryTeaLabStore();
+    const clock = clockFactory();
+    const draft = tastingDraft();
+    await queueTeaLabDraftSave(store, draft, idFactory("save-1"), clock);
+    let markStarted: () => void = () => undefined;
+    const started = new Promise<void>(resolve => { markStarted = resolve; });
+    let releaseTransport: () => void = () => undefined;
+    const paused = new Promise<void>(resolve => { releaseTransport = resolve; });
+    const sent: string[] = [];
+    const syncing = syncTeaLabOutbox(store, "owner-1", async operation => {
+      sent.push(operation.kind);
+      if (operation.kind === "save") {
+        markStarted();
+        await paused;
+        return { outcome: "retry", code: "network_unavailable" };
+      }
+      return { outcome: "success" };
+    }, clock);
+    await started;
+    await queueTeaLabDeletion(store, draft, idFactory("delete-1"), clock);
+    releaseTransport();
+    await syncing;
+
+    expect(sent).toEqual(["save", "delete"]);
+    expect(await store.listOperations("owner-1")).toEqual([]);
+    expect(await store.getDraft("owner-1", "session-1")).toBeNull();
   });
 
   it("requeues an explicitly chosen device copy against the reviewed server revision", async () => {
@@ -391,6 +509,36 @@ describe("Tea Lab offline outbox", () => {
     expect(await store.listOperations("owner-1")).toEqual([]);
   });
 
+  it("keeps transient invalid brewing values on the device and queues the corrected values", async () => {
+    const store = new MemoryTeaLabStore();
+    const draft = { ...tastingDraft(), brewing: { waterMl: 0 } };
+    const invalid = await queueTeaLabDraftSave(store, draft, idFactory("invalid-save"), clockFactory());
+
+    expect(invalid.operation).toBeNull();
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({ brewing: { waterMl: 0 } });
+    expect(await store.listOperations("owner-1")).toEqual([]);
+    await expect(queueTeaLabCompletion(store, draft)).rejects.toThrow("water amount");
+
+    const valid = await queueTeaLabDraftSave(store, { ...invalid.draft, brewing: { waterMl: 120 } }, idFactory("valid-save"), clockFactory());
+    expect(valid.operation).toMatchObject({ id: "valid-save", payload: { brewing: { waterMl: 120 } } });
+  });
+
+  it("normalizes blank optional tea and brewing text without changing the device draft", async () => {
+    const store = new MemoryTeaLabStore();
+    const draft = {
+      ...tastingDraft(),
+      tea: { kind: "personal" as const, personalTeaId: "tea-1", name: "Moonlight White", producer: "   ", origin: "  Yunnan  " },
+      brewing: { vessel: "   ", waterSource: "", preparationNotes: "  ", stages: [{ label: "First steep", notes: "  " }] }
+    };
+    const queued = await queueTeaLabDraftSave(store, draft, idFactory("save-1"), clockFactory());
+
+    expect(queued.operation?.payload).toMatchObject({
+      tea: { producer: null, origin: "Yunnan" },
+      brewing: { vessel: null, waterSource: null, preparationNotes: null, stages: [{ notes: null }] }
+    });
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({ tea: { producer: "   " }, brewing: { vessel: "   " } });
+  });
+
   it("queues save before completion and injects each confirmed server revision", async () => {
     const store = new MemoryTeaLabStore();
     const clock = clockFactory();
@@ -413,6 +561,45 @@ describe("Tea Lab offline outbox", () => {
     expect(summary).toMatchObject({ attempted: 2, succeeded: 2, pending: 0 });
     expect(await store.listOperations("owner-1")).toEqual([]);
     expect(savedDraft).toMatchObject({ serverRevision: 2, status: "completed" });
+  });
+
+  it("saves the latest edits before an unattempted completion after an earlier save needs retry", async () => {
+    const store = new MemoryTeaLabStore();
+    const clock = clockFactory();
+    const queued = await queueTeaLabCompletion(store, tastingDraft(), idFactory("save-1", "complete-1"), clock);
+    await syncTeaLabOutbox(store, "owner-1", async () => ({ outcome: "retry", code: "network_unavailable" }), clock);
+    const edited = { ...queued.draft, tasting: { ...queued.draft.tasting, personalNotes: "Latest reviewed notes" } };
+    await queueTeaLabCompletion(store, edited, idFactory("save-2"), clock);
+    const sent: string[] = [];
+    let revision = 0;
+    await syncTeaLabOutbox(store, "owner-1", async operation => {
+      sent.push(operation.kind === "save" ? `${operation.id}:${operation.payload.tasting.personalNotes}` : operation.id);
+      revision += 1;
+      return {
+        outcome: "success",
+        session: { id: operation.sessionId, status: operation.kind === "complete" ? "completed" : "in_progress", revision, completedAt: null, archivedAt: null }
+      };
+    }, clock);
+
+    expect(sent).toEqual(["save-1:Private steep notes", "save-2:Latest reviewed notes", "complete-1"]);
+  });
+
+  it("keeps the save before its completion if the device clock moves backward", async () => {
+    const store = new MemoryTeaLabStore();
+    let tick = 10;
+    const clock = () => new Date(Date.UTC(2026, 7, 3, 12, 0, tick--)).toISOString();
+    await queueTeaLabCompletion(store, tastingDraft(), idFactory("save-1", "complete-1"), clock);
+    const sent: string[] = [];
+    const summary = await syncTeaLabOutbox(store, "owner-1", async operation => {
+      sent.push(operation.kind);
+      return {
+        outcome: "success",
+        session: { id: operation.sessionId, status: operation.kind === "complete" ? "completed" : "in_progress", revision: operation.kind === "complete" ? 2 : 1, completedAt: null, archivedAt: null }
+      };
+    }, clock);
+
+    expect(sent).toEqual(["save", "complete"]);
+    expect(summary).toMatchObject({ succeeded: 2, failed: 0 });
   });
 
   it("keeps a corrected completed card completed after saving", async () => {
@@ -515,6 +702,27 @@ describe("Tea Lab offline outbox", () => {
     expect(await store.getDraft("owner-2", "session-1")).not.toBeNull();
   });
 
+  it("queues a server deletion when an older UI snapshot still has revision zero", async () => {
+    const store = new MemoryTeaLabStore();
+    const stale = tastingDraft();
+    await store.putDraft({ ...stale, serverRevision: 1, lastSyncedAt: "2026-08-03T12:01:00.000Z" });
+
+    const operation = await queueTeaLabDeletion(store, stale, idFactory("delete-1"), clockFactory());
+
+    expect(operation).toMatchObject({ id: "delete-1", kind: "delete" });
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({ serverRevision: 1 });
+  });
+
+  it("retains confirmed revision and completion when persisting an older device-only snapshot", async () => {
+    const store = new MemoryTeaLabStore();
+    const stale = tastingDraft();
+    await store.putDraft({ ...stale, status: "completed", serverRevision: 2, lastSyncedAt: "2026-08-03T12:01:00.000Z" });
+
+    await persistTeaLabDraft(store, { ...stale, tea: null }, clockFactory());
+
+    expect(await store.getDraft("owner-1", "session-1")).toMatchObject({ serverRevision: 2, status: "completed", tea: null });
+  });
+
   it("archives a completed session through the revision-checked outbox and keeps its seal evidence", async () => {
     const store = new MemoryTeaLabStore();
     const draft = { ...tastingDraft(), status: "completed" as const, serverRevision: 2 };
@@ -532,6 +740,21 @@ describe("Tea Lab offline outbox", () => {
 
     expect(sent).toEqual([{ kind: "archive", expectedRevision: 2 }]);
     expect(await store.getDraft("owner-1", "session-1")).toMatchObject({ archived: true, status: "completed", serverRevision: 3 });
+  });
+
+  it("archives against the stored confirmed revision when the UI snapshot is older", async () => {
+    const store = new MemoryTeaLabStore();
+    const stale = tastingDraft();
+    await store.putDraft({ ...stale, status: "completed", serverRevision: 2, lastSyncedAt: "2026-08-03T12:01:00.000Z" });
+    await queueTeaLabArchive(store, stale, true, idFactory("archive-1"), clockFactory());
+    const sent: Array<number | null> = [];
+    const summary = await syncTeaLabOutbox(store, "owner-1", async operation => {
+      sent.push(operation.expectedRevision);
+      return { outcome: "success", session: { id: operation.sessionId, status: "completed", revision: 3, completedAt: null, archivedAt: "2026-08-03T12:02:00.000Z" } };
+    }, clockFactory());
+
+    expect(sent).toEqual([2]);
+    expect(summary).toMatchObject({ succeeded: 1, failed: 0 });
   });
 
   it("removes a never-sent local draft without creating a server deletion", async () => {

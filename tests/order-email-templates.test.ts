@@ -10,7 +10,8 @@ import {
 const mocks = vi.hoisted(() => ({ staff: vi.fn(), commerce: vi.fn(), rpc: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ requireStaff: mocks.staff }));
 vi.mock("@/lib/supabase/commerce-server", () => ({ authorizedCommerceClient: mocks.commerce }));
-import { GET, POST, saveOrderEmailSchema } from "@/app/api/admin/order-emails/route";
+import { GET, POST } from "@/app/api/admin/order-emails/route";
+import { saveOrderEmailSchema } from "@/lib/admin/order-email-validation";
 
 const savedRow: OrderEmailTemplate = {
   eventType: "merchant_new_order", enabled: false, subjectOverride: "New tea order #{{orderNumber}}",

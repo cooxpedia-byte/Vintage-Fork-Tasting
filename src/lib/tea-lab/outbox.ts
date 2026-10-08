@@ -3,6 +3,8 @@
 import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import { listenForConnectionRetry } from "@/lib/connection-health";
 import type { TeaLabSessionResult } from "@/lib/tea-lab/api";
+import { chooseDraftForHydration } from "@/lib/tea-lab/lab";
+import { teaLabBrewingValidationError } from "@/lib/tea-lab/lab-flow";
 import {
   createTeaLabOperationBase,
   type TeaLabArchiveOperation,
@@ -12,7 +14,7 @@ import {
   type TeaLabSaveOperation,
   type TeaLabSoloDraft
 } from "@/lib/tea-lab/offline";
-import type { TeaLabOfflineStore } from "@/lib/tea-lab/offline-store";
+import { compareTeaLabOperations, type TeaLabOfflineStore } from "@/lib/tea-lab/offline-store";
 
 type IdFactory = () => string;
 type Clock = () => string;
@@ -20,22 +22,31 @@ type Clock = () => string;
 const defaultIdFactory: IdFactory = () => crypto.randomUUID();
 const defaultClock: Clock = () => new Date().toISOString();
 const ownerMutationChains = new Map<string, Promise<void>>();
+const ownerSyncChains = new Map<string, Promise<void>>();
 
-async function withCrossTabOwnerLock<T>(ownerUserId: string, work: () => Promise<T>): Promise<T> {
+async function withCrossTabOwnerLock<T>(name: string, work: () => Promise<T>): Promise<T> {
   if (typeof navigator === "undefined" || !navigator.locks) return work();
-  return navigator.locks.request(`tea-lab:${ownerUserId}`, { mode: "exclusive" }, work);
+  return navigator.locks.request(name, { mode: "exclusive" }, work);
 }
 
-async function withOwnerMutationLock<T>(ownerUserId: string, work: () => Promise<T>): Promise<T> {
-  const previous = ownerMutationChains.get(ownerUserId) ?? Promise.resolve();
-  const current = previous.catch(() => undefined).then(() => withCrossTabOwnerLock(ownerUserId, work));
+async function withOwnerLock<T>(
+  name: string,
+  chains: Map<string, Promise<void>>,
+  work: () => Promise<T>
+): Promise<T> {
+  const previous = chains.get(name) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(() => withCrossTabOwnerLock(name, work));
   const settled = current.then(() => undefined, () => undefined);
-  ownerMutationChains.set(ownerUserId, settled);
+  chains.set(name, settled);
   try {
     return await current;
   } finally {
-    if (ownerMutationChains.get(ownerUserId) === settled) ownerMutationChains.delete(ownerUserId);
+    if (chains.get(name) === settled) chains.delete(name);
   }
+}
+
+function withOwnerMutationLock<T>(ownerUserId: string, work: () => Promise<T>): Promise<T> {
+  return withOwnerLock(`tea-lab:${ownerUserId}`, ownerMutationChains, work);
 }
 
 export type TeaLabTransportResult =
@@ -66,6 +77,7 @@ export function createTeaLabDraftAutosave(
   onError: (error: unknown) => void = () => undefined
 ) {
   let pending: TeaLabSoloDraft | null = null;
+  let latestScheduledVersion = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let chain: Promise<unknown> = Promise.resolve();
 
@@ -74,14 +86,23 @@ export function createTeaLabDraftAutosave(
     timer = null;
     if (!pending) return chain;
     const draft = pending;
+    const version = latestScheduledVersion;
     pending = null;
-    const work = chain.catch(() => undefined).then(() => save(draft));
+    const work = chain.catch(() => undefined).then(async () => {
+      try {
+        return await save(draft);
+      } catch (error) {
+        if (version === latestScheduledVersion && !pending) pending = draft;
+        throw error;
+      }
+    });
     chain = work;
     return work;
   };
 
   const schedule = (draft: TeaLabSoloDraft) => {
     pending = draft;
+    latestScheduledVersion += 1;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => { void flush().catch(onError); }, delayMs);
   };
@@ -103,13 +124,29 @@ function snapshotSavePayload(draft: TeaLabSoloDraft): TeaLabSaveOperation["paylo
   }
   return {
     cardId: draft.cardId,
-    tea: { ...draft.tea },
+    tea: draft.tea.kind === "personal" ? {
+      ...draft.tea,
+      producer: optionalSaveText(draft.tea.producer),
+      origin: optionalSaveText(draft.tea.origin),
+      teaType: optionalSaveText(draft.tea.teaType),
+      cultivar: optionalSaveText(draft.tea.cultivar),
+      harvest: optionalSaveText(draft.tea.harvest),
+      productIdentifier: optionalSaveText(draft.tea.productIdentifier),
+      lotCode: optionalSaveText(draft.tea.lotCode)
+    } : { ...draft.tea },
     brewing: {
       ...draft.brewing,
-      stages: draft.brewing.stages?.map(stage => ({ ...stage }))
+      waterSource: optionalSaveText(draft.brewing.waterSource),
+      vessel: optionalSaveText(draft.brewing.vessel),
+      preparationNotes: optionalSaveText(draft.brewing.preparationNotes),
+      stages: draft.brewing.stages?.map(stage => ({ ...stage, notes: optionalSaveText(stage.notes) }))
     },
     tasting: { ...draft.tasting, descriptorIds: [...draft.tasting.descriptorIds] }
   };
+}
+
+function optionalSaveText(value: string | null | undefined): string | null | undefined {
+  return typeof value === "string" ? value.trim() || null : value;
 }
 
 function saveOperationForDraft(
@@ -144,12 +181,14 @@ async function rebaseDraftOnConfirmedServerState(store: TeaLabOfflineStore, draf
   return {
     ...draft,
     serverRevision: stored.serverRevision,
+    status: stored.status === "completed" ? "completed" : draft.status,
     lastSyncedAt: stored.lastSyncedAt
   };
 }
 
 async function persistTeaLabDraftUnlocked(store: TeaLabOfflineStore, draft: TeaLabSoloDraft, clock: Clock) {
-  const next = updatedDraft(draft, clock, draft.tea && draft.status === "draft" ? "in_progress" : draft.status);
+  const rebased = await rebaseDraftOnConfirmedServerState(store, draft);
+  const next = updatedDraft(rebased, clock, rebased.tea && rebased.status === "draft" ? "in_progress" : rebased.status);
   await store.putDraft(next);
   return next;
 }
@@ -158,13 +197,31 @@ export async function persistTeaLabDraft(store: TeaLabOfflineStore, draft: TeaLa
   return withOwnerMutationLock(draft.ownerUserId, () => persistTeaLabDraftUnlocked(store, draft, clock));
 }
 
+export async function hydrateTeaLabDraftFromServer(
+  store: TeaLabOfflineStore,
+  serverDraft: TeaLabSoloDraft,
+  shouldPreserveLocal: () => boolean = () => false
+): Promise<TeaLabSoloDraft | null> {
+  return withOwnerMutationLock(serverDraft.ownerUserId, async () => {
+    const [local, operations] = await Promise.all([
+      store.getDraft(serverDraft.ownerUserId, serverDraft.sessionId),
+      store.listOperations(serverDraft.ownerUserId)
+    ]);
+    if (shouldPreserveLocal()) return local;
+    const hydrated = chooseDraftForHydration(local, serverDraft,
+      operations.some(operation => operation.sessionId === serverDraft.sessionId));
+    if (hydrated !== local) await store.putDraft(hydrated);
+    return hydrated;
+  });
+}
+
 async function queueTeaLabDraftSaveUnlocked(
   store: TeaLabOfflineStore,
   draft: TeaLabSoloDraft,
   idFactory: IdFactory,
   clock: Clock
 ) {
-  if (!draft.tea || (draft.tea.kind === "personal" && !draft.tea.name.trim())) {
+  if (!draft.tea || (draft.tea.kind === "personal" && !draft.tea.name.trim()) || teaLabBrewingValidationError(draft.brewing)) {
     return { draft: await persistTeaLabDraftUnlocked(store, draft, clock), operation: null };
   }
   const rebased = await rebaseDraftOnConfirmedServerState(store, draft);
@@ -194,6 +251,8 @@ async function queueTeaLabCompletionUnlocked(
     throw new Error("Choose a tea before completing this tasting.");
   }
   if (!draft.tasting.rating) throw new Error("Add a rating before completing this tasting.");
+  const brewingError = teaLabBrewingValidationError(draft.brewing);
+  if (brewingError) throw new Error(brewingError);
   const rebased = await rebaseDraftOnConfirmedServerState(store, draft);
   const operations = await store.listOperations(rebased.ownerUserId);
   const nextDraft = updatedDraft(rebased, clock, "completion_pending");
@@ -204,7 +263,11 @@ async function queueTeaLabCompletionUnlocked(
   const existingCompletion = withSave.find((operation): operation is TeaLabCompleteOperation =>
     operation.sessionId === draft.sessionId && operation.kind === "complete"
   );
-  const completionOperation: TeaLabCompleteOperation = existingCompletion ?? {
+  const completionOperation: TeaLabCompleteOperation = existingCompletion
+    ? existingCompletion.attempts === 0 && existingCompletion.expectedRevision === null && existingCompletion.sequence < saveOperation.sequence
+      ? { ...existingCompletion, sequence: nextSequence(withSave), updatedAt: clock() }
+      : existingCompletion
+    : {
     ...createTeaLabOperationBase(nextDraft, nextSequence(withSave), idFactory, clock),
     kind: "complete",
     payload: null
@@ -329,8 +392,9 @@ export async function queueTeaLabArchive(
   clock: Clock = defaultClock
 ) {
   return withOwnerMutationLock(draft.ownerUserId, async () => {
-    const operations = await store.listOperations(draft.ownerUserId);
-    const nextDraft = { ...updatedDraft(draft, clock), archived };
+    const rebased = await rebaseDraftOnConfirmedServerState(store, draft);
+    const operations = await store.listOperations(rebased.ownerUserId);
+    const nextDraft = { ...updatedDraft(rebased, clock), archived };
     const operation: TeaLabArchiveOperation = {
       ...createTeaLabOperationBase(nextDraft, nextSequence(operations), idFactory, clock),
       kind: "archive",
@@ -348,27 +412,46 @@ export async function queueTeaLabDeletion(
   clock: Clock = defaultClock
 ) {
   return withOwnerMutationLock(draft.ownerUserId, async () => {
-    const operations = await store.listOperations(draft.ownerUserId);
-    const sessionOperations = operations.filter(operation => operation.sessionId === draft.sessionId);
-    if (draft.serverRevision === 0 && sessionOperations.every(operation => operation.attempts === 0)) {
-      await store.deleteSessionData(draft.ownerUserId, draft.sessionId);
+    const rebased = await rebaseDraftOnConfirmedServerState(store, draft);
+    const operations = await store.listOperations(rebased.ownerUserId);
+    const sessionOperations = operations.filter(operation => operation.sessionId === rebased.sessionId);
+    if (rebased.serverRevision === 0 && sessionOperations.every(operation => operation.attempts === 0)) {
+      await store.deleteSessionData(rebased.ownerUserId, rebased.sessionId);
       return null;
     }
     const existing = operations.find((operation): operation is TeaLabDeleteOperation =>
       operation.sessionId === draft.sessionId && operation.kind === "delete"
     );
     const operation: TeaLabDeleteOperation = existing ?? {
-      ...createTeaLabOperationBase(draft, nextSequence(operations), idFactory, clock),
+      ...createTeaLabOperationBase(rebased, nextSequence(operations), idFactory, clock),
       kind: "delete",
       payload: null
     };
-    await store.replaceSessionOperations(updatedDraft(draft, clock), [operation]);
+    await store.replaceSessionOperations(updatedDraft(rebased, clock), [operation]);
     return operation;
   });
 }
 
 function safeCode(value: unknown, fallback: string): string {
   return typeof value === "string" && /^[a-z0-9_]{1,80}$/.test(value) ? value : fallback;
+}
+
+async function withTeaLabRequestDeadline<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      const error = new Error("The tasting service took too long to respond. Try syncing again.");
+      error.name = "TimeoutError";
+      controller.abort(error);
+      reject(error);
+    }, 30000);
+  });
+  try {
+    return await Promise.race([work(controller.signal), deadline]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 async function responseBody(response: Response): Promise<Record<string, unknown>> {
@@ -390,12 +473,15 @@ function sessionFromBody(body: Record<string, unknown>): TeaLabSessionResult | u
 }
 
 export async function fetchTeaLabSessionState(sessionId: string): Promise<TeaLabSessionResult | null> {
-  const response = await authenticatedFetch(`/api/tea-lab/sessions/${sessionId}`, { method: "GET" });
+  const { response, body } = await withTeaLabRequestDeadline(async signal => {
+    const response = await authenticatedFetch(`/api/tea-lab/sessions/${sessionId}`, { method: "GET", signal });
+    return { response, body: await responseBody(response) };
+  });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(response.status === 401
     ? "Your session ended. Sign in again before saving this tasting."
     : "The latest saved version could not be checked.");
-  const session = sessionFromBody(await responseBody(response));
+  const session = sessionFromBody(body);
   if (!session) throw new Error("The latest saved version could not be checked.");
   return session;
 }
@@ -431,12 +517,15 @@ export const sendTeaLabOperation: TeaLabOperationTransport = async operation => 
   }
 
   try {
-    const response = await authenticatedFetch(endpoint, {
-      method,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body)
+    const { response, responseData } = await withTeaLabRequestDeadline(async signal => {
+      const response = await authenticatedFetch(endpoint, {
+        method,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        signal
+      });
+      return { response, responseData: await responseBody(response) };
     });
-    const responseData = await responseBody(response);
     const code = safeCode(responseData.code, `http_${response.status}`);
     if (response.ok || (operation.kind === "delete" && response.status === 404 && code === "session_not_found")) {
       if (operation.kind === "delete") return { outcome: "success" };
@@ -448,6 +537,9 @@ export const sendTeaLabOperation: TeaLabOperationTransport = async operation => 
     if (response.status === 408 || response.status === 429 || response.status >= 500) return { outcome: "retry", code };
     return { outcome: "rejected", code };
   } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") {
+      return { outcome: "retry", code: "request_timeout" };
+    }
     const message = error instanceof Error ? error.message : "";
     if (message.includes("session ended") || message.includes("sign in again")) {
       return { outcome: "authentication", code: "authentication_required" };
@@ -495,6 +587,9 @@ async function applySuccessfulOperation(
   if (!result.session) throw new Error("Tea Lab synchronization returned no session.");
   const draft = await store.getDraft(operation.ownerUserId, operation.sessionId);
   if (draft) {
+    const pendingArchive = (await store.listOperations(operation.ownerUserId))
+      .filter((queued): queued is TeaLabArchiveOperation => queued.sessionId === operation.sessionId && queued.kind === "archive" && queued.id !== operation.id)
+      .sort(compareTeaLabOperations).at(-1);
     const status = operation.kind === "complete"
       ? "completed"
       : draft.status === "completion_pending" ? draft.status : result.session.status === "completed" ? "completed" : "in_progress";
@@ -502,7 +597,7 @@ async function applySuccessfulOperation(
       ...draft,
       serverRevision: result.session.revision,
       status,
-      archived: result.session.archivedAt !== null,
+      archived: pendingArchive ? pendingArchive.payload.archived : result.session.archivedAt !== null,
       lastSyncedAt: clock()
     });
   }
@@ -515,73 +610,74 @@ async function syncTeaLabOutboxUnlocked(
   transport: TeaLabOperationTransport,
   clock: Clock
 ): Promise<TeaLabSyncSummary> {
-  const operations = await store.listOperations(ownerUserId);
   const blockedSessions = new Set<string>();
+  const processedOperations = new Set<string>();
   let attempted = 0;
   let succeeded = 0;
   let authenticationRequired = false;
   let conflicts = 0;
   let failed = 0;
 
-  for (const queued of operations) {
-    if (queued.ownerUserId !== ownerUserId || blockedSessions.has(queued.sessionId)) continue;
-    if (queued.state === "conflict") {
-      conflicts += 1;
-      blockedSessions.add(queued.sessionId);
-      continue;
-    }
-    if (queued.state === "failed") {
-      failed += 1;
-      blockedSessions.add(queued.sessionId);
-      continue;
-    }
-
-    const claimed = {
-      ...queued,
-      state: "syncing" as const,
-      attempts: queued.attempts + 1,
-      lastErrorCode: null,
-      updatedAt: clock()
-    };
-    await store.putOperation(claimed);
-    const operation = await materializeExpectedRevision(store, claimed, clock);
-    if (!operation) {
-      failed += 1;
-      blockedSessions.add(queued.sessionId);
-      continue;
-    }
+  while (true) {
+    const operation = await withOwnerMutationLock(ownerUserId, async () => {
+      const operations = (await store.listOperations(ownerUserId)).sort(compareTeaLabOperations);
+      for (const queued of operations) {
+        if (queued.ownerUserId !== ownerUserId || processedOperations.has(queued.id) || blockedSessions.has(queued.sessionId)) continue;
+        processedOperations.add(queued.id);
+        if (queued.state === "conflict" || queued.state === "failed") {
+          if (queued.state === "conflict") conflicts += 1;
+          else failed += 1;
+          blockedSessions.add(queued.sessionId);
+          continue;
+        }
+        const claimed = {
+          ...queued,
+          state: "syncing" as const,
+          attempts: queued.attempts + 1,
+          lastErrorCode: null,
+          updatedAt: clock()
+        };
+        await store.putOperation(claimed);
+        const materialized = await materializeExpectedRevision(store, claimed, clock);
+        if (materialized) return materialized;
+        failed += 1;
+        blockedSessions.add(queued.sessionId);
+      }
+      return null;
+    });
+    if (!operation) break;
 
     attempted += 1;
     const result = await transport(operation);
-    if (result.outcome === "success") {
-      try {
-        await applySuccessfulOperation(store, operation, result, clock);
-        succeeded += 1;
-      } catch {
-        await store.putOperation(withOperationState(operation, "pending", "invalid_response", clock));
-        break;
+    const stop = await withOwnerMutationLock(ownerUserId, async () => {
+      const stillQueued = (await store.listOperations(ownerUserId)).some(queued => queued.id === operation.id);
+      if (result.outcome === "success") {
+        try {
+          await applySuccessfulOperation(store, operation, result, clock);
+          succeeded += 1;
+        } catch {
+          if (stillQueued) await store.putOperation(withOperationState(operation, "pending", "invalid_response", clock));
+          return true;
+        }
+        return false;
       }
-      continue;
-    }
-    if (result.outcome === "authentication") {
-      await store.putOperation(withOperationState(operation, "authentication", result.code, clock));
-      authenticationRequired = true;
-      break;
-    }
-    if (result.outcome === "conflict") {
-      await store.putOperation(withOperationState(operation, "conflict", result.code, clock));
-      conflicts += 1;
-      blockedSessions.add(operation.sessionId);
-      continue;
-    }
-    if (result.outcome === "rejected") {
-      await store.putOperation(withOperationState(operation, "failed", result.code, clock));
-      failed += 1;
-      blockedSessions.add(operation.sessionId);
-      continue;
-    }
-    await store.putOperation(withOperationState(operation, "pending", result.code, clock));
-    break;
+      if (!stillQueued) return false;
+      if (result.outcome === "authentication") {
+        await store.putOperation(withOperationState(operation, "authentication", result.code, clock));
+        authenticationRequired = true;
+        return true;
+      }
+      if (result.outcome === "conflict" || result.outcome === "rejected") {
+        await store.putOperation(withOperationState(operation, result.outcome === "conflict" ? "conflict" : "failed", result.code, clock));
+        if (result.outcome === "conflict") conflicts += 1;
+        else failed += 1;
+        blockedSessions.add(operation.sessionId);
+        return false;
+      }
+      await store.putOperation(withOperationState(operation, "pending", result.code, clock));
+      return true;
+    });
+    if (stop) break;
   }
 
   const remaining = await store.listOperations(ownerUserId);
@@ -601,7 +697,7 @@ export async function syncTeaLabOutbox(
   transport: TeaLabOperationTransport = sendTeaLabOperation,
   clock: Clock = defaultClock
 ): Promise<TeaLabSyncSummary> {
-  return withOwnerMutationLock(ownerUserId, () => syncTeaLabOutboxUnlocked(store, ownerUserId, transport, clock));
+  return withOwnerLock(`tea-lab:sync:${ownerUserId}`, ownerSyncChains, () => syncTeaLabOutboxUnlocked(store, ownerUserId, transport, clock));
 }
 
 export function createTeaLabSyncRunner(

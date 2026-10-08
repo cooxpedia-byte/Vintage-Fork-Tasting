@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TeaLabDeleteOperation, TeaLabSaveOperation } from "@/lib/tea-lab/offline";
 
 const stubs = vi.hoisted(() => ({ authenticatedFetch: vi.fn() }));
@@ -42,6 +42,8 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+afterEach(() => { vi.useRealTimers(); });
+
 describe("Tea Lab operation transport", () => {
   it("loads the current server revision for an explicit device-copy retry", async () => {
     stubs.authenticatedFetch.mockResolvedValue(new Response(JSON.stringify({
@@ -51,7 +53,7 @@ describe("Tea Lab operation transport", () => {
     await expect(fetchTeaLabSessionState("session-1")).resolves.toEqual({
       id: "session-1", status: "in_progress", revision: 5, completedAt: null, archivedAt: null
     });
-    expect(stubs.authenticatedFetch).toHaveBeenCalledWith("/api/tea-lab/sessions/session-1", { method: "GET" });
+    expect(stubs.authenticatedFetch).toHaveBeenCalledWith("/api/tea-lab/sessions/session-1", { method: "GET", signal: expect.any(AbortSignal) });
   });
 
   it("sends the materialized save to the protected PR5 endpoint", async () => {
@@ -71,7 +73,8 @@ describe("Tea Lab operation transport", () => {
         tea: { kind: "canonical", canonicalTeaId: "tea-1" },
         brewing: { waterMl: 100 },
         tasting: saveOperation.payload.tasting
-      })
+      }),
+      signal: expect.any(AbortSignal)
     });
     expect(result).toEqual({
       outcome: "success",
@@ -101,5 +104,28 @@ describe("Tea Lab operation transport", () => {
     stubs.authenticatedFetch.mockResolvedValue(new Response(JSON.stringify({ code: "session_not_found" }), { status: 404 }));
 
     await expect(sendTeaLabOperation(deletion)).resolves.toEqual({ outcome: "success" });
+  });
+
+  it("aborts a stalled request and keeps the operation retryable", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    stubs.authenticatedFetch.mockImplementation((_input, init) => {
+      signal = init.signal;
+      return new Promise(() => undefined);
+    });
+    const sending = sendTeaLabOperation(saveOperation);
+    await vi.advanceTimersByTimeAsync(30000);
+
+    await expect(sending).resolves.toEqual({ outcome: "retry", code: "request_timeout" });
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it("bounds a stalled revision check so device-copy recovery can be retried", async () => {
+    vi.useFakeTimers();
+    stubs.authenticatedFetch.mockImplementation(() => new Promise(() => undefined));
+    const checking = expect(fetchTeaLabSessionState("session-1")).rejects.toThrow("took too long");
+    await vi.advanceTimersByTimeAsync(30000);
+
+    await checking;
   });
 });

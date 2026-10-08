@@ -97,17 +97,17 @@ describe("Tea Lab brewing flows", () => {
     });
   });
 
-  it("caps the duration wheel at 99 hours, 59 minutes and 59 seconds", () => {
+  it("caps every duration wheel column at the server-supported 60 hours", () => {
     expect(splitTeaLabDuration(TEA_LAB_MAX_DURATION_SECONDS)).toEqual({
-      hours: 99,
-      minutes: 59,
-      seconds: 59
+      hours: 60,
+      minutes: 0,
+      seconds: 0
     });
     expect(adjustTeaLabDuration(TEA_LAB_MAX_DURATION_SECONDS, "seconds", 1))
       .toBe(TEA_LAB_MAX_DURATION_SECONDS);
-    expect(adjustTeaLabDuration(99 * 3600, "hours", 1)).toBe(99 * 3600);
-    expect(adjustTeaLabDuration(99 * 3600 + 59 * 60 + 10, "minutes", 1))
-      .toBe(99 * 3600 + 59 * 60 + 10);
+    expect(adjustTeaLabDuration(60 * 3600, "hours", 1)).toBe(216000);
+    expect(adjustTeaLabDuration(59 * 3600 + 59 * 60 + 10, "minutes", 1)).toBe(216000);
+    expect(adjustTeaLabDuration(59 * 3600 + 59 * 60 + 59, "seconds", 1)).toBe(216000);
     expect(adjustTeaLabDuration(0, "seconds", -1)).toBe(0);
   });
 });

@@ -47,20 +47,20 @@ beforeEach(() => {
 describe("recovered staff admin access", () => {
   it("keeps anonymous users at staff sign-in before any store read", async () => {
     state.user = null;
-    await expect(AdminPage()).rejects.toThrow("redirect:/admin/login");
+    await expect(AdminPage({})).rejects.toThrow("redirect:/admin/login");
     expect(state.commerce).not.toHaveBeenCalled();
   });
   it("denies customers and redirects hosts to their current event workspace", async () => {
     state.role = "customer";
-    await expect(AdminPage()).rejects.toThrow("redirect:/unauthorized");
+    await expect(AdminPage({})).rejects.toThrow("redirect:/unauthorized");
     state.role = "host";
-    await expect(AdminPage()).rejects.toThrow("redirect:/admin/events");
+    await expect(AdminPage({})).rejects.toThrow("redirect:/admin/events");
     expect(state.commerce).not.toHaveBeenCalled();
     expect(state.overview).not.toHaveBeenCalled();
   });
   it("asks an administrator to connect the separate store account before loading commerce", async () => {
     state.commerce.mockResolvedValue(null);
-    const view = await AdminPage();
+    const view = await AdminPage({});
     expect(state.commerce).toHaveBeenCalledWith("verified-staff");
     expect(view.type).toBe(StoreConnectionNotice);
     expect(state.overview).not.toHaveBeenCalled();

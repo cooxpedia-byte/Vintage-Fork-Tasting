@@ -186,7 +186,7 @@ describe("Tea Lab workspace", () => {
     expect(tasteHtml).toContain(">+ Add infusion</button>");
     expect(brewHtml).toMatch(/id="water-temperature" type="range" min="0" max="100"/);
     expect(brewHtml).toContain('id="steep-seconds"');
-    expect(brewHtml).toMatch(/id="steep-seconds-hours" role="spinbutton"[^>]*aria-valuemax="99"/);
+    expect(brewHtml).toMatch(/id="steep-seconds-hours" role="spinbutton"[^>]*aria-valuemax="60"/);
     expect(brewHtml).toMatch(/id="steep-seconds-minutes" role="spinbutton"[^>]*aria-valuemax="59"/);
     expect(brewHtml).toMatch(/id="steep-seconds-seconds" role="spinbutton"[^>]*aria-valuemax="59"/);
     expect(brewHtml).toContain("Start steep");
@@ -249,5 +249,31 @@ describe("Tea Lab workspace", () => {
     expect(html).toContain("48 min");
     expect(html).toContain("Save This Copy &amp; Complete");
     expect(html).toMatch(/<button class="btn btn-gold btn-attention" type="button">Save This Copy &amp; Complete<\/button>/);
+  });
+
+  it("shows invalid brewing details and prevents review or completion until they are corrected", () => {
+    const base = createSoloTeaDraft("owner-1");
+    const draft = {
+      ...base, tea: { kind: "personal" as const, personalTeaId: "tea-1", name: "Moonlight White" },
+      brewing: { style: "gongfu" as const, waterMl: -1 }, tasting: { ...base.tasting, rating: 4 }
+    };
+    const shared = { draft, update: vi.fn(), back: vi.fn(), next: vi.fn() };
+    const brew = renderToStaticMarkup(createElement(BrewStep, shared));
+    const taste = renderToStaticMarkup(createElement(TasteStep, { ...shared, descriptors: [] }));
+    const review = renderToStaticMarkup(createElement(ReviewStep, {
+      draft, teaOptions: [], descriptors: [], back: vi.fn(), complete: vi.fn(), busy: false, blocked: false
+    }));
+
+    expect(brew).toContain("Enter a whole water amount from 1 to 10,000 ml");
+    expect(brew).toMatch(/disabled="">Continue to brew notes<\/button>/);
+    expect(taste).toMatch(/disabled="">Save &amp; Review<\/button>/);
+    expect(review).toMatch(/disabled="">Complete Tasting<\/button>/);
+  });
+
+  it("locks progress navigation while a photo or save is in progress", () => {
+    const html = renderToStaticMarkup(createElement(TeaLabProgress, {
+      step: "taste", furthestStep: "review", onNavigate: vi.fn(), disabled: true
+    }));
+    expect(html.match(/disabled=""/g)).toHaveLength(4);
   });
 });
