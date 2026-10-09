@@ -80,6 +80,37 @@ describe("loadNativeOrderDetail",()=>{
       .resolves.toMatchObject({state:"error"});
   });
 
+  it.each(["paid","fulfilled","partially_refunded","refunded"])
+  ("loads a saved Matcha invoice order with %s status",async(status)=>{
+    const matcha={...row,source:"matcha_subscription",payment_provider:"stripe",status,
+      stripe_subscription_id:"sub_matcha",stripe_invoice_id:"in_matcha",subtotal_cents:2400,
+      discount_cents:0,shipping_cents:500,tax_cents:0,total_cents:2900,
+      refunded_cents:status==="refunded"?2900:status==="partially_refunded"?100:0};
+    const line={...item,name_snapshot:"Matcha Subscribe & Save",sku_snapshot:"MATCHA-SUB-50G",
+      variant_snapshot:"50 g monthly",quantity:1,unit_amount_cents:2400,subtotal_cents:2400,
+      discount_cents:0,tax_cents:0,total_cents:2400,
+      fulfillment_status:status==="fulfilled"?"fulfilled":"unfulfilled"};
+    const c=client({data:matcha,error:null},{data:[line],count:1,error:null});
+    await expect(loadNativeOrderDetail(c.fake,ID)).resolves.toMatchObject({state:"ready",order:{
+      source:"matcha_subscription",status,paymentProvider:"stripe",stripeSubscriptionId:"sub_matcha",
+      stripeInvoiceId:"in_matcha",totalCents:2900,refundedCents:matcha.refunded_cents,
+      items:[{name:"Matcha Subscribe & Save",sku:"MATCHA-SUB-50G",variant:"50 g monthly",quantity:1}],
+    }});
+    expect(c.calls.map(call=>call.table)).toEqual(["commerce_orders","commerce_order_items"]);
+  });
+
+  it.each(["subscription_renewal","matcha_subscription"])
+  ("rejects incomplete %s invoice linkage before loading items",async(source)=>{
+    for(const field of ["stripe_subscription_id","stripe_invoice_id"]){
+      for(const value of [null,""," ",123]){
+        const c=client({data:{...row,source,stripe_subscription_id:"sub_1",stripe_invoice_id:"in_1",
+          [field]:value},error:null},{data:[item],count:1,error:null});
+        await expect(loadNativeOrderDetail(c.fake,ID)).resolves.toMatchObject({state:"error"});
+        expect(c.calls).toHaveLength(1);
+      }
+    }
+  });
+
   it("detects server-capped and duplicate item responses",async()=>{
     await expect(loadNativeOrderDetail(client({data:row,error:null},{data:[item],count:2,error:null}).fake,ID))
       .resolves.toMatchObject({state:"error"});
