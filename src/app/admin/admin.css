@@ -96,6 +96,14 @@
 .unified-admin .admin-sales-source { color: var(--vf-forest); font-weight: 750; }
 .unified-admin .admin-sales-unavailable { color: #8a2727; }
 .unified-admin .admin-sales-orders-link { width: fit-content; color: var(--vf-plum); font-size: .72rem; font-weight: 800; }
+.unified-admin .admin-traffic-panel { margin-top: 1rem; }
+.unified-admin .admin-traffic-panel .admin-panel-heading { flex-wrap: wrap; }
+.unified-admin .admin-traffic-filter { width: min(100%,280px); margin: 0; }
+.unified-admin .admin-traffic-timezone { margin: -.35rem 0 1rem; color: var(--vf-fog); font-size: .74rem; }
+.unified-admin .admin-traffic-card { gap: .55rem; align-content: start; }
+.unified-admin .admin-traffic-card:hover { transform: none; }
+.unified-admin .admin-traffic-card p { margin: 0; color: var(--vf-fog); font-size: .72rem; line-height: 1.4; }
+.unified-admin .admin-traffic-unavailable { margin: .5rem 0 0; color: var(--vf-walnut); font-size: .8rem; line-height: 1.5; }
 .unified-admin .admin-revenue-panel { margin-top: 1rem; }
 .unified-admin .admin-revenue-panel .admin-panel-heading { margin-bottom: .45rem; }
 .unified-admin .admin-revenue-intro { margin: 0 0 1.1rem; color: var(--vf-fog); font-size: .82rem; line-height: 1.5; }

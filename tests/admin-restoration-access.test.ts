@@ -8,12 +8,17 @@ const state = vi.hoisted(() => ({
   client: vi.fn(),
   commerce: vi.fn(),
   overview: vi.fn(),
+  traffic: vi.fn(),
   service: vi.fn(),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: state.client }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: state.service }));
 vi.mock("@/lib/supabase/commerce-server", () => ({ authorizedCommerceClient: state.commerce }));
 vi.mock("@/lib/admin/commerce", () => ({ loadCommerceOverview: state.overview }));
+vi.mock("@/lib/admin/traffic", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/admin/traffic")>(),
+  loadTrafficOverview: state.traffic,
+}));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => { throw new Error(`redirect:${path}`); },
   usePathname: () => "/admin",
@@ -57,6 +62,7 @@ describe("recovered staff admin access", () => {
     await expect(AdminPage({})).rejects.toThrow("redirect:/admin/events");
     expect(state.commerce).not.toHaveBeenCalled();
     expect(state.overview).not.toHaveBeenCalled();
+    expect(state.traffic).not.toHaveBeenCalled();
   });
   it("asks an administrator to connect the separate store account before loading commerce", async () => {
     state.commerce.mockResolvedValue(null);
@@ -68,15 +74,18 @@ describe("recovered staff admin access", () => {
   it("renders the actual commerce component with data from the bound administrator session", async () => {
     const client = { purpose: "bound-store-admin" };
     const data = { connected: true, recentOrders: [] };
+    const traffic = { status: "not_connected" };
     state.commerce.mockResolvedValue(client);
     state.overview.mockResolvedValue(data);
-    const view = await AdminPage({ searchParams: Promise.resolve({ salesPeriod: "last_week" }) });
+    state.traffic.mockResolvedValue(traffic);
+    const view = await AdminPage({ searchParams: Promise.resolve({ salesPeriod: "yesterday", trafficPeriod: "last_week" }) });
     expect(state.overview).toHaveBeenCalledWith(client, {
-      salesPeriod: "last_week",
+      salesPeriod: "yesterday",
       salesRange: expect.objectContaining({ start: expect.any(String), end: expect.any(String) }),
     });
     expect(view.type).toBe(CommerceAdminOverview);
-    expect(view.props).toEqual({ commerce: data, salesPeriod: "last_week" });
+    expect(state.traffic).toHaveBeenCalledWith(client, "last_week", expect.any(Date));
+    expect(view.props).toEqual({ commerce: data, salesPeriod: "yesterday", traffic });
   });
   it.each([
     ["orders", () => OrdersPage({ searchParams: Promise.resolve({}) })],

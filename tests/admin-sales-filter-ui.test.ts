@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CommerceAdminOverview } from "@/components/admin/CommerceAdminOverview";
 import type { CommerceOverview } from "@/lib/admin/commerce";
+import { unavailableTrafficOverview } from "@/lib/admin/traffic";
+import type { SalesPeriod } from "@/lib/admin/sales-periods";
 
 const overview: CommerceOverview = {
   connected: true,
@@ -32,16 +34,16 @@ const overview: CommerceOverview = {
   inventoryAlerts: [],
 };
 
-function html(commerce: CommerceOverview, salesPeriod: "month_to_date" | "last_month" | "last_year") {
-  return renderToStaticMarkup(createElement(CommerceAdminOverview, { commerce, salesPeriod }));
+function html(commerce: CommerceOverview, salesPeriod: SalesPeriod) {
+  return renderToStaticMarkup(createElement(CommerceAdminOverview, { commerce, salesPeriod, traffic: unavailableTrafficOverview("last_week") }));
 }
 
 describe("admin net sales filter", () => {
-  it("offers all seven sales periods and marks the current selection", () => {
+  it("offers all eight sales periods and marks the current selection", () => {
     const output = html(overview, "month_to_date");
     expect(output).toContain('<form class="admin-sales-filter admin-sales-filter-toolbar" action="/admin" method="get"');
     expect(output).toContain('name="salesPeriod"');
-    for (const label of ["Day", "Week to date", "Month to date", "Last week", "Last month", "Year to date", "Last year"]) {
+    for (const label of ["Day", "Yesterday", "Week to date", "Month to date", "Last week", "Last month", "Year to date", "Last year"]) {
       expect(output).toContain(`>${label}</option>`);
     }
     expect(output).toContain('value="month_to_date" selected=""');
@@ -55,6 +57,14 @@ describe("admin net sales filter", () => {
     expect(output).toContain("Shipping charged</dt><dd>$4.50");
     expect(output).toContain("Less refunds</dt><dd>-$1.05");
     expect(output).toContain("Net revenue, including tax and shipping</dt><dd>$123.45");
+  });
+
+  it("preserves the independent traffic filter when choosing Yesterday sales", () => {
+    const output = html(overview, "yesterday");
+    expect(output).toContain('value="yesterday" selected=""');
+    expect(output).toContain('type="hidden" name="trafficPeriod" value="last_week"');
+    expect(output).toContain("2 paid orders · Yesterday");
+    expect(output).toContain("Traffic");
   });
 
   it("labels previous-store totals as an estimate and shows the source warning", () => {
