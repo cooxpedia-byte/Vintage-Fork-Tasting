@@ -26,6 +26,7 @@ type TrafficContext = {
   period: TrafficPeriod;
   range: SalesPeriodRange;
   message: string;
+  captureLimited: boolean;
 };
 
 type UnavailableTrafficOverview = TrafficContext & {
@@ -53,6 +54,7 @@ export function unavailableTrafficOverview(period: TrafficPeriod = DEFAULT_TRAFF
     pageViews: null,
     averagePageViews: null,
     captureStartedAt: null,
+    captureLimited: false,
     message: "Website traffic data is not connected yet. Visitor and page view totals are unavailable for this period.",
   };
 }
@@ -77,6 +79,17 @@ export async function loadTrafficOverview(client: SupabaseClient, period: Traffi
       throw new Error("Traffic summary is unavailable.");
     }
     const data = response.data as Record<string, unknown>;
+    if (data.limited_events !== undefined && (typeof data.limited_events !== "number"
+      || !Number.isSafeInteger(data.limited_events) || data.limited_events < 0)
+      || data.capture_limited !== undefined && typeof data.capture_limited !== "boolean") {
+      throw new Error("Traffic coverage is invalid.");
+    }
+    // A disabled collector has no active capture start. Its raw zero counts
+    // cannot establish that the selected period had no consenting visits.
+    if (data.capture_started_at === null) return {
+      ...unavailable, status: "unavailable",
+      message: "Traffic measurement is not active. Visitor and page view totals are unavailable for this period.",
+    };
     const visitors = data.visitors, pageViews = data.page_views;
     const captureStartedAt = typeof data.capture_started_at === "string" ? data.capture_started_at : "";
     const capturedFrom = Date.parse(captureStartedAt);
@@ -93,12 +106,15 @@ export async function loadTrafficOverview(client: SupabaseClient, period: Traffi
       message: `Traffic measurement began ${began} Edmonton time. This period is earlier than the available data.`,
     };
     const partial = capturedFrom > Date.parse(unavailable.range.start);
+    const captureLimited = data.capture_limited === true || typeof data.limited_events === "number" && data.limited_events > 0;
+    const messages: string[] = [];
+    if (partial) messages.push(`Partial period: traffic measurement began ${began} Edmonton time. These totals include captured activity since then.`);
+    if (captureLimited) messages.push("Incomplete capture: measurement gaps or capture limits affected this period. Totals include only recorded activity.");
     return {
-      period, range: unavailable.range, status: partial ? "partial" : "complete",
+      period, range: unavailable.range, status: partial || captureLimited ? "partial" : "complete",
       visitors, pageViews, averagePageViews: visitors > 0 ? pageViews / visitors : null, captureStartedAt,
-      message: partial
-        ? `Partial period: traffic measurement began ${began} Edmonton time. These totals include captured activity since then.`
-        : "Traffic totals include captured website visits; unmeasured visits are not included. Average page views is total page views divided by visitors.",
+      captureLimited,
+      message: messages.join(" ") || "Traffic totals include consenting browsers and recorded public page views. Average page views is page views divided by browsers.",
     };
   } catch {
     return { ...unavailable, status: "unavailable", message: "Traffic totals could not be loaded. Please refresh." };
