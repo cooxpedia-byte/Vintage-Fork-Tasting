@@ -1,6 +1,7 @@
 /** Calendar periods for the staff sales total, in the store's local time zone. */
 export const SALES_PERIODS = [
   { value: "day", label: "Day" },
+  { value: "yesterday", label: "Yesterday" },
   { value: "week_to_date", label: "Week to date" },
   { value: "month_to_date", label: "Month to date" },
   { value: "last_week", label: "Last week" },
@@ -81,6 +82,7 @@ export function salesPeriodRange(period: SalesPeriod, now = new Date()): SalesPe
 
   switch (period) {
     case "day": return { start: localMidnight(today), end: now.toISOString() };
+    case "yesterday": return yesterdaySalesRange(now);
     case "week_to_date": return { start: localMidnight(thisMonday), end: now.toISOString() };
     case "month_to_date": return { start: localMidnight(thisMonth), end: now.toISOString() };
     case "last_week": return { start: localMidnight(dateWithDayOffset(thisMonday, -7)), end: localMidnight(thisMonday) };

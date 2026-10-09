@@ -6,6 +6,8 @@ import { OrderStatusControl } from "@/components/admin/OrderStatusControl";
 import type { OrderOperation } from "@/lib/admin/order-operations";
 import { SALES_PERIODS, type SalesPeriod } from "@/lib/admin/sales-periods";
 import { productEditorUrl } from "@/lib/admin/store-tools";
+import { AdminTrafficOverview } from "@/components/admin/AdminTrafficOverview";
+import type { TrafficOverview } from "@/lib/admin/traffic";
 
 const storefront = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "https://www.vintagefork.ca";
 
@@ -42,7 +44,7 @@ function OrderRows({ orders, full = false, operations }: { orders: AdminOrder[];
   );
 }
 
-export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: CommerceOverview; salesPeriod: SalesPeriod }) {
+export function CommerceAdminOverview({ commerce, salesPeriod, traffic }: { commerce: CommerceOverview; salesPeriod: SalesPeriod; traffic: TrafficOverview }) {
   const historicalEstimate = salesPeriod === "last_year";
   const salesAvailable = commerce.salesConnected && (!historicalEstimate || commerce.salesSource === "native-and-imported-estimate");
   const selectedPeriod = SALES_PERIODS.find(period => period.value === salesPeriod)?.label ?? "Month to date";
@@ -82,6 +84,7 @@ export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: Com
       )}
 
       <form action="/admin" method="get" className="admin-sales-filter admin-sales-filter-toolbar">
+        <input type="hidden" name="trafficPeriod" value={traffic.period} />
         <label htmlFor="admin-sales-period">Sales period</label>
         <div>
           <select id="admin-sales-period" name="salesPeriod" defaultValue={salesPeriod}>
@@ -119,6 +122,8 @@ export function CommerceAdminOverview({ commerce, salesPeriod }: { commerce: Com
           </Link>
         ))}
       </section>
+
+      <AdminTrafficOverview traffic={traffic} salesPeriod={salesPeriod} />
 
       <section className="admin-panel admin-revenue-panel" aria-labelledby="admin-revenue-heading">
         <div className="admin-panel-heading">

@@ -4,6 +4,7 @@ import { DEFAULT_SALES_PERIOD, parseSalesPeriod, salesPeriodRange } from "@/lib/
 describe("admin sales periods", () => {
   it("accepts only known, singular period values", () => {
     expect(parseSalesPeriod("last_year")).toBe("last_year");
+    expect(parseSalesPeriod("yesterday")).toBe("yesterday");
     expect(parseSalesPeriod(undefined)).toBe(DEFAULT_SALES_PERIOD);
     expect(parseSalesPeriod(["day", "last_year"])).toBe(DEFAULT_SALES_PERIOD);
     expect(parseSalesPeriod("all_time")).toBe(DEFAULT_SALES_PERIOD);
@@ -12,6 +13,7 @@ describe("admin sales periods", () => {
   it("uses Edmonton calendar boundaries for each requested period", () => {
     const now = new Date("2026-10-02T18:30:00.000Z");
     expect(salesPeriodRange("day", now)).toEqual({ start: "2026-10-02T06:00:00.000Z", end: now.toISOString() });
+    expect(salesPeriodRange("yesterday", now)).toEqual({ start: "2026-10-01T06:00:00.000Z", end: "2026-10-02T06:00:00.000Z" });
     expect(salesPeriodRange("week_to_date", now)).toEqual({ start: "2026-09-28T06:00:00.000Z", end: now.toISOString() });
     expect(salesPeriodRange("month_to_date", now)).toEqual({ start: "2026-10-01T06:00:00.000Z", end: now.toISOString() });
     expect(salesPeriodRange("last_week", now)).toEqual({ start: "2026-09-21T06:00:00.000Z", end: "2026-09-28T06:00:00.000Z" });
@@ -28,6 +30,10 @@ describe("admin sales periods", () => {
   });
 
   it("preserves 23-hour and 25-hour local days at daylight saving transitions", () => {
+    const springDay = salesPeriodRange("yesterday", new Date("2026-03-09T18:00:00.000Z"));
+    expect(springDay).toEqual({ start: "2026-03-08T07:00:00.000Z", end: "2026-03-09T06:00:00.000Z" });
+    const fallDay = salesPeriodRange("yesterday", new Date("2026-11-02T18:00:00.000Z"));
+    expect(fallDay).toEqual({ start: "2026-11-01T06:00:00.000Z", end: "2026-11-02T07:00:00.000Z" });
     const spring = salesPeriodRange("last_week", new Date("2026-03-09T18:00:00.000Z"));
     expect(spring).toEqual({ start: "2026-03-02T07:00:00.000Z", end: "2026-03-09T06:00:00.000Z" });
     expect((Date.parse(spring.end) - Date.parse(spring.start)) / 3600000).toBe(167);

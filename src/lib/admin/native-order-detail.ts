@@ -120,11 +120,16 @@ export async function loadNativeOrderDetail(
     if (orderResult.error) return { state:"error",message:ERROR_MESSAGE };
     if (!orderResult.data) return { state:"not_found" };
     const source = (orderResult.data as OrderRow).source;
-    if (source!=="web" && source!=="subscription_renewal") return { state:"not_found" };
+    if (source!=="web" && source!=="subscription_renewal" && source!=="matcha_subscription")
+      return { state:"not_found" };
     if ((orderResult.data as OrderRow).id!==id) return { state:"error",message:ERROR_MESSAGE };
-    if (source==="subscription_renewal" &&
-      (typeof (orderResult.data as OrderRow).stripe_subscription_id!=="string" ||
-       typeof (orderResult.data as OrderRow).stripe_invoice_id!=="string"))
+    // Both subscription paths save verified invoice orders. Keep incomplete
+    // subscription records out of the order detail, including empty link IDs.
+    const subscriptionId=(orderResult.data as OrderRow).stripe_subscription_id;
+    const invoiceId=(orderResult.data as OrderRow).stripe_invoice_id;
+    if ((source==="subscription_renewal" || source==="matcha_subscription") &&
+      (typeof subscriptionId!=="string" || !subscriptionId.trim() ||
+       typeof invoiceId!=="string" || !invoiceId.trim()))
       return { state:"error",message:ERROR_MESSAGE };
     const itemResult = await client.from("commerce_order_items").select(NATIVE_ORDER_ITEM_COLUMNS,{count:"exact"})
       .eq("order_id",id).order("created_at",{ascending:true}).order("id",{ascending:true});

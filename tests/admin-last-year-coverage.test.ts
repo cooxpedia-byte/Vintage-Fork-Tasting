@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CommerceAdminOverview } from "@/components/admin/CommerceAdminOverview";
 import { summarizeSalesPeriod, type CommerceOverview } from "@/lib/admin/commerce";
+import { unavailableTrafficOverview } from "@/lib/admin/traffic";
 
 type SalesResult = Parameters<typeof summarizeSalesPeriod>[1];
 
@@ -47,7 +48,7 @@ describe("Last Year sales coverage", () => {
       salesMessage: expect.stringMatching(/archive has no completed or processing orders/i),
     });
     const html = renderToStaticMarkup(createElement(CommerceAdminOverview, {
-      commerce: overview(summary), salesPeriod: "last_year",
+      commerce: overview(summary), salesPeriod: "last_year", traffic: unavailableTrafficOverview(),
     }));
     expect(html).toContain("Recorded order total estimate");
     expect(html).toContain("An estimate is unavailable.");
