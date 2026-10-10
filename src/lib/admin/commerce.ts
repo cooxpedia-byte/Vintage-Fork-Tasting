@@ -9,6 +9,9 @@ export type RevenueComponents = {
   merchandiseCents: number; taxCents: number; shippingCents: number;
   refundsCents: number; totalCents: number; orderCount: number;
 };
+export type RevenueChannels = {
+  inStore: RevenueComponents; online: RevenueComponents; unclassified: RevenueComponents;
+};
 export type HistoricalRevenueEstimate = {
   merchandiseCents: number; taxCents: number; shippingCents: number;
   recordedTotalCents: number; orderCount: number; excludedOrderCount: number; snapshotAt: string;
@@ -26,6 +29,8 @@ export type CommerceOverview = {
   netSalesCents: number; currency: string; orderCount: number; fulfilmentCount: number | null;
   salesConnected: boolean; salesSource: "native" | "native-and-imported-estimate"; salesMessage: string | null;
   revenueBreakdown: RevenueBreakdown;
+  salesChannels: RevenueChannels | null;
+  todaySales: NativeSalesSummary & { startUtc: string; endUtc: string };
   customerCount: number; subscriptionCount: number; productCount: number; draftProductCount: number;
   recentOrders: AdminOrder[]; inventoryAlerts: InventoryAlert[];
 };
@@ -35,12 +40,34 @@ export const ORDER_PAGE_SIZE = 50;
 const countedStatuses = new Set(["paid", "processing", "fulfilled", "partially_refunded", "refunded"]);
 const SALES_PAGE_SIZE = 500;
 type SalesRow = { id: string; status: string; total_cents: number; refunded_cents: number; tax_cents: number; shipping_cents: number; currency: string; placed_at: string | null; created_at: string; source: string; migration_snapshot: unknown; checkout_attempt_id: string | null; stripe_invoice_id: string | null };
-type SalesWindow = { start: string; end: string };
+export type SalesWindow = { start: string; end: string };
 type SalesResult = { connected: boolean; totalCents: number; orderCount: number; currency: string; message: string | null };
-type NativeSalesResult = SalesResult & { components: RevenueComponents | null; earliestOrderAt: number | null; newStoreProvenance: boolean };
+export type NativeSalesSummary = SalesResult & { components: RevenueComponents | null; channels: RevenueChannels | null };
+export type NativeSalesResult = NativeSalesSummary & { earliestOrderAt: number | null; newStoreProvenance: boolean };
 type HistoricalSalesResult = SalesResult & { components: HistoricalRevenueEstimate | null; latestOrderAt: number | null };
 const HISTORY_PAGE_SIZE = 50;
 const order = (row: OrderRow): AdminOrder => ({ id: row.id, orderNumber: String(row.order_number), customerEmail: row.customer_email || "Guest customer", status: row.status, paymentStatus: row.payment_status, totalCents: Number(row.total_cents), currency: row.currency, placedAt: row.placed_at || row.created_at, source: row.source,contact:nativeOrderContact(row.billing_address,row.shipping_address,row.shipping_method_snapshot) });
+
+const emptyRevenueComponents = (): RevenueComponents => ({
+  merchandiseCents: 0, taxCents: 0, shippingCents: 0, refundsCents: 0, totalCents: 0, orderCount: 0,
+});
+
+/** Channel follows the recorded sales source, never the payment provider or delivery method. */
+function salesChannel(source: string): keyof RevenueChannels {
+  if (source === "pos") return "inStore";
+  if (source === "web" || source === "subscription_renewal" || source === "matcha_subscription") return "online";
+  return "unclassified";
+}
+
+/** Project a native result without treating an unavailable or partial read as zero sales. */
+export function summarizeNativeSales(native: NativeSalesResult): NativeSalesSummary {
+  return {
+    connected: native.connected, totalCents: native.totalCents, orderCount: native.orderCount,
+    currency: native.currency, message: native.message,
+    components: native.connected ? native.components : null,
+    channels: native.connected ? native.channels : null,
+  };
+}
 
 /**
  * Read every settled order in the selected calendar window. PostgREST caps a
@@ -48,8 +75,13 @@ const order = (row: OrderRow): AdminOrder => ({ id: row.id, orderNumber: String(
  */
 export async function loadNativeSales(client: SupabaseClient, window: SalesWindow): Promise<NativeSalesResult> {
   let totalCents = 0, orderCount = 0, merchandiseCents = 0, taxCents = 0, shippingCents = 0, refundsCents = 0;
+  const channels: RevenueChannels = {
+    inStore: emptyRevenueComponents(), online: emptyRevenueComponents(), unclassified: emptyRevenueComponents(),
+  };
   let earliestOrderAt: number | null = null, newStoreProvenance = true;
   try {
+    const start = Date.parse(window.start), end = Date.parse(window.end);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) throw Error("Invalid sales window.");
     for (const clock of ["placed_at", "created_at"] as const) {
       let cursor: string | null = null;
       for (;;) {
@@ -88,6 +120,13 @@ export async function loadNativeSales(client: SupabaseClient, window: SalesWindo
           shippingCents += shipping;
           refundsCents += refunded;
           orderCount += 1;
+          const channel = channels[salesChannel(row.source)];
+          channel.merchandiseCents += charged - tax - shipping;
+          channel.taxCents += tax;
+          channel.shippingCents += shipping;
+          channel.refundsCents += refunded;
+          channel.totalCents += charged - refunded;
+          channel.orderCount += 1;
         }
         if ([totalCents, merchandiseCents, taxCents, shippingCents, refundsCents, orderCount]
           .some(value => !Number.isSafeInteger(value))) throw Error("Sales total is too large.");
@@ -99,11 +138,11 @@ export async function loadNativeSales(client: SupabaseClient, window: SalesWindo
     }
     return { connected: true, totalCents, orderCount, currency: "cad", message: null,
       components: { merchandiseCents, taxCents, shippingCents, refundsCents, totalCents, orderCount },
-      earliestOrderAt, newStoreProvenance };
+      channels, earliestOrderAt, newStoreProvenance };
   } catch {
     return { connected: false, totalCents: 0, orderCount: 0, currency: "cad",
       message: "Sales for this period could not be loaded. Please refresh.", components: null,
-      earliestOrderAt: null, newStoreProvenance: false };
+      channels: null, earliestOrderAt: null, newStoreProvenance: false };
   }
 }
 
@@ -276,11 +315,15 @@ export async function loadOrderPage(client: SupabaseClient, options: { after?: s
   }
 }
 
-export async function loadCommerceOverview(client: SupabaseClient, options: { salesPeriod: string; salesRange: SalesWindow }): Promise<CommerceOverview> {
+export async function loadCommerceOverview(client: SupabaseClient, options: { salesPeriod: string; salesRange: SalesWindow; todayRange: SalesWindow }): Promise<CommerceOverview> {
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
-  const [orders, nativeSales, historicalSales, fulfilment, customers, subscriptions, products, variants] = await Promise.all([
+  const selectedSales = loadNativeSales(client, options.salesRange);
+  const todaySales = options.salesRange.start === options.todayRange.start && options.salesRange.end === options.todayRange.end
+    ? selectedSales : loadNativeSales(client, options.todayRange);
+  const [orders, nativeSales, dailySales, historicalSales, fulfilment, customers, subscriptions, products, variants] = await Promise.all([
     client.from("commerce_orders").select(ORDER_COLUMNS).gte("created_at", since).order("order_number", { ascending: false }).limit(8),
-    loadNativeSales(client, options.salesRange),
+    selectedSales,
+    todaySales,
     historicalRevenuePeriods.has(options.salesPeriod) ? loadHistoricalSalesEstimate(client, options.salesRange) : Promise.resolve(null),
     client.rpc("vf_admin_native_orders_page_v1",{p_after:null,p_order_number:null,p_filter:"to_fulfil",p_limit:1}).abortSignal(AbortSignal.timeout(15000)),
     client.from("commerce_customers").select("id", {count:"exact",head:true}),
@@ -302,6 +345,8 @@ export async function loadCommerceOverview(client: SupabaseClient, options: { sa
     customersConnected:!customers.error,subscriptionsConnected:!subscriptions.error,productsConnected:!products.error,
     ...summarizeSalesPeriod(options.salesPeriod, nativeSales, historicalSales),
     revenueBreakdown: summarizeRevenueBreakdown(options.salesPeriod, nativeSales, historicalSales),
+    salesChannels: nativeSales.connected ? nativeSales.channels : null,
+    todaySales: { ...summarizeNativeSales(dailySales), startUtc: options.todayRange.start, endUtc: options.todayRange.end },
     fulfilmentCount:fulfilment.error||!Number.isSafeInteger(fulfilment.data?.total)||fulfilment.data.total<0?null:fulfilment.data.total,customerCount:customers.count??0,subscriptionCount:subscriptions.count??0,
     productCount:productRows.filter(p=>p.status==="active").length,draftProductCount:productRows.filter(p=>p.status==="draft").length,
     recentOrders:recentRows.map(r=>({...order(r),operation:operations.orders.get("native:"+r.id)})),inventoryAlerts,

@@ -8,6 +8,7 @@ import { SALES_PERIODS, type SalesPeriod } from "@/lib/admin/sales-periods";
 import { productEditorUrl } from "@/lib/admin/store-tools";
 import { AdminTrafficOverview } from "@/components/admin/AdminTrafficOverview";
 import type { TrafficOverview } from "@/lib/admin/traffic";
+import { AdminSalesChannels, AdminTodaySales } from "@/components/admin/AdminSalesChannels";
 
 const storefront = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "https://www.vintagefork.ca";
 
@@ -83,6 +84,8 @@ export function CommerceAdminOverview({ commerce, salesPeriod, traffic }: { comm
         </div>
       )}
 
+      <AdminTodaySales sales={commerce.todaySales} />
+
       <form action="/admin" method="get" className="admin-sales-filter admin-sales-filter-toolbar">
         <input type="hidden" name="trafficPeriod" value={traffic.period} />
         <label htmlFor="admin-sales-period">Sales period</label>
@@ -122,6 +125,8 @@ export function CommerceAdminOverview({ commerce, salesPeriod, traffic }: { comm
           </Link>
         ))}
       </section>
+
+      <AdminSalesChannels commerce={commerce} selectedPeriod={selectedPeriod} />
 
       <AdminTrafficOverview traffic={traffic} salesPeriod={salesPeriod} />
 

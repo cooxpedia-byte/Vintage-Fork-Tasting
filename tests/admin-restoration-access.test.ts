@@ -82,6 +82,7 @@ describe("recovered staff admin access", () => {
     expect(state.overview).toHaveBeenCalledWith(client, {
       salesPeriod: "yesterday",
       salesRange: expect.objectContaining({ start: expect.any(String), end: expect.any(String) }),
+      todayRange: expect.objectContaining({ start: expect.any(String), end: expect.any(String) }),
     });
     expect(view.type).toBe(CommerceAdminOverview);
     expect(state.traffic).toHaveBeenCalledWith(client, "last_week", expect.any(Date));

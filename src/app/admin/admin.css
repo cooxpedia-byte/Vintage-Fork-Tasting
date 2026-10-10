@@ -105,6 +105,22 @@
 .unified-admin .admin-traffic-card p { margin: 0; color: var(--vf-fog); font-size: .72rem; line-height: 1.4; }
 .unified-admin .admin-traffic-unavailable { margin: .5rem 0 0; color: var(--vf-walnut); font-size: .8rem; line-height: 1.5; }
 .unified-admin .admin-revenue-panel { margin-top: 1rem; }
+.unified-admin .admin-today-sales { margin-bottom: 1.4rem; }
+.unified-admin .admin-today-sales .admin-panel-heading { margin-bottom: .45rem; }
+.unified-admin .admin-kpi-grid--today { grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); }
+.unified-admin .admin-today-sales-card { cursor: default; }
+.unified-admin .admin-today-sales-card:hover { transform: none; }
+.unified-admin .admin-today-sales-card p { margin: 0; color: var(--vf-fog); font-size: .78rem; }
+.unified-admin .admin-sales-channels-panel { margin: 1rem 0; min-width: 0; }
+.unified-admin .admin-sales-channel-scroll { overflow-x: auto; }
+.unified-admin .admin-sales-channel-scroll:focus-visible { outline: 2px solid var(--vf-gold); outline-offset: 3px; }
+.unified-admin .admin-sales-channel-table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: .82rem; }
+.unified-admin .admin-sales-channel-table caption { text-align: left; color: var(--vf-fog); padding-bottom: .6rem; font-size: .74rem; }
+.unified-admin .admin-sales-channel-table th,.unified-admin .admin-sales-channel-table td { padding: .65rem .7rem; border-bottom: 1px solid var(--vf-line); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.unified-admin .admin-sales-channel-table th:first-child { text-align: left; padding-left: 0; }
+.unified-admin .admin-sales-channel-table thead th { color: var(--vf-plum-aged); }
+.unified-admin .admin-sales-channel-table tbody th { font-weight: 500; color: var(--vf-walnut); }
+.unified-admin .admin-sales-channel-table .admin-sales-channel-total th,.unified-admin .admin-sales-channel-table .admin-sales-channel-total td { color: var(--vf-plum-aged); font-weight: 850; background: rgba(201,162,39,.08); }
 .unified-admin .admin-revenue-panel .admin-panel-heading { margin-bottom: .45rem; }
 .unified-admin .admin-revenue-intro { margin: 0 0 1.1rem; color: var(--vf-fog); font-size: .82rem; line-height: 1.5; }
 .unified-admin .admin-revenue-sources { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); gap: .85rem; }

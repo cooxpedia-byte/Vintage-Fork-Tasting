@@ -9,6 +9,11 @@ function native(overrides: Partial<Native> = {}): Native {
     connected: true, totalCents: 12345, orderCount: 2, currency: "cad", message: null,
     components: { merchandiseCents: 10000, taxCents: 1000, shippingCents: 450,
       refundsCents: 105, totalCents: 12345, orderCount: 2 },
+    channels: {
+      inStore: { merchandiseCents: 0, taxCents: 0, shippingCents: 0, refundsCents: 0, totalCents: 0, orderCount: 0 },
+      online: { merchandiseCents: 10000, taxCents: 1000, shippingCents: 450, refundsCents: 105, totalCents: 12345, orderCount: 2 },
+      unclassified: { merchandiseCents: 0, taxCents: 0, shippingCents: 0, refundsCents: 0, totalCents: 0, orderCount: 0 },
+    },
     earliestOrderAt: Date.parse("2026-09-01T00:00:00.000Z"), newStoreProvenance: true,
     ...overrides,
   };
