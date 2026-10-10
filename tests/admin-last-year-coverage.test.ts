@@ -26,6 +26,12 @@ function overview(summary: ReturnType<typeof summarizeSalesPeriod>): CommerceOve
     draftProductCount: 0,
     recentOrders: [],
     inventoryAlerts: [],
+    salesChannels: null,
+    todaySales: {
+      connected: false, totalCents: 0, orderCount: 0, currency: "cad", message: null,
+      components: null, channels: null,
+      startUtc: "2026-10-10T06:00:00.000Z", endUtc: "2026-10-10T13:00:00.000Z",
+    },
     revenueBreakdown: {
       native: { merchandiseCents: 0, taxCents: 0, shippingCents: 0,
         refundsCents: 0, totalCents: 0, orderCount: 0 },

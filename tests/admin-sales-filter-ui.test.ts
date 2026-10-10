@@ -2,10 +2,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CommerceAdminOverview } from "@/components/admin/CommerceAdminOverview";
-import type { CommerceOverview } from "@/lib/admin/commerce";
+import type { CommerceOverview, RevenueComponents } from "@/lib/admin/commerce";
 import { unavailableTrafficOverview } from "@/lib/admin/traffic";
 import type { SalesPeriod } from "@/lib/admin/sales-periods";
 
+const empty: RevenueComponents = { merchandiseCents: 0, taxCents: 0, shippingCents: 0, refundsCents: 0, totalCents: 0, orderCount: 0 };
+const daily = { ...empty, merchandiseCents: 7999, taxCents: 400, totalCents: 8399, orderCount: 1 };
 const overview: CommerceOverview = {
   connected: true,
   ordersConnected: true,
@@ -17,8 +19,18 @@ const overview: CommerceOverview = {
   salesSource: "native",
   salesMessage: null,
   netSalesCents: 12345,
+  salesChannels: {
+    inStore: { ...empty, merchandiseCents: 5000, taxCents: 250, totalCents: 5250, orderCount: 1 },
+    online: { ...empty, merchandiseCents: 6000, taxCents: 750, shippingCents: 450, refundsCents: 105, totalCents: 7095, orderCount: 1 },
+    unclassified: empty,
+  },
+  todaySales: {
+    connected: true, totalCents: 8399, orderCount: 1, currency: "cad", message: null,
+    components: daily, channels: { inStore: empty, online: daily, unclassified: empty },
+    startUtc: "2026-10-10T06:00:00.000Z", endUtc: "2026-10-10T13:00:00.000Z",
+  },
   revenueBreakdown: {
-    native: { merchandiseCents: 10000, taxCents: 1000, shippingCents: 450,
+    native: { merchandiseCents: 11000, taxCents: 1000, shippingCents: 450,
       refundsCents: 105, totalCents: 12345, orderCount: 2 },
     historicalEstimate: null, combinedEstimateCents: null,
     historicalRequested: false, message: null,
@@ -39,6 +51,53 @@ function html(commerce: CommerceOverview, salesPeriod: SalesPeriod) {
 }
 
 describe("admin net sales filter", () => {
+  it.each(["yesterday", "last_month", "last_year"] as const)("keeps Today totals visible independently of %s", period => {
+    const output = html(overview, period);
+    const today = output.slice(output.indexOf('class="admin-today-sales"'), output.indexOf('<form class="admin-sales-filter'));
+    expect(today).toContain("Today’s sales");
+    expect(today).toContain("Oct 10, 2026 · Edmonton time");
+    expect(today).toContain('<span>Daily total</span><strong>$83.99</strong>');
+    expect(today).toContain('<span>In-store sales</span><strong>$0.00</strong>');
+    expect(today).toContain('<span>Online sales</span><strong>$83.99</strong>');
+    expect(today).not.toContain("$123.45");
+  });
+
+  it("reconciles channel components and displays refunds once in each channel total", () => {
+    const output = html(overview, "month_to_date");
+    expect(output).toContain('<th scope="col">In-store</th><th scope="col">Online</th><th scope="col">Total</th>');
+    expect(output).toContain('<th scope="row">Less refunds</th><td>$0.00</td><td>-$1.05</td><td>-$1.05</td>');
+    expect(output).toContain('<th scope="row">Net sales, including tax and shipping</th><td>$52.50</td><td>$70.95</td><td>$123.45</td>');
+    expect(output).toContain('<th scope="row">Paid orders</th><td>1</td><td>1</td><td>2</td>');
+    expect(output).not.toContain('<th scope="col">Unclassified</th>');
+  });
+
+  it("shows fully refunded unclassified orders separately instead of hiding them", () => {
+    const unknown = { ...empty, merchandiseCents: 1000, refundsCents: 1000, orderCount: 1 };
+    const output = html({ ...overview,
+      salesChannels: { ...overview.salesChannels!, unclassified: unknown },
+      todaySales: { ...overview.todaySales, channels: { inStore: empty, online: daily, unclassified: unknown } },
+    }, "day");
+    expect(output).toContain('<span>Unclassified sales</span><strong>$0.00</strong>');
+    expect(output).toContain('<th scope="col">Unclassified</th>');
+    expect(output).toContain("They are shown separately and included in the total.");
+  });
+
+  it("hides failed daily figures while retaining the available selected period", () => {
+    const output = html({ ...overview, todaySales: { ...overview.todaySales, connected: false, channels: null, components: null, message: "Daily read unavailable." } }, "month_to_date");
+    expect(output).toContain('<span>Daily total</span><strong>—</strong>');
+    expect(output).toContain('<span>In-store sales</span><strong>—</strong>');
+    expect(output).toContain('<span>Online sales</span><strong>—</strong>');
+    expect(output).toContain("Daily read unavailable.");
+    expect(output).toContain('<span>Net sales</span><strong>$123.45</strong>');
+  });
+
+  it("keeps available daily figures while selected channel data is unavailable", () => {
+    const output = html({ ...overview, salesChannels: null, revenueBreakdown: { ...overview.revenueBreakdown, native: null } }, "last_year");
+    expect(output).toContain('<span>Daily total</span><strong>$83.99</strong>');
+    expect(output).toContain("Sales by channel are temporarily unavailable for this period.");
+    expect(output).toContain("New-store sales · Last year");
+  });
+
   it("offers all eight sales periods and marks the current selection", () => {
     const output = html(overview, "month_to_date");
     expect(output).toContain('<form class="admin-sales-filter admin-sales-filter-toolbar" action="/admin" method="get"');

@@ -18,7 +18,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
   const salesPeriod = parseSalesPeriod(params?.salesPeriod);
   const now = new Date();
   const [commerce, traffic] = await Promise.all([
-    loadCommerceOverview(client, { salesPeriod, salesRange: salesPeriodRange(salesPeriod, now) }),
+    loadCommerceOverview(client, { salesPeriod, salesRange: salesPeriodRange(salesPeriod, now), todayRange: salesPeriodRange("day", now) }),
     loadTrafficOverview(client, parseTrafficPeriod(params?.trafficPeriod), now),
   ]);
   return <CommerceAdminOverview commerce={commerce} salesPeriod={salesPeriod} traffic={traffic} />;
