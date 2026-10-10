@@ -120,7 +120,7 @@ export async function loadNativeOrderDetail(
     if (orderResult.error) return { state:"error",message:ERROR_MESSAGE };
     if (!orderResult.data) return { state:"not_found" };
     const source = (orderResult.data as OrderRow).source;
-    if (source!=="web" && source!=="subscription_renewal" && source!=="matcha_subscription")
+    if (source!=="web" && source!=="pos" && source!=="subscription_renewal" && source!=="matcha_subscription")
       return { state:"not_found" };
     if ((orderResult.data as OrderRow).id!==id) return { state:"error",message:ERROR_MESSAGE };
     // Both subscription paths save verified invoice orders. Keep incomplete

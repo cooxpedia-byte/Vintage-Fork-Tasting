@@ -7,6 +7,7 @@ export type OrderOperation = {
   sourceStatus: string | null; sourceVersion: string;
   staleOverlay?:boolean;reviewReason?:string|null;
   allowedTargets: EditableOrderStatus[];
+  fulfillmentReferenceRequired?: boolean;
 };
 export const editableStatuses: EditableOrderStatus[] = ["processing", "on_hold", "completed"];
 export const orderFilters = ["all","processing","on_hold","failed","completed","pending","cancelled","refunded","partially_refunded"] as const;
@@ -42,10 +43,11 @@ export function parseOrderOperations(value: unknown, refs: Array<{kind:OrderKind
       ||!Array.isArray(r.allowedTargets)||r.allowedTargets.length>3||new Set(r.allowedTargets).size!==r.allowedTargets.length
       ||r.allowedTargets.some(t=>!editableStatuses.includes(t)))return fail();
     if(r.staleOverlay!==undefined&&typeof r.staleOverlay!=="boolean")return fail();
+    if(r.fulfillmentReferenceRequired!==undefined&&typeof r.fulfillmentReferenceRequired!=="boolean")return fail();
     if(r.reviewReason!==undefined&&r.reviewReason!==null&&r.reviewReason!=="source_changed"&&r.reviewReason!=="not_actionable")return fail();
     if(r.staleOverlay===true&&r.allowedTargets.length)return fail();
     orders.set(key,{kind:r.kind,orderId:r.orderId as string,status:r.status,revision:r.revision as number,
-      sourceStatus:r.sourceStatus as string|null,sourceVersion:r.sourceVersion,allowedTargets:r.allowedTargets as EditableOrderStatus[],staleOverlay:r.staleOverlay===true,reviewReason:r.reviewReason as string|null|undefined});
+      sourceStatus:r.sourceStatus as string|null,sourceVersion:r.sourceVersion,allowedTargets:r.allowedTargets as EditableOrderStatus[],fulfillmentReferenceRequired:r.fulfillmentReferenceRequired===true,staleOverlay:r.staleOverlay===true,reviewReason:r.reviewReason as string|null|undefined});
   }
   return orders;
 }

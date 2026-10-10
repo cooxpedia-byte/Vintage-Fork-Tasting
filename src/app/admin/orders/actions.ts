@@ -11,14 +11,18 @@ export async function changeOrderStatus(_previous:OrderActionResult,form:FormDat
   const client=await authorizedCommerceClient(staff.user.id);
   if(!client)return {ok:false,message:"Reconnect your store administrator account before changing orders."};
   const kind=form.get("kind"),id=form.get("orderId"),target=form.get("status"),revision=form.get("revision"),sourceVersion=form.get("sourceVersion"),operation=form.get("operationId"),reason=form.get("reason");
+  const reference=form.get("fulfillmentReference");
+  const fulfillmentReference=typeof reference==="string"?reference.trim():reference===null?"":null;
   if(!validOrderRef(kind,id)||typeof target!=="string"||!editableStatuses.includes(target as EditableOrderStatus)
     ||typeof revision!=="string"||!/^(0|[1-9][0-9]{0,14})$/.test(revision)||!Number.isSafeInteger(Number(revision))
     ||typeof operation!=="string"||!validOrderRef("native",operation)
     ||typeof sourceVersion!=="string"||!/^[a-f0-9]{64}$/.test(sourceVersion)
     ||typeof reason!=="string"||reason.trim().length>500||(reason.trim().length>0&&reason.trim().length<3)||form.get("confirmed")!=="yes")return {ok:false,message:"Review the order and confirm a valid status change. An optional note must contain at least 3 characters."};
+  if(fulfillmentReference===null||fulfillmentReference.length>200||(fulfillmentReference.length>0&&(fulfillmentReference.length<3||target!=="completed")))return {ok:false,message:"A fulfillment reference must contain 3 to 200 characters and can only be recorded when completing an order."};
   try {
-    const result=await client.rpc("vf_admin_set_order_status_v1",{
+    const result=await client.rpc("vf_admin_set_order_status_v2",{
       p_order_kind:kind,p_order_id:id,p_target_status:target,p_expected_revision:Number(revision),p_expected_source_version:sourceVersion,p_operation_id:operation,p_reason:reason.trim()||null,
+      p_fulfillment_reference:fulfillmentReference||null,
     }).abortSignal(AbortSignal.timeout(15000));
     if(result.error)return {ok:false,message:result.error.code==="40001"
       ? "This order changed since you opened it. Refresh and review its current status."

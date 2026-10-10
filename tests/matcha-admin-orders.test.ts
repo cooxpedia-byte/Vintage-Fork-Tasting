@@ -1,15 +1,21 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { loadOrderPage } from "@/lib/admin/commerce";
 import { loadOrderOperations } from "@/lib/admin/order-operations";
 import { loadOrderEmailStatuses } from "@/lib/admin/order-email-status";
 import { loadCustomerOrderNotes } from "@/lib/admin/customer-order-notes";
 import { loadPrivateOrderNotes } from "@/lib/admin/private-order-notes";
+import { OrderStatusControl } from "@/components/admin/OrderStatusControl";
+import type { OrderOperation } from "@/lib/admin/order-operations";
+vi.mock("@/app/admin/orders/actions",()=>({changeOrderStatus:vi.fn()}));
 
 const id = "10000000-0000-4000-8000-000000000001";
 const refs = [{ kind: "native" as const, orderId: id }];
-const operation = { ...refs[0], status: "processing", revision: 0, sourceStatus: "paid",
-  sourceVersion: "a".repeat(64), allowedTargets: [], staleOverlay: false, reviewReason: "not_actionable" };
+const operation:OrderOperation = { ...refs[0], status: "processing", revision: 0, sourceStatus: "paid",
+  sourceVersion: "a".repeat(64), allowedTargets: ["on_hold","completed"], staleOverlay: false,
+  reviewReason: null,fulfillmentReferenceRequired:true };
 const noteContext = { ...refs[0], orderNumber: "10008", notes: [], hasMore: false };
 const notification = { ...refs[0], orderNumber: "10008", eventType: "customer_order_confirmed",
   recipientKind: "customer", status: "pending", createdAt: "2026-10-08T20:00:00Z", sentAt: null,
@@ -21,7 +27,7 @@ function client(responses: Record<string, unknown>) {
 }
 
 describe("Matcha native admin contracts", () => {
-  it("keeps saved Matcha orders in the native list without offering generic fulfillment changes", async () => {
+  it("renders completion in list and detail when Matcha server authority permits it", async () => {
     const c = client({ vf_admin_native_orders_page_v1: { rows: [{ id, order_number: "10008",
       customer_email: "matcha@example.test", status: "paid", payment_status: "paid", total_cents: 2900,
       refunded_cents: 0, currency: "cad", placed_at: "2026-10-08T20:00:00Z", created_at: "2026-10-08T20:00:00Z",
@@ -31,13 +37,62 @@ describe("Matcha native admin contracts", () => {
     const page = await loadOrderPage(c.fake);
     expect(page.connected).toBe(true);
     expect(page.orders).toMatchObject([{ id, source: "matcha_subscription", orderNumber: "10008",
-      totalCents: 2900, operation: { allowedTargets: [], reviewReason: "not_actionable" } }]);
+      totalCents: 2900, operation: { allowedTargets: ["on_hold","completed"], reviewReason: null,
+        fulfillmentReferenceRequired:true } }]);
     const controls = await loadOrderOperations(c.fake, refs);
     expect(controls.error).toBeNull();
-    expect(controls.orders.get("native:" + id)?.allowedTargets).toEqual([]);
+    expect(controls.orders.get("native:" + id)).toMatchObject({allowedTargets:["on_hold","completed"],
+      fulfillmentReferenceRequired:true});
+    const html=renderToStaticMarkup(createElement(OrderStatusControl,{order:controls.orders.get("native:"+id)!,number:"10008"}));
+    expect(html).toContain("Change status");
+    expect(html).toContain("Mark completed");
     expect(c.rpc.mock.calls.map(([name]) => name)).toEqual([
       "vf_admin_native_orders_page_v1", "vf_admin_order_operations_v1",
     ]);
+  });
+
+  it.each([
+    ["web","stripe",false],
+    ["pos","cash",false],
+    ["pos","stripe",false],
+    ["subscription_renewal","stripe",false],
+    ["matcha_subscription","stripe",true],
+  ] as const)("renders the same completion control for server-authorized %s/%s fixtures",async(source,paymentProvider,required)=>{
+    const controls={...operation,fulfillmentReferenceRequired:required};
+    const c=client({vf_admin_native_orders_page_v1:{rows:[{id,order_number:"10008",
+      customer_email:null,status:"paid",payment_status:"paid",payment_provider:paymentProvider,total_cents:2900,
+      refunded_cents:0,currency:"cad",placed_at:"2026-10-08T20:00:00Z",created_at:"2026-10-08T20:00:00Z",
+      source,billing_address:{},shipping_address:{},shipping_method_snapshot:"Local pickup",operation:controls}],
+      total:1,nextCursor:null}});
+    const page=await loadOrderPage(c.fake);
+    expect(page.connected).toBe(true);
+    expect(page.orders[0]).toMatchObject({source,operation:{allowedTargets:["on_hold","completed"],
+      fulfillmentReferenceRequired:required}});
+    const html=renderToStaticMarkup(createElement(OrderStatusControl,{order:page.orders[0].operation!,number:"10008"}));
+    expect(html).toContain("Change status");
+    expect(html).toContain("Mark completed");
+  });
+
+  it("offers other permitted changes without exposing completion when it is not authorized",()=>{
+    const html=renderToStaticMarkup(createElement(OrderStatusControl,{order:{...operation,allowedTargets:["on_hold"]},number:"10008"}));
+    expect(html).toContain("Change status");
+    expect(html).not.toContain("Mark completed");
+  });
+
+  it.each([
+    {allowedTargets:[],reviewReason:"not_actionable"},
+    {allowedTargets:[],staleOverlay:true,reviewReason:"source_changed"},
+    {allowedTargets:[],status:"completed",sourceStatus:"fulfilled",revision:1},
+  ])("does not manufacture a completion button when server authority refuses it %#",async(change)=>{
+    const denied={...operation,...change};
+    const c=client({vf_admin_order_operations_v1:{orders:[denied],operational:true}});
+    const controls=await loadOrderOperations(c.fake,refs);
+    expect(controls.error).toBeNull();
+    expect(controls.orders.get("native:"+id)?.allowedTargets).toEqual([]);
+    const html=renderToStaticMarkup(createElement(OrderStatusControl,{order:controls.orders.get("native:"+id)!,number:"10008"}));
+    expect(html).not.toContain("Change status");
+    expect(html).not.toContain("Mark completed");
+    expect(html).not.toContain("Save status");
   });
 
   it("reads queued confirmations and both note panels through the exact native order reference", async () => {

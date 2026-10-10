@@ -7,16 +7,19 @@ import { editableStatusLabels, type OrderOperation, type EditableOrderStatus } f
 export function OrderStatusControl({order,number}:{order:OrderOperation;number:string}) {
   const [open,setOpen]=useState(false);
   const [operation,setOperation]=useState("");
+  const [initialTarget,setInitialTarget]=useState<EditableOrderStatus|"">("");
   if(!order.allowedTargets.length)return null;
   return <div className="admin-order-status-control">
-    {!open?<button type="button" className="btn btn-secondary" onClick={()=>{setOperation(crypto.randomUUID());setOpen(true);}}>Change status</button>:
-      <StatusForm key={operation} order={order} number={number} operation={operation} close={()=>setOpen(false)}/>}
+    {!open?<div className="admin-order-action-buttons">
+      {order.allowedTargets.includes("completed")&&<button type="button" className="btn btn-gold" onClick={()=>{setInitialTarget("completed");setOperation(crypto.randomUUID());setOpen(true);}}>Mark completed</button>}
+      <button type="button" className="btn btn-secondary" onClick={()=>{setInitialTarget("");setOperation(crypto.randomUUID());setOpen(true);}}>Change status</button>
+    </div>:<StatusForm key={operation} order={order} number={number} operation={operation} initialTarget={initialTarget} close={()=>setOpen(false)}/>}
   </div>;
 }
 
-function StatusForm({order,number,operation,close}:{order:OrderOperation;number:string;operation:string;close:()=>void}) {
+function StatusForm({order,number,operation,initialTarget,close}:{order:OrderOperation;number:string;operation:string;initialTarget:EditableOrderStatus|"";close:()=>void}) {
   const fieldId=useId();
-  const [target,setTarget]=useState<EditableOrderStatus|"">("");
+  const [target,setTarget]=useState<EditableOrderStatus|"">(initialTarget);
   const [result,action,pending]=useActionState(changeOrderStatus,{ok:false,message:""});
   return <form action={action} className="admin-order-action-form" aria-label={`Change status for order ${number}`}>
         <input type="hidden" name="kind" value={order.kind}/><input type="hidden" name="orderId" value={order.orderId}/>
@@ -27,6 +30,11 @@ function StatusForm({order,number,operation,close}:{order:OrderOperation;number:
           <option value="" disabled>Choose a status</option>
           {order.allowedTargets.map(s=><option key={s} value={s}>{editableStatusLabels[s]}</option>)}
         </select>
+        {target==="completed"&&<>
+          <label htmlFor={fieldId+"-reference"}>Fulfillment reference{order.fulfillmentReferenceRequired?"":" (optional)"}</label>
+          <input id={fieldId+"-reference"} name="fulfillmentReference" minLength={3} maxLength={200} required={order.fulfillmentReferenceRequired} disabled={pending||result.ok} aria-describedby={fieldId+"-reference-help"}/>
+          <p id={fieldId+"-reference-help"}>Record a delivery, shipment or pickup reference, such as a tracking number or pickup date.</p>
+        </>}
         <label htmlFor={fieldId+"-reason"}>Internal note (optional)</label>
         <input id={fieldId+"-reason"} name="reason" minLength={3} maxLength={500} disabled={pending||result.ok}/>
         <label className="admin-order-confirm"><input key={target} name="confirmed" type="checkbox" value="yes" required disabled={pending||result.ok||!target}/>

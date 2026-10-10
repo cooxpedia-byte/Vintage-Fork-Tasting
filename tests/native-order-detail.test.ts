@@ -80,6 +80,25 @@ describe("loadNativeOrderDetail",()=>{
       .resolves.toMatchObject({state:"error"});
   });
 
+  it.each(["cash", "stripe"])
+  ("opens a saved %s POS purchase through the same native order detail",async(paymentProvider)=>{
+    const pos={...row,source:"pos",payment_provider:paymentProvider,customer_email:null,
+      shipping_method_snapshot:"In store",stripe_subscription_id:null,stripe_invoice_id:null};
+    const c=client({data:pos,error:null},{data:[item],count:1,error:null});
+    await expect(loadNativeOrderDetail(c.fake,ID)).resolves.toMatchObject({state:"ready",order:{
+      id:ID,source:"pos",paymentProvider,customerEmail:null,totalCents:row.total_cents,
+      stripeSubscriptionId:null,stripeInvoiceId:null,items:[{id:item.id,fulfillmentStatus:"unfulfilled"}],
+    }});
+    expect(c.calls.map(call=>call.table)).toEqual(["commerce_orders","commerce_order_items"]);
+  });
+
+  it.each(["legacy", "imported", "matcha_subscription_invoice", "unknown"])
+  ("does not treat an unrecognized %s source as a native purchase",async(source)=>{
+    const c=client({data:{...row,source},error:null},{data:[item],count:1,error:null});
+    await expect(loadNativeOrderDetail(c.fake,ID)).resolves.toEqual({state:"not_found"});
+    expect(c.calls).toHaveLength(1);
+  });
+
   it.each(["paid","fulfilled","partially_refunded","refunded"])
   ("loads a saved Matcha invoice order with %s status",async(status)=>{
     const matcha={...row,source:"matcha_subscription",payment_provider:"stripe",status,
