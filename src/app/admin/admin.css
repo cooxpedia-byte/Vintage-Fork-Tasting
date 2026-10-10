@@ -118,8 +118,9 @@
 .unified-admin .admin-sales-channel-table caption { text-align: left; color: var(--vf-fog); padding-bottom: .6rem; font-size: .74rem; }
 .unified-admin .admin-sales-channel-table th,.unified-admin .admin-sales-channel-table td { padding: .65rem .7rem; border-bottom: 1px solid var(--vf-line); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .unified-admin .admin-sales-channel-table th:first-child { text-align: left; padding-left: 0; }
-.unified-admin .admin-sales-channel-table thead th { color: var(--vf-plum-aged); }
-.unified-admin .admin-sales-channel-table tbody th { font-weight: 500; color: var(--vf-walnut); }
+.unified-admin .admin-sales-channel-table th { background: transparent; }
+.unified-admin .admin-sales-channel-table thead th { color: var(--vf-plum-aged); background: rgba(113,127,83,.12); }
+.unified-admin .admin-sales-channel-table tbody th { font-size: inherit; letter-spacing: normal; text-transform: none; font-weight: 500; color: var(--vf-walnut); }
 .unified-admin .admin-sales-channel-table .admin-sales-channel-total th,.unified-admin .admin-sales-channel-table .admin-sales-channel-total td { color: var(--vf-plum-aged); font-weight: 850; background: rgba(201,162,39,.08); }
 .unified-admin .admin-revenue-panel .admin-panel-heading { margin-bottom: .45rem; }
 .unified-admin .admin-revenue-intro { margin: 0 0 1.1rem; color: var(--vf-fog); font-size: .82rem; line-height: 1.5; }
