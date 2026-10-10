@@ -44,6 +44,13 @@ const checks = [
     ).limit(0)
   },
   {
+    surface: "live_events_hub",
+    query: () => supabase.from("participants").select(`
+      status,
+      event:events!participants_event_id_fkey!inner(id,title,starts_at,timezone,location_mode,status,invite_code,venue_name)
+    `).limit(0)
+  },
+  {
     surface: "customer_dashboard",
     query: () => supabase.from("participants").select(`
       id,event_id,user_id,status,
@@ -74,4 +81,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("Dashboard contract passed for admin, host, guest, and customer surfaces.");
+console.log("Dashboard contract passed for admin, host, guest, customer, and Live Events surfaces.");
