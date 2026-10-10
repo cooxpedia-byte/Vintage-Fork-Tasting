@@ -28,7 +28,7 @@ export function AdminTodaySales({ sales }: { sales: CommerceOverview["todaySales
           <article className="admin-kpi-card admin-today-sales-card" key={card.label}>
             <span>{card.label}</span>
             <strong>{available && card.total !== undefined ? money(card.total, sales.currency) : "—"}</strong>
-            <small>{available ? `${card.orders?.toLocaleString("en-CA")} paid orders · Today` : "Today · Sales unavailable"}</small>
+            <small>{available ? `${card.orders?.toLocaleString("en-CA")} paid ${card.orders === 1 ? "order" : "orders"} · Today` : "Today · Sales unavailable"}</small>
             <p>{card.detail}</p>
           </article>
         ))}
