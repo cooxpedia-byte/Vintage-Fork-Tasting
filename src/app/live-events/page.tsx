@@ -26,7 +26,7 @@ export default async function LiveEventsPage() {
   const supabase = await createClient();
   const { data, error } = await supabase.from("participants").select(`
     status,
-    event:events!inner(id,title,starts_at,timezone,location_mode,status,invite_code,venue_name)
+    event:events!participants_event_id_fkey!inner(id,title,starts_at,timezone,location_mode,status,invite_code,venue_name)
   `).eq("user_id", user.id).order("created_at", { ascending: false });
 
   if (error) {
