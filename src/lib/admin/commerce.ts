@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { historicalOrderPage } from "./historical-orders";
 import { nativeOrderContact, type OrderContact } from "./order-contact";
 import { orderFilter, parseOrderOperations, loadOrderOperations, type OrderOperation } from "./order-operations";
+import { loadSavedPosOrderContacts, withSavedPosOrderContact, type SavedPosOrderContact } from "./pos-order-contacts";
 
 export type AdminOrder = { id: string; orderNumber: string; customerEmail: string; status: string; paymentStatus: string | null; totalCents: number; currency: string; placedAt: string; source: string; contact:OrderContact;operation?:OrderOperation };
 export type InventoryAlert = { id: string; productName: string; variantLabel: string; sku: string; quantity: number; threshold: number };
@@ -46,7 +47,7 @@ export type NativeSalesSummary = SalesResult & { components: RevenueComponents |
 export type NativeSalesResult = NativeSalesSummary & { earliestOrderAt: number | null; newStoreProvenance: boolean };
 type HistoricalSalesResult = SalesResult & { components: HistoricalRevenueEstimate | null; latestOrderAt: number | null };
 const HISTORY_PAGE_SIZE = 50;
-const order = (row: OrderRow): AdminOrder => ({ id: row.id, orderNumber: String(row.order_number), customerEmail: row.customer_email || "Guest customer", status: row.status, paymentStatus: row.payment_status, totalCents: Number(row.total_cents), currency: row.currency, placedAt: row.placed_at || row.created_at, source: row.source,contact:nativeOrderContact(row.billing_address,row.shipping_address,row.shipping_method_snapshot) });
+const order = (row: OrderRow,saved?:SavedPosOrderContact): AdminOrder => ({ id: row.id, orderNumber: String(row.order_number), customerEmail: row.customer_email || saved?.email || "Guest customer", status: row.status, paymentStatus: row.payment_status, totalCents: Number(row.total_cents), currency: row.currency, placedAt: row.placed_at || row.created_at, source: row.source,contact:withSavedPosOrderContact(nativeOrderContact(row.billing_address,row.shipping_address,row.shipping_method_snapshot),saved) });
 
 const emptyRevenueComponents = (): RevenueComponents => ({
   merchandiseCents: 0, taxCents: 0, shippingCents: 0, refundsCents: 0, totalCents: 0, orderCount: 0,
@@ -309,7 +310,9 @@ export async function loadOrderPage(client: SupabaseClient, options: { after?: s
     }
     const next=orderCursor(data.nextCursor??undefined);
     if(next&&(!rows.length||next!==prior))throw Error("Invalid next page.");
-    return {connected:true,orders:rows.map(r=>({...order(r),operation:operations.get("native:"+r.id)})),nextCursor:next,total:data.total,error:null};
+    const contacts=await loadSavedPosOrderContacts(client,rows);
+    if(contacts.error)throw Error("Saved contacts unavailable.");
+    return {connected:true,orders:rows.map(r=>({...order(r,contacts.contacts.get(r.id)),operation:operations.get("native:"+r.id)})),nextCursor:next,total:data.total,error:null};
   } catch {
     return { connected: false, orders: [], nextCursor: null, total: null, error: "The order connection is temporarily unavailable. Please refresh." };
   }
@@ -333,7 +336,10 @@ export async function loadCommerceOverview(client: SupabaseClient, options: { sa
   ]);
   const rows = (orders.data || []) as OrderRow[];
   const recentRows = rows;
-  const operations = await loadOrderOperations(client,recentRows.map(r=>({kind:"native",orderId:r.id})));
+  const [operations,contacts] = await Promise.all([
+    loadOrderOperations(client,recentRows.map(r=>({kind:"native",orderId:r.id}))),
+    loadSavedPosOrderContacts(client,recentRows),
+  ]);
   const productRows = (products.data || []) as {id:string;name:string;status:string}[];
   const names = new Map(productRows.map(p=>[p.id,p.name]));
   const inventoryAlerts = ((variants.data || []) as {id:string;product_id:string;sku:string;label:string;inventory_quantity:number|null;low_stock_threshold:number|null}[])
@@ -341,7 +347,7 @@ export async function loadCommerceOverview(client: SupabaseClient, options: { sa
     .map(v=>({id:v.id,productName:names.get(v.product_id)||"Product",variantLabel:v.label,sku:v.sku,quantity:v.inventory_quantity!,threshold:v.low_stock_threshold??5}))
     .sort((a,b)=>a.quantity-b.quantity).slice(0,8);
   return {
-    connected:!orders.error, ordersConnected:!orders.error&&!operations.error, inventoryConnected:!variants.error&&!products.error,
+    connected:!orders.error, ordersConnected:!orders.error&&!operations.error&&!contacts.error, inventoryConnected:!variants.error&&!products.error,
     customersConnected:!customers.error,subscriptionsConnected:!subscriptions.error,productsConnected:!products.error,
     ...summarizeSalesPeriod(options.salesPeriod, nativeSales, historicalSales),
     revenueBreakdown: summarizeRevenueBreakdown(options.salesPeriod, nativeSales, historicalSales),
@@ -349,6 +355,6 @@ export async function loadCommerceOverview(client: SupabaseClient, options: { sa
     todaySales: { ...summarizeNativeSales(dailySales), startUtc: options.todayRange.start, endUtc: options.todayRange.end },
     fulfilmentCount:fulfilment.error||!Number.isSafeInteger(fulfilment.data?.total)||fulfilment.data.total<0?null:fulfilment.data.total,customerCount:customers.count??0,subscriptionCount:subscriptions.count??0,
     productCount:productRows.filter(p=>p.status==="active").length,draftProductCount:productRows.filter(p=>p.status==="draft").length,
-    recentOrders:recentRows.map(r=>({...order(r),operation:operations.orders.get("native:"+r.id)})),inventoryAlerts,
+    recentOrders:recentRows.map(r=>({...order(r,contacts.contacts.get(r.id)),operation:operations.orders.get("native:"+r.id)})),inventoryAlerts,
   };
 }

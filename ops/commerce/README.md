@@ -31,3 +31,13 @@ npm test -- tests/native-order-detail.test.ts tests/matcha-admin-orders.test.ts 
 `tests/matcha-admin-orders-v1.sql` is a destructive fixture for an **empty disposable local database only**. It creates synthetic tables, roles and the existing context helper, applies the patch twice, and checks authorization, saved recipients, recipient/version changes, unknown sources, unchanged web/renewal/imported results, and unchanged function metadata. Run it through `psql -v ON_ERROR_STOP=1 -f ops/commerce/tests/matcha-admin-orders-v1.sql` using an explicitly selected local socket and test database. Never run this fixture against the commerce or tasting database.
 
 After the positive fixture, run `tests/matcha-admin-orders-changed-gate.sql` in that same local database, then run the patch again with `ON_ERROR_STOP=1`. This rejection test must exit nonzero with `VF_MATCHA_NOTE_SOURCE_GATE_CHANGED`, preserving the unexpected helper definition rather than replacing it.
+
+## Saved POS customer contact
+
+`pos-order-contacts-v1.sql` adds the owner-only `vf_admin_pos_order_contacts_v1(uuid[])` reader for the overview, New purchases list and native order detail. Apply it separately as `postgres` to the **commerce** project before deploying the dashboard reader. It uses the existing owner authorization and grants execution only to `authenticated`; checkout attempts gain no table access.
+
+The reader returns only the saved name and email from a POS attempt whose numeric `posCustomerSnapshotVersion` equals `1`. It binds the order's checkout attempt and commerce customer to the same saved profile. Guest, legacy/unmarked, other-source and mismatched records produce no fallback. It does not read current profile names, expose birthday fields, change orders or touch payment guards. Existing saved order contact fields retain precedence. An unavailable protected read shows the order connection as unavailable instead of silently labeling a linked customer as a guest.
+
+The storefront's reviewed POS contact snapshot trigger must be installed first. Historical POS orders without this preparation-time marker remain unchanged; this reader does not backfill them.
+
+Local application regressions: `npm test -- tests/pos-order-contacts.test.ts tests/native-order-detail.test.ts tests/matcha-admin-orders.test.ts tests/admin-sales-aggregation.test.ts`.
