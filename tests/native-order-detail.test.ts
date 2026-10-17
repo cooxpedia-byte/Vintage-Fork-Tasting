@@ -18,7 +18,7 @@ const item={id:"20000000-0000-4000-8000-000000000001",name_snapshot:"Tea tin",
 
 function client(orderResult:unknown,itemResult:unknown) {
   const calls:{table:string;select?:string;selectOptions?:unknown;eq?:unknown[];orders?:unknown[][]}[]=[];
-  const fake={from(table:string){const call: {table:string;select?:string;selectOptions?:unknown;eq?:unknown[];orders:unknown[][]}={table,orders:[]};calls.push(call);
+  const fake={rpc:()=>({abortSignal:async()=>({data:{contacts:[]},error:null})}),from(table:string){const call: {table:string;select?:string;selectOptions?:unknown;eq?:unknown[];orders:unknown[][]}={table,orders:[]};calls.push(call);
     const result=table==="commerce_orders"?orderResult:itemResult;
     const builder:Query={select(columns:string,options?:unknown){call.select=columns;call.selectOptions=options;return builder;},
       eq(column:string,value:string){call.eq=[column,value];return builder;},

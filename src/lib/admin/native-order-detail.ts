@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { nativeOrderContact, type OrderContact } from "./order-contact";
+import { loadSavedPosOrderContacts, withSavedPosOrderContact, type SavedPosOrderContact } from "./pos-order-contacts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const NATIVE_ORDER_DETAIL_COLUMNS = "id,order_number::text,customer_email,status,payment_status,payment_provider,currency,subtotal_cents,discount_cents,shipping_cents,tax_cents,total_cents,refunded_cents,placed_at,created_at,source,stripe_subscription_id,stripe_invoice_id,billing_address,shipping_address,shipping_method_snapshot";
@@ -90,11 +91,11 @@ function mapItem(row: ItemRow): NativeOrderItem {
   };
 }
 
-function mapOrder(row: OrderRow, items: NativeOrderItem[]): NativeOrderDetail {
+function mapOrder(row: OrderRow, items: NativeOrderItem[], saved?:SavedPosOrderContact): NativeOrderDetail {
   const createdAt = timestamp(row.created_at), placedAt = row.placed_at===null?createdAt:timestamp(row.placed_at);
   return {
     id: requiredText(row.id), orderNumber: orderNumber(row.order_number),
-    customerEmail: optionalText(row.customer_email), status: requiredText(row.status),
+    customerEmail: optionalText(row.customer_email) || saved?.email || null, status: requiredText(row.status),
     paymentStatus: optionalText(row.payment_status), paymentProvider: requiredText(row.payment_provider),
     currency: currency(row.currency), subtotalCents: cents(row.subtotal_cents),
     discountCents: cents(row.discount_cents), shippingCents: cents(row.shipping_cents),
@@ -103,7 +104,7 @@ function mapOrder(row: OrderRow, items: NativeOrderItem[]): NativeOrderDetail {
     createdAt, source: requiredText(row.source),
     stripeSubscriptionId: optionalText(row.stripe_subscription_id),
     stripeInvoiceId: optionalText(row.stripe_invoice_id),
-    contact: nativeOrderContact(row.billing_address,row.shipping_address,row.shipping_method_snapshot),
+    contact: withSavedPosOrderContact(nativeOrderContact(row.billing_address,row.shipping_address,row.shipping_method_snapshot),saved),
     shippingMethod: optionalText(row.shipping_method_snapshot), items,
   };
 }
@@ -139,7 +140,9 @@ export async function loadNativeOrderDetail(
       const items=(itemResult.data as ItemRow[]).map(mapItem);
       if (new Set(items.map(item=>item.id)).size!==items.length || items.some(item=>!UUID.test(item.id)))
         throw new Error("malformed");
-      return { state:"ready",order:mapOrder(orderResult.data as OrderRow,items) };
+      const contacts=await loadSavedPosOrderContacts(client,[{id,source}]);
+      if(contacts.error)return {state:"error",message:ERROR_MESSAGE};
+      return { state:"ready",order:mapOrder(orderResult.data as OrderRow,items,contacts.contacts.get(id)) };
     } catch {
       return { state:"error",message:ERROR_MESSAGE };
     }

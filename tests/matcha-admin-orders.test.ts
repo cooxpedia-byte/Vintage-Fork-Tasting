@@ -22,7 +22,7 @@ const notification = { ...refs[0], orderNumber: "10008", eventType: "customer_or
   errorCode: null, uncertaintyCode: null, blockCode: null };
 
 function client(responses: Record<string, unknown>) {
-  const rpc = vi.fn((name: string) => ({ abortSignal: vi.fn().mockResolvedValue({ data: responses[name], error: null }) }));
+  const rpc = vi.fn((name: string) => ({ abortSignal: vi.fn().mockResolvedValue({ data: responses[name] ?? (name==="vf_admin_pos_order_contacts_v1"?{contacts:[]}:undefined), error: null }) }));
   return { fake: { rpc } as unknown as SupabaseClient, rpc };
 }
 
